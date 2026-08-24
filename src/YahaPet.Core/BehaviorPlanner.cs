@@ -4,10 +4,7 @@ namespace YahaPet.Core;
 /// takes an IRandomSource explicitly so callers can test with fixed roll sequences.
 public static partial class BehaviorPlanner
 {
-    /// Corrected weighted roll (jump 10% / walk 40% / other 45% / no-op 5%).
-    /// ponytail: the shipped Python original has `roll <= 100` (always true for a
-    /// 0-99 roll), so it only ever jumps autonomously — deliberately not reproduced,
-    /// see spec User Story 8a.
+    /// Weighted roll (jump 10% / walk 35% / talk 15% / other 35% / no-op 5%).
     public static AutonomousAction ChooseAutonomousAction(IReadOnlyList<string> otherAnimationNames, IRandomSource random, bool allowJump = true)
     {
         int roll = random.Next(0, 100);
@@ -15,7 +12,8 @@ public static partial class BehaviorPlanner
         {
             return allowJump ? new AutonomousAction(AutonomousActionKind.Jump) : new AutonomousAction(AutonomousActionKind.NoOp);
         }
-        if (roll < 50) return new AutonomousAction(AutonomousActionKind.Walk);
+        if (roll < 45) return new AutonomousAction(AutonomousActionKind.Walk);
+        if (roll < 60) return new AutonomousAction(AutonomousActionKind.Talk);
         if (roll < 95)
         {
             if (otherAnimationNames.Count == 0) return new AutonomousAction(AutonomousActionKind.NoOp);

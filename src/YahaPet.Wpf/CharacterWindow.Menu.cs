@@ -47,6 +47,26 @@ public partial class CharacterWindow
         randomJumpItem.Click += (_, _) => SetJumpEnabled(randomJumpItem.IsChecked);
         contextMenu.Items.Add(randomJumpItem);
 
+        var alwaysShowBubbleItem = new MenuItem
+        {
+            Header = "永久顯示對話框",
+            IsCheckable = true,
+            IsChecked = _alwaysShowBubble
+        };
+        alwaysShowBubbleItem.Click += (_, _) => SetAlwaysShowBubble(alwaysShowBubbleItem.IsChecked);
+        contextMenu.Items.Add(alwaysShowBubbleItem);
+
+        var setQuoteItem = new MenuItem { Header = "設定對話文字..." };
+        setQuoteItem.Click += (_, _) =>
+        {
+            var dialog = new TextInputDialog(CharacterName, _customText, DialogueAlignment, DialogueFontSize);
+            if (dialog.ShowDialog() == true)
+            {
+                SetCustomText(dialog.ResultText, dialog.ResultAlignment, dialog.ResultFontSize);
+            }
+        };
+        contextMenu.Items.Add(setQuoteItem);
+
         contextMenu.Items.Add(new Separator());
 
         var sayHiItem = new MenuItem { Header = "打個招呼！" };

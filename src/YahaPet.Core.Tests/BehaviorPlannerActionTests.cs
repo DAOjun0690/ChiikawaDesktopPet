@@ -15,7 +15,9 @@ public class BehaviorPlannerActionTests
     [InlineData(0, AutonomousActionKind.Jump)]
     [InlineData(9, AutonomousActionKind.Jump)]
     [InlineData(10, AutonomousActionKind.Walk)]
-    [InlineData(49, AutonomousActionKind.Walk)]
+    [InlineData(44, AutonomousActionKind.Walk)]
+    [InlineData(45, AutonomousActionKind.Talk)]
+    [InlineData(59, AutonomousActionKind.Talk)]
     [InlineData(95, AutonomousActionKind.NoOp)]
     [InlineData(99, AutonomousActionKind.NoOp)]
     public void ChooseAutonomousAction_UsesLayeredRollBoundaries(int roll, AutonomousActionKind expectedKind)
@@ -28,8 +30,8 @@ public class BehaviorPlannerActionTests
     [Fact]
     public void ChooseAutonomousAction_MidRangeRoll_PicksNamedAnimation()
     {
-        // roll=50 selects the "other animation" branch, then a second roll picks index 1 ("tapdance").
-        var random = new FixedRandomSource(50, 1);
+        // roll=60 selects the "other animation" branch, then a second roll picks index 1 ("tapdance").
+        var random = new FixedRandomSource(60, 1);
         var result = BehaviorPlanner.ChooseAutonomousAction(new List<string> { "dance", "tapdance" }, random);
         Assert.Equal(AutonomousActionKind.PlayAnimation, result.Kind);
         Assert.Equal("tapdance", result.AnimationName);
@@ -39,7 +41,7 @@ public class BehaviorPlannerActionTests
     public void ChooseAutonomousAction_MidRangeRoll_EmptyAnimationList_IsNoOp()
     {
         // Matches Hachiware's real asset set: no named animations besides walkleft/jump.
-        var random = new FixedRandomSource(60);
+        var random = new FixedRandomSource(70);
         var result = BehaviorPlanner.ChooseAutonomousAction(new List<string>(), random);
         Assert.Equal(AutonomousActionKind.NoOp, result.Kind);
     }

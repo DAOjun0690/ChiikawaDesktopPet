@@ -11,6 +11,13 @@ public partial class CharacterWindow
 {
     private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        if (TalkActionTimer != null)
+        {
+            TalkActionTimer.Stop();
+            TalkActionTimer = null;
+            _isAnimating = false;
+        }
+
         if (_isAnimating) return;
 
         _frameTimer.Stop();
@@ -61,7 +68,7 @@ public partial class CharacterWindow
             (int)(workingArea.Right * dipScale),
             (int)(workingArea.Bottom * dipScale));
 
-        var clamped = BehaviorPlanner.ClampToBounds(candidate, bounds, _currentSpriteWidth, _currentSpriteHeight);
+        var clamped = BehaviorPlanner.ClampToBounds(candidate, bounds, (int)Width, (int)Height);
 
         if (_isShaking)
         {
@@ -92,6 +99,9 @@ public partial class CharacterWindow
     {
         if (_isShuttingDown) return;
         e.Handled = true;
+
+        TalkActionTimer?.Stop();
+        TalkActionTimer = null;
 
         if (_isDragging)
         {

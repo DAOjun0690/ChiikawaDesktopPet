@@ -49,6 +49,15 @@ public partial class CharacterWindow : Window
     private bool _isShaking;
     private BitmapSource? _grabbedSprite;
 
+    private string _customText = "";
+    public string CurrentDialogueText => string.IsNullOrEmpty(_customText) ? CharacterQuotes.GetDefaultQuote(CharacterName) : _customText;
+    public TextAlignment DialogueAlignment { get; private set; } = TextAlignment.Center;
+    public double DialogueFontSize { get; private set; } = 13.0;
+    private bool _alwaysShowBubble;
+    public bool AlwaysShowBubble => _alwaysShowBubble;
+    private readonly DispatcherTimer _bubbleTimer = new();
+    internal DispatcherTimer? TalkActionTimer { get; set; }
+
     public CharacterWindow(string characterName)
     {
         InitializeComponent();
@@ -64,6 +73,7 @@ public partial class CharacterWindow : Window
 
         _idleTimer.Tick += (_, _) => OnIdleTick();
         _frameTimer.Tick += (_, _) => OnFrameTick();
+        _bubbleTimer.Tick += (_, _) => OnBubbleTimerTick();
 
         MouseLeftButtonDown += OnMouseLeftButtonDown;
         MouseMove += OnMouseMove;
@@ -91,6 +101,9 @@ public partial class CharacterWindow : Window
         double startX = SystemParameters.PrimaryScreenWidth / 2;
         Left = startX;
         Top = 0;
+        BubbleText.Text = CurrentDialogueText;
+        BubbleText.TextAlignment = DialogueAlignment;
+        BubbleText.FontSize = DialogueFontSize;
         SetSprite(RandomFrom(_sprites, "spawn"));
         PlayAnimationSound("spawn");
         Show();
@@ -133,21 +146,158 @@ public partial class CharacterWindow : Window
     private void SetSprite(BitmapSource sprite)
     {
         double oldHeight = Height;
+        double oldWidth = Width;
         SpriteImage.Source = sprite;
 
         double dipScale = GetDipScale();
         double dipWidth = sprite.PixelWidth * dipScale;
         double dipHeight = sprite.PixelHeight * dipScale;
 
-        Width = dipWidth;
-        Height = dipHeight;
+        SpriteImage.Width = dipWidth;
+        SpriteImage.Height = dipHeight;
         _currentSpriteWidth = (int)Math.Round(dipWidth);
         _currentSpriteHeight = (int)Math.Round(dipHeight);
 
+        UpdateWindowSizeAndLayout(oldWidth, oldHeight);
+    }
+
+    private void UpdateWindowSizeAndLayout(double oldWidth = 0, double oldHeight = 0)
+    {
+        double bubbleW = 0;
+        double bubbleH = 0;
+
+        if (BubbleContainer.Visibility == Visibility.Visible)
+        {
+            BubbleContainer.Measure(new Size(240, double.PositiveInfinity));
+            bubbleW = BubbleContainer.DesiredSize.Width;
+            bubbleH = BubbleContainer.DesiredSize.Height;
+        }
+
+        double newWidth = Math.Max(_currentSpriteWidth, bubbleW);
+        double newHeight = _currentSpriteHeight + bubbleH;
+
+        Width = newWidth;
+        Height = newHeight;
+
         if (!_isFalling && oldHeight > 0)
         {
-            Top += (oldHeight - dipHeight);
+            Top += (oldHeight - newHeight);
         }
+        if (oldWidth > 0 && Math.Abs(oldWidth - newWidth) > 0.01)
+        {
+            Left += (oldWidth - newWidth) / 2.0;
+        }
+    }
+
+    public void ShowSpeechBubble(int durationMs = 3500)
+    {
+        BubbleText.Text = CurrentDialogueText;
+        BubbleText.TextAlignment = DialogueAlignment;
+        BubbleText.FontSize = DialogueFontSize;
+        if (BubbleContainer.Visibility != Visibility.Visible)
+        {
+            double oldW = Width;
+            double oldH = Height;
+            BubbleContainer.Visibility = Visibility.Visible;
+            UpdateWindowSizeAndLayout(oldW, oldH);
+        }
+        else
+        {
+            UpdateWindowSizeAndLayout(Width, Height);
+        }
+
+        if (!_alwaysShowBubble)
+        {
+            _bubbleTimer.Stop();
+            _bubbleTimer.Interval = TimeSpan.FromMilliseconds(durationMs);
+            _bubbleTimer.Start();
+        }
+    }
+
+    public void HideSpeechBubble()
+    {
+        _bubbleTimer.Stop();
+        if (_alwaysShowBubble) return;
+
+        if (BubbleContainer.Visibility == Visibility.Visible)
+        {
+            double oldW = Width;
+            double oldH = Height;
+            BubbleContainer.Visibility = Visibility.Collapsed;
+            UpdateWindowSizeAndLayout(oldW, oldH);
+        }
+    }
+
+    public void SetAlwaysShowBubble(bool always)
+    {
+        if (_alwaysShowBubble == always) return;
+        _alwaysShowBubble = always;
+        if (_alwaysShowBubble)
+        {
+            _bubbleTimer.Stop();
+            ShowSpeechBubble();
+        }
+        else
+        {
+            HideSpeechBubble();
+        }
+    }
+
+    public void ToggleAlwaysShowBubble() => SetAlwaysShowBubble(!_alwaysShowBubble);
+
+    public void SetCustomText(string text, TextAlignment alignment = TextAlignment.Center, double fontSize = 13.0)
+    {
+        _customText = text.Trim();
+        DialogueAlignment = alignment;
+        DialogueFontSize = fontSize;
+        BubbleText.Text = CurrentDialogueText;
+        BubbleText.TextAlignment = DialogueAlignment;
+        BubbleText.FontSize = DialogueFontSize;
+        if (BubbleContainer.Visibility == Visibility.Visible)
+        {
+            UpdateWindowSizeAndLayout(Width, Height);
+        }
+        ShowSpeechBubble(3500);
+    }
+
+    public void ResetToDefaultQuote()
+    {
+        _customText = "";
+        DialogueAlignment = TextAlignment.Center;
+        DialogueFontSize = 13.0;
+        BubbleText.Text = CurrentDialogueText;
+        BubbleText.TextAlignment = DialogueAlignment;
+        BubbleText.FontSize = DialogueFontSize;
+        if (BubbleContainer.Visibility == Visibility.Visible)
+        {
+            UpdateWindowSizeAndLayout(Width, Height);
+        }
+        ShowSpeechBubble(3500);
+    }
+
+    private void OnBubbleTimerTick()
+    {
+        _bubbleTimer.Stop();
+        if (!_alwaysShowBubble)
+        {
+            HideSpeechBubble();
+        }
+    }
+
+    private void PlayTalkAction()
+    {
+        ShowSpeechBubble(3500);
+        _isAnimating = true;
+        TalkActionTimer?.Stop();
+        TalkActionTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(3500) };
+        TalkActionTimer.Tick += (_, _) =>
+        {
+            TalkActionTimer.Stop();
+            TalkActionTimer = null;
+            _isAnimating = false;
+            EnterIdleState();
+        };
+        TalkActionTimer.Start();
     }
 
     // Screen.Bounds/WorkingArea/VirtualScreen are physical pixels, but Window.Top/Left (and
@@ -178,6 +328,8 @@ public partial class CharacterWindow : Window
 
     private void EnterIdleState()
     {
+        TalkActionTimer?.Stop();
+        TalkActionTimer = null;
         _isAnimating = false;
         _isFalling = false;
 
@@ -217,6 +369,7 @@ public partial class CharacterWindow : Window
             {
                 case AutonomousActionKind.Jump: PlayJump(); break;
                 case AutonomousActionKind.Walk: PlayWalk(); break;
+                case AutonomousActionKind.Talk: PlayTalkAction(); break;
                 case AutonomousActionKind.PlayAnimation: PlayNamedAnimation(action.AnimationName!); break;
                 case AutonomousActionKind.NoOp: break;
             }
@@ -261,6 +414,8 @@ public partial class CharacterWindow : Window
         _idleTimer.Stop();
         _frameTimer.Stop();
         _holdTimer.Stop();
+        _bubbleTimer.Stop();
+        TalkActionTimer?.Stop();
         Close();
     }
 }

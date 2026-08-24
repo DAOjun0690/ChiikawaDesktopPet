@@ -1,0 +1,41 @@
+// src/YahaPet.Wpf.Tests/CharacterQuotesTests.cs
+using YahaPet.Wpf;
+using Xunit;
+
+namespace YahaPet.Wpf.Tests;
+
+public class CharacterQuotesTests
+{
+    [Theory]
+    [InlineData("chiikawa", "わ…！（哇…！）")]
+    [InlineData("hachiware", "なんとかなれーッ！（船到橋頭自然直！）")]
+    [InlineData("usagi", "ウラ！ヤハ！プルャ！")]
+    [InlineData("momonga", "褒めろッ！叱るな！（誇獎我！不准罵我！）")]
+    [InlineData("jokebear", "（微笑凝視）")]
+    [InlineData("loverabbit", "啾～❤️ 最喜歡你了！")]
+    [InlineData("lai", "Team Taiwan！台灣加油！")]
+    public void GetDefaultQuote_KnownCharacters_ReturnsExpectedQuote(string characterName, string expectedQuote)
+    {
+        string quote = CharacterQuotes.GetDefaultQuote(characterName);
+        Assert.Equal(expectedQuote, quote);
+    }
+
+    [Theory]
+    [InlineData("CHIIKAWA")]
+    [InlineData("Hachiware")]
+    [InlineData("USAGI")]
+    public void GetDefaultQuote_CaseInsensitive_ReturnsQuote(string characterName)
+    {
+        string quote = CharacterQuotes.GetDefaultQuote(characterName);
+        Assert.False(string.IsNullOrEmpty(quote));
+        Assert.NotEqual("嗨！", quote);
+    }
+
+    [Fact]
+    public void GetDefaultQuote_UnknownCharacter_ReturnsFallback()
+    {
+        string quote = CharacterQuotes.GetDefaultQuote("unknown_character_xyz");
+        Assert.Equal("嗨！", quote);
+    }
+}
+

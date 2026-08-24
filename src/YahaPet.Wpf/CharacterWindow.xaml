@@ -8,10 +8,58 @@
         Topmost="True"
         ShowInTaskbar="False"
         ResizeMode="NoResize">
-    <!-- ponytail: no SizeToContent — CharacterWindow.xaml.cs's SetSprite() already sets
-         Width/Height explicitly from the sprite's known pixel size on every frame change.
-         SizeToContent="WidthAndHeight" was redundant with that and, on a DPI-scaled display,
-         made WPF's layout system badly miscompute the window's actual rendered size (measured
-         up to ~24x too large) even though Width/Height stayed correct. -->
-    <Image x:Name="SpriteImage" Stretch="Fill" />
+    <Grid x:Name="RootGrid" HorizontalAlignment="Center" VerticalAlignment="Bottom">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Speech Bubble Container -->
+        <Grid x:Name="BubbleContainer"
+              Grid.Row="0"
+              HorizontalAlignment="Center"
+              Visibility="Collapsed"
+              Margin="4,4,4,1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Bubble Body -->
+            <Border Grid.Row="0"
+                    Background="White"
+                    BorderBrush="#2B2B2B"
+                    BorderThickness="1.8"
+                    CornerRadius="10"
+                    Padding="10,6"
+                    MaxWidth="240">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="6" ShadowDepth="2" Opacity="0.3" Direction="270" />
+                </Border.Effect>
+                <TextBlock x:Name="BubbleText"
+                           TextWrapping="Wrap"
+                           FontSize="12.5"
+                           FontFamily="Microsoft JhengHei, Segoe UI, sans-serif"
+                           FontWeight="Bold"
+                           Foreground="#2B2B2B"
+                           TextAlignment="Center" />
+            </Border>
+
+            <!-- Pointer Triangle pointing down to the character -->
+            <Path Grid.Row="1"
+                  Data="M 0,0 L 5,6 L 10,0 Z"
+                  Fill="White"
+                  Stroke="#2B2B2B"
+                  StrokeThickness="1.8"
+                  HorizontalAlignment="Center"
+                  Margin="0,-1.8,0,0" />
+        </Grid>
+
+        <!-- Sprite Image -->
+        <Image x:Name="SpriteImage"
+               Grid.Row="1"
+               Stretch="Fill"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Bottom" />
+    </Grid>
 </Window>

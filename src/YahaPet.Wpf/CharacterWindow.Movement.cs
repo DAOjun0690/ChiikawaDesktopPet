@@ -31,7 +31,7 @@ public partial class CharacterWindow
             currentPos,
             screenHeight: screenHeight,
             landingY: landingY,
-            characterHeight: _currentSpriteHeight,
+            characterHeight: (int)Height,
             SystemRandomSource.Shared);
 
         SetSprite(RandomFrom(_sprites, "falling"));
@@ -70,7 +70,7 @@ public partial class CharacterWindow
     private void PlayWalk(BehaviorPlanner.WalkDirection? forcedDirection = null)
     {
         var (minX, maxX) = GetWalkJumpXBoundsInDips();
-        var plan = BehaviorPlanner.PlanWalk(new PetPoint((int)Left, (int)Top), minX, maxX, _currentSpriteWidth, SystemRandomSource.Shared, forcedDirection);
+        var plan = BehaviorPlanner.PlanWalk(new PetPoint((int)Left, (int)Top), minX, maxX, (int)Width, SystemRandomSource.Shared, forcedDirection);
         if (plan is null) return;
 
         _isAnimating = true;
@@ -104,9 +104,9 @@ public partial class CharacterWindow
         // the character's right edge from poking past maxX.
         var plan = BehaviorPlanner.PlanJump(
             new PetPoint((int)Left, (int)Top),
-            _currentSpriteHeight,
+            (int)Height,
             minX,
-            maxX - _currentSpriteWidth,
+            maxX - (int)Width,
             landingY,
             SystemRandomSource.Shared,
             forcedDirection);

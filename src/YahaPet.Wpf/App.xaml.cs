@@ -59,6 +59,11 @@ public partial class App : Application
         ("lai", "總統-賴")
     ];
 
+    private static readonly string[] AutoSpawnCandidates =
+    [
+        "hachiware", "chiikawa", "usagi", "momonga", "jokebear", "loverabbit"
+    ];
+
     private NotifyIcon? _trayIcon;
     private ToolStripMenuItem? _playAnimationMenu;
     private ToolStripMenuItem? _kickMenu;
@@ -150,6 +155,10 @@ public partial class App : Application
             ContextMenuStrip = contextMenu,
             Text = "Yaha-Pet"
         };
+
+        // Automatically spawn a random regular character on startup (excluding lai)
+        string initialCharacter = AutoSpawnCandidates[Random.Shared.Next(AutoSpawnCandidates.Length)];
+        SpawnCharacter(initialCharacter);
     }
 
     private void SpawnCharacter(string name)
@@ -246,8 +255,14 @@ public partial class App : Application
             chosen = keys[Random.Shared.Next(keys.Count)];
         }
 
-        SoundPlayerFactory.PlayIfExists(Path.Combine(AppContext.BaseDirectory, "assets", chosen, "sounds", "hi.wav"));
-        _trayIcon!.ShowBalloonTip(500, $"{chosen} 說：", "嗨！", ToolTipIcon.Info);
+        if (_characters.TryGetValue(chosen, out var window))
+        {
+            window.ShowSpeechBubble();
+            string dialogueText = window.CurrentDialogueText;
+            string displayName = GetCharacterDisplayName(chosen);
+            SoundPlayerFactory.PlayIfExists(Path.Combine(AppContext.BaseDirectory, "assets", chosen, "sounds", "hi.wav"));
+            _trayIcon!.ShowBalloonTip(500, $"{displayName} 說：", dialogueText, ToolTipIcon.Info);
+        }
     }
 
     private void ToggleMuteAll()
