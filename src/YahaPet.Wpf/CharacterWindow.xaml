@@ -59,6 +59,7 @@
         <Image x:Name="SpriteImage"
                Grid.Row="1"
                Stretch="Fill"
+               RenderOptions.BitmapScalingMode="HighQuality"
                HorizontalAlignment="Center"
                VerticalAlignment="Bottom" />
     </Grid>

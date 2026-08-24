@@ -139,7 +139,7 @@ public partial class CharacterWindow
             return _frames[animationName];
         }
 
-        var sourceFrames = SpriteLoader.LoadFrames(sourceFolder, _physicalCharacterWidth, _physicalCharacterHeight);
+        var sourceFrames = SpriteLoader.LoadFrames(sourceFolder, _physicalCharacterWidth * 4, _physicalCharacterHeight * 4);
         var result = ownExists ? sourceFrames : sourceFrames.ConvertAll(SpriteLoader.Mirror);
         _frames[animationName] = result;
 

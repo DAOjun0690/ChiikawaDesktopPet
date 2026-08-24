@@ -112,6 +112,20 @@ public partial class CharacterWindow : Window
         StartIdleTimer();
     }
 
+    public double ScaleRatio { get; private set; } = 1.0;
+
+    public void SetScaleRatio(double ratio)
+    {
+        double clamped = Math.Clamp(ratio, 0.2, 4.0);
+        if (Math.Abs(ScaleRatio - clamped) < 0.001) return;
+
+        ScaleRatio = clamped;
+        if (SpriteImage.Source is BitmapSource currentSprite)
+        {
+            SetSprite(currentSprite);
+        }
+    }
+
     private void LoadStaticSprites()
     {
         string spritesDir = Path.Combine(_assetRoot, "sprites");
@@ -120,7 +134,7 @@ public partial class CharacterWindow : Window
         foreach (var file in Directory.EnumerateFiles(spritesDir, "*.png"))
         {
             string name = Path.GetFileNameWithoutExtension(file);
-            _sprites[name] = SpriteLoader.LoadSingle(file, _physicalCharacterWidth, _physicalCharacterHeight);
+            _sprites[name] = SpriteLoader.LoadSingle(file, _physicalCharacterWidth * 4, _physicalCharacterHeight * 4);
         }
     }
 
@@ -149,9 +163,11 @@ public partial class CharacterWindow : Window
         double oldWidth = Width;
         SpriteImage.Source = sprite;
 
+        double baseScale = Math.Min((double)_physicalCharacterWidth / sprite.PixelWidth, (double)_physicalCharacterHeight / sprite.PixelHeight);
+        double fitScale = Math.Min(1.0, baseScale);
         double dipScale = GetDipScale();
-        double dipWidth = sprite.PixelWidth * dipScale;
-        double dipHeight = sprite.PixelHeight * dipScale;
+        double dipWidth = sprite.PixelWidth * fitScale * dipScale * ScaleRatio;
+        double dipHeight = sprite.PixelHeight * fitScale * dipScale * ScaleRatio;
 
         SpriteImage.Width = dipWidth;
         SpriteImage.Height = dipHeight;
@@ -186,6 +202,26 @@ public partial class CharacterWindow : Window
         if (oldWidth > 0 && Math.Abs(oldWidth - newWidth) > 0.01)
         {
             Left += (oldWidth - newWidth) / 2.0;
+        }
+
+        ClampToScreen();
+    }
+
+    private void ClampToScreen()
+    {
+        if (IsLoaded && !_isFalling && !_isDragging)
+        {
+            double dipScale = GetDipScale();
+            var screenPoint = new System.Drawing.Point((int)(Left / dipScale), (int)(Top / dipScale));
+            var workingArea = System.Windows.Forms.Screen.FromPoint(screenPoint).WorkingArea;
+            var bounds = new PetBounds(
+                (int)(workingArea.Left * dipScale),
+                (int)(workingArea.Top * dipScale),
+                (int)(workingArea.Right * dipScale),
+                (int)(workingArea.Bottom * dipScale));
+            var clamped = BehaviorPlanner.ClampToBounds(new PetPoint((int)Left, (int)Top), bounds, (int)Width, (int)Height);
+            Left = clamped.X;
+            Top = clamped.Y;
         }
     }
 

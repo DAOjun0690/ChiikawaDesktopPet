@@ -1,4 +1,5 @@
 // src/YahaPet.Wpf/CharacterWindow.Menu.cs
+using System;
 using System.Windows.Controls;
 
 namespace YahaPet.Wpf;
@@ -66,6 +67,45 @@ public partial class CharacterWindow
             }
         };
         contextMenu.Items.Add(setQuoteItem);
+
+        var scaleMenu = new MenuItem { Header = "調整角色比例" };
+        var presetScales = new (string Label, double Ratio)[]
+        {
+            ("50%", 0.50),
+            ("75%", 0.75),
+            ("100%（預設）", 1.00),
+            ("125%", 1.25),
+            ("150%", 1.50),
+            ("175%", 1.75),
+            ("200%", 2.00)
+        };
+
+        foreach (var (label, ratio) in presetScales)
+        {
+            var item = new MenuItem
+            {
+                Header = label,
+                IsCheckable = true,
+                IsChecked = Math.Abs(ScaleRatio - ratio) < 0.01
+            };
+            double r = ratio;
+            item.Click += (_, _) => SetScaleRatio(r);
+            scaleMenu.Items.Add(item);
+        }
+
+        scaleMenu.Items.Add(new Separator());
+
+        var customScaleItem = new MenuItem { Header = "自訂比例..." };
+        customScaleItem.Click += (_, _) =>
+        {
+            var dialog = new ScaleInputDialog(CharacterName, ScaleRatio);
+            if (dialog.ShowDialog() == true)
+            {
+                SetScaleRatio(dialog.ResultScaleRatio);
+            }
+        };
+        scaleMenu.Items.Add(customScaleItem);
+        contextMenu.Items.Add(scaleMenu);
 
         contextMenu.Items.Add(new Separator());
 
