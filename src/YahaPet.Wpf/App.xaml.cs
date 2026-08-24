@@ -42,6 +42,9 @@ public partial class App : Application
         var spawnMomonga = new MenuItem("Momonga");
         spawnMomonga.Click += (_, _) => SpawnCharacter("momonga");
         spawnMenu.DropDownItems.Add(spawnMomonga);
+        var spawnJokeBear = new MenuItem("JokeBear");
+        spawnJokeBear.Click += (_, _) => SpawnCharacter("jokebear");
+        spawnMenu.DropDownItems.Add(spawnJokeBear);
         contextMenu.Items.Add(spawnMenu);
 
         _playAnimationMenu = new MenuItem("播放動畫") { Enabled = false };
@@ -104,8 +107,9 @@ public partial class App : Application
         var playSubmenu = new ToolStripMenuItem(key);
         foreach (var animName in window.AllAnimationNames())
         {
-            var item = new ToolStripMenuItem(animName);
-            item.Click += (_, _) => window.PlayAnimationByName(animName);
+            var item = new ToolStripMenuItem(GetAnimationDisplayName(animName));
+            string nameCopy = animName;
+            item.Click += (_, _) => window.PlayAnimationByName(nameCopy);
             playSubmenu.DropDownItems.Add(item);
         }
         _playAnimationMenu!.DropDownItems.Add(playSubmenu);
@@ -167,6 +171,26 @@ public partial class App : Application
         SoundPlayerFactory.MuteAll = _muteAll;
         _muteAllItem!.Text = _muteAll ? "取消全部靜音" : "全部靜音";
     }
+
+    private static string GetAnimationDisplayName(string animName) => animName.ToLowerInvariant() switch
+    {
+        "walkleft" => "向左走",
+        "walkright" => "向右走",
+        "jumpleft" => "向左跳",
+        "jumpright" => "向右跳",
+        "bounce" => "原地彈跳",
+        "dance" => "狂歡跳舞",
+        "eat" => "吃拉麵",
+        "cheer" => "拍手歡呼",
+        "drama" => "崩潰搥地",
+        "sleep" => "躺平睡覺",
+        "appeal" => "展現魅力",
+        "stomp" => "跺腳生氣",
+        "tapdance" => "踢踏舞",
+        "danceswirl" => "旋轉舞",
+        "mock" => "嘲諷搖擺",
+        _ => animName
+    };
 
     protected override void OnExit(ExitEventArgs e)
     {

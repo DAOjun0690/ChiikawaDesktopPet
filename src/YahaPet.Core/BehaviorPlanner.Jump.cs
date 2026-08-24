@@ -21,10 +21,12 @@ public static partial class BehaviorPlanner
     /// minX/maxX are the usable horizontal bounds (e.g. the full multi-monitor virtual
     /// desktop) — see PlanWalk's minX/maxX doc for why this isn't just a single screenWidth
     /// starting at 0.
-    public static JumpPlan PlanJump(PetPoint currentPos, int characterHeight, int minX, int maxX, int landingY, IRandomSource random)
+    public static JumpPlan PlanJump(PetPoint currentPos, int characterHeight, int minX, int maxX, int landingY, IRandomSource random, JumpDirection? forcedDirection = null)
     {
-        int directionRoll = random.Next(0, 2);
-        if (directionRoll == 1 && currentPos.X >= maxX - 100)
+        int directionRoll = forcedDirection.HasValue
+            ? (forcedDirection.Value == JumpDirection.Left ? 0 : 1)
+            : random.Next(0, 2);
+        if (!forcedDirection.HasValue && directionRoll == 1 && currentPos.X >= maxX - 100)
             directionRoll = 0;
 
         int endRangeX;

@@ -23,6 +23,10 @@
       <Link>assets\momonga\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="..\..\assets\optimized\jokebear\**\*.*">
+      <Link>assets\jokebear\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="config.default.json">
       <Link>config.json</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

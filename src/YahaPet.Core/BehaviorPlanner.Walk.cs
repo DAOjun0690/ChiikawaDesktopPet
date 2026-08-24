@@ -19,10 +19,12 @@ public static partial class BehaviorPlanner
     /// desktop, not just the current monitor) — the original assumed a single screen
     /// starting at X=0, which stranded the character on one monitor of a multi-monitor
     /// setup since it could never plan a target below 0.
-    public static WalkPlan? PlanWalk(PetPoint currentPos, int minX, int maxX, int characterWidth, IRandomSource random)
+    public static WalkPlan? PlanWalk(PetPoint currentPos, int minX, int maxX, int characterWidth, IRandomSource random, WalkDirection? forcedDirection = null)
     {
         const int minMovementDistance = 100;
-        int rollDirection = random.Next(0, 2);
+        int rollDirection = forcedDirection.HasValue
+            ? (forcedDirection.Value == WalkDirection.Left ? 0 : 1)
+            : random.Next(0, 2);
 
         int startRange, endRange;
         WalkDirection direction;

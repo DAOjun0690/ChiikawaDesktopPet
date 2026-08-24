@@ -208,9 +208,41 @@ public partial class CharacterWindow : Window
         AnimatePosition(new PetPoint((int)Left, outcome.LandingPoint.Y), outcome.DurationMs, onComplete: () =>
         {
             _isFalling = false;
-            SetSprite(outcome.Crashed ? _sprites["fallingend"] : RandomFrom(_sprites, "spawn"));
-            _isAnimating = false;
+            if (outcome.Crashed)
+            {
+                _isAnimating = false;
+                SetSprite(_sprites["fallingend"]);
+            }
+            else
+            {
+                EnterIdleState();
+            }
         });
+    }
+
+    private void EnterIdleState()
+    {
+        _isAnimating = false;
+        _isFalling = false;
+
+        // If the character has a bounce/idle animation, loop it during idle
+        var idleFrames = GetOrLoadFrames("bounce");
+        if (idleFrames.Count > 0 && CharacterName == "jokebear")
+        {
+            _currentAnimationFrames = idleFrames;
+            _currentFrameIndex = 0;
+            _loopCurrentAnimation = true;
+            int fps = BehaviorPlanner.GetFps(_config, CharacterName, "bounce");
+            _frameTimer.Interval = TimeSpan.FromMilliseconds(1000.0 / fps);
+            _pendingOnComplete = null;
+            _frameTimer.Start();
+        }
+        else
+        {
+            _loopCurrentAnimation = false;
+            _frameTimer.Stop();
+            SetSprite(RandomFrom(_sprites, "spawn"));
+        }
     }
 
     private void AnimatePosition(PetPoint target, int durationMs, Action? onComplete)
@@ -233,7 +265,7 @@ public partial class CharacterWindow : Window
     private void DiscoverOtherAnimations()
     {
         string animationsDir = Path.Combine(_assetRoot, "animations");
-        var excluded = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "walkleft", "walkright", "jumpleft", "jumpright", "falling" };
+        var excluded = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "walkleft", "walkright", "jumpleft", "jumpright", "falling", "bounce" };
         _otherAnimationNames = Directory.Exists(animationsDir)
             ? Directory.GetDirectories(animationsDir)
                 .Select(Path.GetFileName)
@@ -269,6 +301,10 @@ public partial class CharacterWindow : Window
     public IReadOnlyList<string> AllAnimationNames()
     {
         var names = new List<string>(_otherAnimationNames) { "walkleft", "walkright" };
+        if (Directory.Exists(Path.Combine(_assetRoot, "animations", "bounce")))
+        {
+            names.Insert(0, "bounce");
+        }
         if (HasDirectionalCapability("jumpleft", "jumpright"))
         {
             names.Add("jumpleft");
@@ -295,10 +331,32 @@ public partial class CharacterWindow : Window
 
     public void PlayAnimationByName(string animationName)
     {
-        if (_isAnimating || _isDragging) return;
-        if (animationName is "jumpleft" or "jumpright") { PlayJump(); return; }
-        if (animationName is "walkleft" or "walkright") { PlayWalk(); return; }
+        if (_isDragging) return;
+        if (animationName.Equals("jumpleft", StringComparison.OrdinalIgnoreCase)) { PlayJump(BehaviorPlanner.JumpDirection.Left); return; }
+        if (animationName.Equals("jumpright", StringComparison.OrdinalIgnoreCase)) { PlayJump(BehaviorPlanner.JumpDirection.Right); return; }
+        if (animationName.Equals("walkleft", StringComparison.OrdinalIgnoreCase)) { PlayWalk(BehaviorPlanner.WalkDirection.Left); return; }
+        if (animationName.Equals("walkright", StringComparison.OrdinalIgnoreCase)) { PlayWalk(BehaviorPlanner.WalkDirection.Right); return; }
+        if (animationName.Equals("bounce", StringComparison.OrdinalIgnoreCase))
+        {
+            PlayTimedAnimation(animationName, 5000);
+            return;
+        }
         PlayNamedAnimation(animationName);
+    }
+
+    private void PlayTimedAnimation(string animationName, int durationMs)
+    {
+        _isAnimating = true;
+        _loopCurrentAnimation = true;
+        PlayFrameSequence(animationName, onComplete: () => { });
+
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(durationMs) };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            EnterIdleState();
+        };
+        timer.Start();
     }
 
     private bool _randomAnimationsEnabled = true;
@@ -411,10 +469,10 @@ public partial class CharacterWindow : Window
         _currentFrameIndex++;
     }
 
-    private void PlayWalk()
+    private void PlayWalk(BehaviorPlanner.WalkDirection? forcedDirection = null)
     {
         var (minX, maxX) = GetWalkJumpXBoundsInDips();
-        var plan = BehaviorPlanner.PlanWalk(new PetPoint((int)Left, (int)Top), minX, maxX, _currentSpriteWidth, new SystemRandomSource());
+        var plan = BehaviorPlanner.PlanWalk(new PetPoint((int)Left, (int)Top), minX, maxX, _currentSpriteWidth, new SystemRandomSource(), forcedDirection);
         if (plan is null) return;
 
         _isAnimating = true;
@@ -431,13 +489,12 @@ public partial class CharacterWindow : Window
             Left = plan.TargetX;
             _loopCurrentAnimation = false;
             _frameTimer.Stop();
-            _isAnimating = false;
-            SetSprite(RandomFrom(_sprites, "spawn"));
+            EnterIdleState();
         };
         BeginAnimation(LeftProperty, animation);
     }
 
-    private void PlayJump()
+    private void PlayJump(BehaviorPlanner.JumpDirection? forcedDirection = null)
     {
         var (minX, maxX) = GetWalkJumpXBoundsInDips();
         double dipScale = GetDipScale();
@@ -455,7 +512,8 @@ public partial class CharacterWindow : Window
             minX,
             maxX - _currentSpriteWidth,
             landingY,
-            new SystemRandomSource());
+            new SystemRandomSource(),
+            forcedDirection);
         _isAnimating = true;
         _isFalling = true;
 
@@ -503,9 +561,7 @@ public partial class CharacterWindow : Window
                 Left = plan.LandTarget.X;
                 _loopCurrentAnimation = false;
                 _frameTimer.Stop();
-                _isFalling = false;
-                _isAnimating = false;
-                SetSprite(RandomFrom(_sprites, "spawn"));
+                EnterIdleState();
             };
             BeginAnimation(TopProperty, landAnimation);
             BeginAnimation(LeftProperty, landAnimationX);
@@ -520,8 +576,7 @@ public partial class CharacterWindow : Window
         _loopCurrentAnimation = false;
         PlayFrameSequence(animationName, onComplete: () =>
         {
-            _isAnimating = false;
-            SetSprite(RandomFrom(_sprites, "spawn"));
+            EnterIdleState();
         });
     }
 
@@ -529,11 +584,14 @@ public partial class CharacterWindow : Window
     {
         if (_isAnimating) return;
 
+        _frameTimer.Stop();
+        _loopCurrentAnimation = false;
         _isDragging = true;
         _isFalling = false;
-        _dragOffset = e.GetPosition(this);
-        _grabbedSprite = null;
         _isShaking = false;
+        _grabbedSprite = RandomFrom(_sprites, "grabbed");
+        SetSprite(_grabbedSprite);
+        _dragOffset = e.GetPosition(this);
         _holdTimer.Start();
 
         PlayRandomGrabbedSound();
@@ -557,13 +615,15 @@ public partial class CharacterWindow : Window
     {
         if (!_isDragging || _isAnimating) return;
 
+        double dipScale = GetDipScale();
         var cursor = PointToScreen(e.GetPosition(this));
-        var candidate = new PetPoint((int)(cursor.X - _dragOffset.X), (int)(cursor.Y - _dragOffset.Y));
+        var candidate = new PetPoint(
+            (int)(cursor.X * dipScale - _dragOffset.X),
+            (int)(cursor.Y * dipScale - _dragOffset.Y));
 
         // SystemParameters.WorkArea always reflects the PRIMARY monitor. Clamp against
         // whichever monitor is under the candidate point instead, so dragging onto a
         // second monitor doesn't get pulled back onto the primary one.
-        double dipScale = GetDipScale();
         var screenPoint = new System.Drawing.Point((int)(candidate.X / dipScale), (int)(candidate.Y / dipScale));
         var workingArea = System.Windows.Forms.Screen.FromPoint(screenPoint).WorkingArea;
 
@@ -585,11 +645,6 @@ public partial class CharacterWindow : Window
         {
             Left = clamped.X;
             Top = clamped.Y;
-            if (_grabbedSprite is null)
-            {
-                _grabbedSprite = RandomFrom(_sprites, "grabbed");
-                SetSprite(_grabbedSprite);
-            }
         }
     }
 

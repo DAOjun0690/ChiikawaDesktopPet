@@ -12,5 +12,19 @@
       "appeal": { "fps": 15 },
       "stomp": { "fps": 15 }
     }
+  },
+  "jokebear": {
+    "animations": {
+      "walkleft": { "fps": 15 },
+      "walkright": { "fps": 15 },
+      "jumpright": { "fps": 15 },
+      "jumpleft": { "fps": 15 },
+      "dance": { "fps": 15 },
+      "eat": { "fps": 12 },
+      "cheer": { "fps": 15 },
+      "drama": { "fps": 15 },
+      "sleep": { "fps": 10 },
+      "bounce": { "fps": 18 }
+    }
   }
 }
