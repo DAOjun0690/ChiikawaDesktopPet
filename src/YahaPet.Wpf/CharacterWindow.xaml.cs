@@ -39,6 +39,14 @@ public partial class CharacterWindow : Window
     private bool _loopCurrentAnimation;
     private Action? _pendingOnComplete;
 
+    public event Action<bool>? RandomAnimationsEnabledChanged;
+    public event Action<bool>? JumpEnabledChanged;
+    public event Action? KickRequested;
+    public event Action? SayHiRequested;
+
+    private bool _jumpEnabled = true;
+    private bool _isShuttingDown;
+
     private System.Windows.Point _dragOffset;
     private readonly DispatcherTimer _holdTimer = new() { Interval = TimeSpan.FromMilliseconds(4500) };
     private bool _isShaking;
@@ -65,6 +73,7 @@ public partial class CharacterWindow : Window
         MouseLeftButtonDown += OnMouseLeftButtonDown;
         MouseMove += OnMouseMove;
         MouseLeftButtonUp += OnMouseLeftButtonUp;
+        MouseRightButtonUp += OnMouseRightButtonUp;
         _holdTimer.Tick += (_, _) =>
         {
             _holdTimer.Stop();
@@ -286,7 +295,7 @@ public partial class CharacterWindow : Window
         _idleTimer.Stop();
         if (_randomAnimationsEnabled && !_isAnimating && !_isDragging)
         {
-            var action = BehaviorPlanner.ChooseAutonomousAction(_otherAnimationNames, new SystemRandomSource());
+            var action = BehaviorPlanner.ChooseAutonomousAction(_otherAnimationNames, new SystemRandomSource(), _jumpEnabled);
             switch (action.Kind)
             {
                 case AutonomousActionKind.Jump: PlayJump(); break;
@@ -361,17 +370,38 @@ public partial class CharacterWindow : Window
 
     private bool _randomAnimationsEnabled = true;
 
-    public void ToggleRandomAnimations()
+    public bool RandomAnimationsEnabled => _randomAnimationsEnabled;
+
+    public void SetRandomAnimationsEnabled(bool enabled)
     {
-        _randomAnimationsEnabled = !_randomAnimationsEnabled;
+        if (_randomAnimationsEnabled == enabled) return;
+        _randomAnimationsEnabled = enabled;
         if (_randomAnimationsEnabled) StartIdleTimer();
         else _idleTimer.Stop();
+        RandomAnimationsEnabledChanged?.Invoke(_randomAnimationsEnabled);
     }
 
-    public bool RandomAnimationsEnabled => _randomAnimationsEnabled;
+    public void ToggleRandomAnimations() => SetRandomAnimationsEnabled(!_randomAnimationsEnabled);
+
+    public bool JumpEnabled => _jumpEnabled;
+
+    public void SetJumpEnabled(bool enabled)
+    {
+        if (_jumpEnabled == enabled) return;
+        _jumpEnabled = enabled;
+        JumpEnabledChanged?.Invoke(_jumpEnabled);
+    }
+
+    public void ToggleJump() => SetJumpEnabled(!_jumpEnabled);
 
     public void Shutdown()
     {
+        _isShuttingDown = true;
+        if (ContextMenu != null)
+        {
+            ContextMenu.IsOpen = false;
+            ContextMenu = null;
+        }
         _idleTimer.Stop();
         _frameTimer.Stop();
         _holdTimer.Stop();
@@ -659,5 +689,103 @@ public partial class CharacterWindow : Window
         _grabbedSprite = null;
 
         FallTo();
+    }
+
+    private void OnMouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_isShuttingDown) return;
+        e.Handled = true;
+
+        if (_isDragging)
+        {
+            ReleaseMouseCapture();
+            _isDragging = false;
+            _holdTimer.Stop();
+            _isShaking = false;
+            _grabbedSprite = null;
+        }
+
+        // Pause active movements and animations immediately
+        _idleTimer.Stop();
+        _frameTimer.Stop();
+        double currentTop = Top;
+        double currentLeft = Left;
+        BeginAnimation(TopProperty, null);
+        BeginAnimation(LeftProperty, null);
+        Top = currentTop;
+        Left = currentLeft;
+        _isAnimating = false;
+        _isFalling = false;
+        _loopCurrentAnimation = false;
+
+        ShowContextMenu();
+    }
+
+    private void ShowContextMenu()
+    {
+        var contextMenu = new System.Windows.Controls.ContextMenu();
+
+        string displayName = App.GetCharacterDisplayName(CharacterName);
+        var titleItem = new System.Windows.Controls.MenuItem
+        {
+            Header = $"【{displayName}】",
+            IsEnabled = false,
+            FontWeight = System.Windows.FontWeights.Bold
+        };
+        contextMenu.Items.Add(titleItem);
+        contextMenu.Items.Add(new System.Windows.Controls.Separator());
+
+        var playMenu = new System.Windows.Controls.MenuItem { Header = "播放動畫" };
+        foreach (var animName in AllAnimationNames())
+        {
+            var item = new System.Windows.Controls.MenuItem { Header = App.GetAnimationDisplayName(animName) };
+            string nameCopy = animName;
+            item.Click += (_, _) => PlayAnimationByName(nameCopy);
+            playMenu.Items.Add(item);
+        }
+        contextMenu.Items.Add(playMenu);
+
+        var randomAnimItem = new System.Windows.Controls.MenuItem
+        {
+            Header = "隨機動作",
+            IsCheckable = true,
+            IsChecked = _randomAnimationsEnabled
+        };
+        randomAnimItem.Click += (_, _) => SetRandomAnimationsEnabled(randomAnimItem.IsChecked);
+        contextMenu.Items.Add(randomAnimItem);
+
+        var randomJumpItem = new System.Windows.Controls.MenuItem
+        {
+            Header = "允許隨機跳躍",
+            IsCheckable = true,
+            IsChecked = _jumpEnabled
+        };
+        randomJumpItem.Click += (_, _) => SetJumpEnabled(randomJumpItem.IsChecked);
+        contextMenu.Items.Add(randomJumpItem);
+
+        contextMenu.Items.Add(new System.Windows.Controls.Separator());
+
+        var sayHiItem = new System.Windows.Controls.MenuItem { Header = "打個招呼！" };
+        sayHiItem.Click += (_, _) => SayHiRequested?.Invoke();
+        contextMenu.Items.Add(sayHiItem);
+
+        var kickItem = new System.Windows.Controls.MenuItem { Header = "踢出角色" };
+        kickItem.Click += (_, _) => KickRequested?.Invoke();
+        contextMenu.Items.Add(kickItem);
+
+        contextMenu.Closed += (_, _) =>
+        {
+            if (!_isShuttingDown && !_isAnimating && !_isDragging)
+            {
+                EnterIdleState();
+                if (_randomAnimationsEnabled)
+                {
+                    StartIdleTimer();
+                }
+            }
+        };
+
+        ContextMenu = contextMenu;
+        contextMenu.IsOpen = true;
     }
 }

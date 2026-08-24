@@ -14,6 +14,7 @@ public partial class App : Application
     private ToolStripMenuItem? _playAnimationMenu;
     private ToolStripMenuItem? _kickMenu;
     private ToolStripMenuItem? _stopResumeMenu;
+    private ToolStripMenuItem? _jumpMenu;
     private ToolStripMenuItem? _muteAllItem;
     private readonly Dictionary<string, CharacterWindow> _characters = new(StringComparer.OrdinalIgnoreCase);
     private bool _muteAll;
@@ -69,6 +70,9 @@ public partial class App : Application
 
         _stopResumeMenu = new MenuItem("停止/恢復隨機動畫...") { Enabled = false };
         contextMenu.Items.Add(_stopResumeMenu);
+
+        _jumpMenu = new MenuItem("停止/恢復隨機跳躍...") { Enabled = false };
+        contextMenu.Items.Add(_jumpMenu);
 
         var confineToMonitorItem = new MenuItem("限制角色只能在單一螢幕內移動")
         {
@@ -144,23 +148,35 @@ public partial class App : Application
         _playAnimationMenu.Enabled = true;
 
         var stopResumeItem = new ToolStripMenuItem($"{key}（點擊以停用）");
-        stopResumeItem.Click += (_, _) =>
+        stopResumeItem.Click += (_, _) => window.ToggleRandomAnimations();
+        window.RandomAnimationsEnabledChanged += enabled =>
         {
-            window.ToggleRandomAnimations();
-            stopResumeItem.Text = window.RandomAnimationsEnabled ? $"{key}（點擊以停用）" : $"{key}（點擊以啟用）";
+            stopResumeItem.Text = enabled ? $"{key}（點擊以停用）" : $"{key}（點擊以啟用）";
         };
         _stopResumeMenu!.DropDownItems.Add(stopResumeItem);
         _stopResumeMenu.Enabled = true;
 
+        var jumpItem = new ToolStripMenuItem($"{key}（點擊以停用跳躍）");
+        jumpItem.Click += (_, _) => window.ToggleJump();
+        window.JumpEnabledChanged += enabled =>
+        {
+            jumpItem.Text = enabled ? $"{key}（點擊以停用跳躍）" : $"{key}（點擊以啟用跳躍）";
+        };
+        _jumpMenu!.DropDownItems.Add(jumpItem);
+        _jumpMenu.Enabled = true;
+
         var kickItem = new ToolStripMenuItem(key);
-        kickItem.Click += (_, _) => KickCharacter(key, playSubmenu, kickItem, stopResumeItem);
+        kickItem.Click += (_, _) => KickCharacter(key, playSubmenu, kickItem, stopResumeItem, jumpItem);
         _kickMenu!.DropDownItems.Add(kickItem);
         _kickMenu.Enabled = true;
+
+        window.KickRequested += () => KickCharacter(key, playSubmenu, kickItem, stopResumeItem, jumpItem);
+        window.SayHiRequested += () => SayHi(key);
 
         _muteAllItem!.Enabled = true;
     }
 
-    private void KickCharacter(string key, ToolStripMenuItem playSubmenu, ToolStripMenuItem kickItem, ToolStripMenuItem stopResumeItem)
+    private void KickCharacter(string key, ToolStripMenuItem playSubmenu, ToolStripMenuItem kickItem, ToolStripMenuItem stopResumeItem, ToolStripMenuItem jumpItem)
     {
         if (_characters.TryGetValue(key, out var window))
         {
@@ -170,6 +186,7 @@ public partial class App : Application
         _playAnimationMenu!.DropDownItems.Remove(playSubmenu);
         _kickMenu!.DropDownItems.Remove(kickItem);
         _stopResumeMenu!.DropDownItems.Remove(stopResumeItem);
+        _jumpMenu!.DropDownItems.Remove(jumpItem);
 
         if (_characters.Count == 0)
         {
@@ -177,18 +194,21 @@ public partial class App : Application
             _kickMenu.Enabled = false;
             _muteAllItem!.Enabled = false;
             _stopResumeMenu.Enabled = false;
+            _jumpMenu.Enabled = false;
         }
     }
 
-    private void SayHi()
+    private void SayHi(string? specificKey = null)
     {
         if (_characters.Count == 0)
         {
             _trayIcon!.ShowBalloonTip(500, "等等！", "你還沒有生成任何角色！", ToolTipIcon.Info);
             return;
         }
-        var names = new List<string>(_characters.Keys);
-        string chosen = names[new Random().Next(names.Count)];
+        string chosen = (specificKey != null && _characters.ContainsKey(specificKey))
+            ? specificKey
+            : new List<string>(_characters.Keys)[new Random().Next(_characters.Count)];
+
         SoundPlayerFactory.PlayIfExists(System.IO.Path.Combine(AppContext.BaseDirectory, "assets", chosen, "sounds", "hi.wav"));
         _trayIcon!.ShowBalloonTip(500, $"{chosen} 說：", "嗨！", ToolTipIcon.Info);
     }
@@ -200,7 +220,19 @@ public partial class App : Application
         _muteAllItem!.Text = _muteAll ? "取消全部靜音" : "全部靜音";
     }
 
-    private static string GetAnimationDisplayName(string animName) => animName.ToLowerInvariant() switch
+    public static string GetCharacterDisplayName(string characterName) => characterName.ToLowerInvariant() switch
+    {
+        "hachiware" => "Hachiware",
+        "chiikawa" => "Chiikawa",
+        "usagi" => "Usagi",
+        "momonga" => "Momonga",
+        "jokebear" => "JokeBear",
+        "loverabbit" => "LOVE RABBIT",
+        "lai" => "總統-賴",
+        _ => characterName
+    };
+
+    public static string GetAnimationDisplayName(string animName) => animName.ToLowerInvariant() switch
     {
         "walkleft" => "向左走",
         "walkright" => "向右走",

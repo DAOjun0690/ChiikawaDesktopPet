@@ -50,4 +50,16 @@ public class BehaviorPlannerActionTests
         var random = new FixedRandomSource(4321);
         Assert.Equal(4321, BehaviorPlanner.NextIdleIntervalMs(random));
     }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(5)]
+    [InlineData(9)]
+    public void ChooseAutonomousAction_WhenJumpDisabled_ReturnsNoOpForJumpRolls(int roll)
+    {
+        var random = new FixedRandomSource(roll);
+        var result = BehaviorPlanner.ChooseAutonomousAction(new List<string> { "dance" }, random, allowJump: false);
+        Assert.Equal(AutonomousActionKind.NoOp, result.Kind);
+    }
 }
+
