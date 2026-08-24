@@ -45,6 +45,9 @@ public partial class App : Application
         var spawnJokeBear = new MenuItem("JokeBear");
         spawnJokeBear.Click += (_, _) => SpawnCharacter("jokebear");
         spawnMenu.DropDownItems.Add(spawnJokeBear);
+        var spawnLoveRabbit = new MenuItem("LOVE RABBIT");
+        spawnLoveRabbit.Click += (_, _) => SpawnCharacter("loverabbit");
+        spawnMenu.DropDownItems.Add(spawnLoveRabbit);
         var spawnLai = new MenuItem("總統-賴");
         spawnLai.Click += (_, _) => SpawnCharacter("lai");
         spawnMenu.DropDownItems.Add(spawnLai);
@@ -215,6 +218,11 @@ public partial class App : Application
         "danceswirl" => "旋轉舞",
         "mock" => "嘲諷搖擺",
         "bushi" => "不是不是喔",
+        "heart" => "發送愛心",
+        "kiss" => "飛吻放閃",
+        "run" => "快步狂奔",
+        "cry" => "痛哭流涕",
+        "party" => "派對狂歡",
         _ => animName
     };
 

@@ -27,6 +27,26 @@
       "bounce": { "fps": 18 }
     }
   },
+  "loverabbit": {
+    "animations": {
+      "walkleft": { "fps": 15 },
+      "walkright": { "fps": 15 },
+      "jumpright": { "fps": 15 },
+      "jumpleft": { "fps": 15 },
+      "bounce": { "fps": 15 },
+      "heart": { "fps": 15 },
+      "dance": { "fps": 15 },
+      "cheer": { "fps": 15 },
+      "drama": { "fps": 15 },
+      "sleep": { "fps": 10 },
+      "eat": { "fps": 12 },
+      "appeal": { "fps": 15 },
+      "kiss": { "fps": 15 },
+      "run": { "fps": 18 },
+      "cry": { "fps": 12 },
+      "party": { "fps": 15 }
+    }
+  },
   "lai": {
     "animations": {
       "walkleft": { "fps": 10 },
