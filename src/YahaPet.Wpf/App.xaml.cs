@@ -77,14 +77,36 @@ public partial class App : Application
         exitItem.Click += (_, _) => Shutdown();
         contextMenu.Items.Add(exitItem);
 
-        // ponytail: use the character's own artwork instead of the exe's associated icon —
-        // Icon.ExtractAssociatedIcon also breaks under single-file publishing, since
-        // Assembly.Location returns "" for an embedded assembly.
-        string iconPath = System.IO.Path.Combine(AppContext.BaseDirectory, "assets", "hachiware", "icons", "icon.png");
-        using var iconBitmap = new System.Drawing.Bitmap(iconPath);
+        string icoPath = System.IO.Path.Combine(AppContext.BaseDirectory, "assets", "app.ico");
+        string pngPath = System.IO.Path.Combine(AppContext.BaseDirectory, "assets", "app_icon.png");
+        System.Drawing.Icon trayIcon;
+
+        if (System.IO.File.Exists(icoPath))
+        {
+            trayIcon = new System.Drawing.Icon(icoPath);
+        }
+        else if (System.IO.File.Exists(pngPath))
+        {
+            using var iconBitmap = new System.Drawing.Bitmap(pngPath);
+            trayIcon = System.Drawing.Icon.FromHandle(iconBitmap.GetHicon());
+        }
+        else
+        {
+            string fallbackPath = System.IO.Path.Combine(AppContext.BaseDirectory, "assets", "hachiware", "icons", "icon.png");
+            if (System.IO.File.Exists(fallbackPath))
+            {
+                using var fallbackBmp = new System.Drawing.Bitmap(fallbackPath);
+                trayIcon = System.Drawing.Icon.FromHandle(fallbackBmp.GetHicon());
+            }
+            else
+            {
+                trayIcon = System.Drawing.SystemIcons.Application;
+            }
+        }
+
         _trayIcon = new NotifyIcon
         {
-            Icon = System.Drawing.Icon.FromHandle(iconBitmap.GetHicon()),
+            Icon = trayIcon,
             Visible = true,
             ContextMenuStrip = contextMenu,
             Text = "Yaha-Pet"
