@@ -1,0 +1,23 @@
+# .NET build and publish output
+[Bb]in/
+[Oo]bj/
+[Pp]ublish/
+publish-standalone/
+
+# Visual Studio / VS Code / Editors
+.vs/
+.vscode/
+.claude/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Local runtime configs
+config.json
+
+# OS and temporary files
+Thumbs.db
+[Dd]esktop.ini
+.DS_Store
+*.log

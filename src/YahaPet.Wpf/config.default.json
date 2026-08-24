@@ -1,0 +1,8 @@
+{
+  "hachiware": {
+    "animations": {
+      "walkleft": { "fps": 20 },
+      "walkright": { "fps": 20 }
+    }
+  }
+}

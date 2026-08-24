@@ -1,0 +1,17 @@
+<!-- src/YahaPet.Wpf/CharacterWindow.xaml -->
+<Window x:Class="YahaPet.Wpf.CharacterWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize">
+    <!-- ponytail: no SizeToContent — CharacterWindow.xaml.cs's SetSprite() already sets
+         Width/Height explicitly from the sprite's known pixel size on every frame change.
+         SizeToContent="WidthAndHeight" was redundant with that and, on a DPI-scaled display,
+         made WPF's layout system badly miscompute the window's actual rendered size (measured
+         up to ~24x too large) even though Width/Height stayed correct. -->
+    <Image x:Name="SpriteImage" Stretch="Fill" />
+</Window>
