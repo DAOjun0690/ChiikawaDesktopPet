@@ -4,5 +4,13 @@
       "walkleft": { "fps": 20 },
       "walkright": { "fps": 20 }
     }
+  },
+  "momonga": {
+    "animations": {
+      "walkleft": { "fps": 12 },
+      "walkright": { "fps": 12 },
+      "appeal": { "fps": 15 },
+      "stomp": { "fps": 15 }
+    }
   }
 }

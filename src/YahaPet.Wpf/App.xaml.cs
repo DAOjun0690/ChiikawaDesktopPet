@@ -39,6 +39,9 @@ public partial class App : Application
         var spawnUsagi = new MenuItem("Usagi");
         spawnUsagi.Click += (_, _) => SpawnCharacter("usagi");
         spawnMenu.DropDownItems.Add(spawnUsagi);
+        var spawnMomonga = new MenuItem("Momonga");
+        spawnMomonga.Click += (_, _) => SpawnCharacter("momonga");
+        spawnMenu.DropDownItems.Add(spawnMomonga);
         contextMenu.Items.Add(spawnMenu);
 
         _playAnimationMenu = new MenuItem("播放動畫") { Enabled = false };
