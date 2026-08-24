@@ -105,7 +105,6 @@ public partial class CharacterWindow : Window
         BubbleText.TextAlignment = DialogueAlignment;
         BubbleText.FontSize = DialogueFontSize;
         SetSprite(RandomFrom(_sprites, "spawn"));
-        PlayAnimationSound("spawn");
         Show();
 
         FallTo();

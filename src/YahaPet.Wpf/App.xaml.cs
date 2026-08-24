@@ -69,9 +69,7 @@ public partial class App : Application
     private ToolStripMenuItem? _kickMenu;
     private ToolStripMenuItem? _stopResumeMenu;
     private ToolStripMenuItem? _jumpMenu;
-    private ToolStripMenuItem? _muteAllItem;
     private readonly Dictionary<string, CharacterWindow> _characters = new(StringComparer.OrdinalIgnoreCase);
-    private bool _muteAll;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -97,10 +95,6 @@ public partial class App : Application
 
         _kickMenu = new MenuItem("踢出角色") { Enabled = false };
         contextMenu.Items.Add(_kickMenu);
-
-        _muteAllItem = new MenuItem("全部靜音") { Enabled = false };
-        _muteAllItem.Click += (_, _) => ToggleMuteAll();
-        contextMenu.Items.Add(_muteAllItem);
 
         _stopResumeMenu = new MenuItem("停止/恢復隨機動畫...") { Enabled = false };
         contextMenu.Items.Add(_stopResumeMenu);
@@ -210,8 +204,6 @@ public partial class App : Application
 
         window.KickRequested += () => KickCharacter(key, playSubmenu, kickItem, stopResumeItem, jumpItem);
         window.SayHiRequested += () => SayHi(key);
-
-        _muteAllItem!.Enabled = true;
     }
 
     private void KickCharacter(string key, ToolStripMenuItem playSubmenu, ToolStripMenuItem kickItem, ToolStripMenuItem stopResumeItem, ToolStripMenuItem jumpItem)
@@ -230,7 +222,6 @@ public partial class App : Application
         {
             _playAnimationMenu.Enabled = false;
             _kickMenu.Enabled = false;
-            _muteAllItem!.Enabled = false;
             _stopResumeMenu.Enabled = false;
             _jumpMenu.Enabled = false;
         }
@@ -260,16 +251,8 @@ public partial class App : Application
             window.ShowSpeechBubble();
             string dialogueText = window.CurrentDialogueText;
             string displayName = GetCharacterDisplayName(chosen);
-            SoundPlayerFactory.PlayIfExists(Path.Combine(AppContext.BaseDirectory, "assets", chosen, "sounds", "hi.wav"));
             _trayIcon!.ShowBalloonTip(500, $"{displayName} 說：", dialogueText, ToolTipIcon.Info);
         }
-    }
-
-    private void ToggleMuteAll()
-    {
-        _muteAll = !_muteAll;
-        SoundPlayerFactory.MuteAll = _muteAll;
-        _muteAllItem!.Text = _muteAll ? "取消全部靜音" : "全部靜音";
     }
 
     public static string GetCharacterDisplayName(string characterName) =>

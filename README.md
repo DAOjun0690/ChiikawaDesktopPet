@@ -9,10 +9,11 @@
 ## ✨ 特色功能 (Features)
 
 * **輕量與原生體驗**：基於 .NET 10 WPF，以無邊框、背景透明、永遠置頂視窗呈現，單檔發布大小僅約 **2.3 MB**。
+* **靜音辦公友善 (Office-Friendly)**：全域完全無突發音效干擾，安心在辦公室與專注工作環境中陪伴。
 * **多位人氣與趣味角色完整登場**：
   * **吉伊卡哇 (Chiikawa)**
   * **小八貓 (Hachiware)**
-  * **兔兔烏薩奇 (Usagi)**（包含 10 首專屬原聲音效與動作）
+  * **兔兔烏薩奇 (Usagi)**（包含旋轉舞、狂歡跳舞等多種專屬動作）
   * **小桃 (Momonga)**（包含裝可愛、生氣跺腳等特色動作）
   * **自嘲熊 (JokeBear)**（包含待機循環彈跳、狂歡跳舞、崩潰搥地、吃拉麵等豐富動作）
   * **愛心兔 (LOVE RABBIT)**（來自西村裕二作品，包含待機循環律動、發送愛心、狂歡跳舞、派對狂歡、痛哭流涕等豐富動作）
@@ -27,7 +28,7 @@
 * **系統匣快捷控制 (System Tray)**：
   * 繁體中文右鍵功能表。
   * 隨時生成 (Spawn) 或移除 (Kick) 任意角色。
-  * 打招呼 (Say Hi) 與全域靜音 (Mute All) 開關。
+  * 打招呼 (Say Hi) 互動與即時氣泡提示。
   * 支援 **「限制角色只能在單一螢幕內移動」** 切換，友善多螢幕工作環境。
 * **高 DPI 與多螢幕校正**：具備螢幕座標轉換、多螢幕跨屏跳躍防漂移與工作列自動貼齊防穿透。
 
@@ -39,7 +40,7 @@
 src/
   ├── YahaPet.Core/               純 C# 核心類別庫（無 UI 依賴，包含完全可單元測試的移動、跳躍、邊界判定邏輯）
   ├── YahaPet.Core.Tests/         核心決策邏輯 xUnit 單元測試
-  ├── YahaPet.Wpf/                WPF 桌面應用程式（系統匣控制、透明視窗、動畫播放器與音效管理）
+  ├── YahaPet.Wpf/                WPF 桌面應用程式（系統匣控制、透明視窗與流暢動畫播放器）
   ├── YahaPet.Wpf.Tests/          WPF 層元件單元測試
   ├── YahaPet.AssetPipeline/      獨立素材批次重取樣與壓縮工具（Frame Resampling & Image Optimization）
   └── YahaPet.AssetPipeline.Tests/素材處理管線單元測試
@@ -98,7 +99,7 @@ dotnet run --project src/YahaPet.AssetPipeline -- assets/<character> assets/opti
 ## 📄 授權與免責聲明 (License & Disclaimer)
 
 * **免責聲明**：本專案為非營利之同人娛樂、迷因趣味與學習專案。
-  * 「吉伊卡哇 (Chiikawa / なんか小さくてかわいいやつ)」及「自嘲熊 (JokeBear)」等作品與角色形象、音效之智慧財產權均屬原作者 **Nagano (ナガノ)** 所有。
+  * 「吉伊卡哇 (Chiikawa / なんか小さくてかわいいやつ)」及「自嘲熊 (JokeBear)」等作品與角色形象之智慧財產權均屬原作者 **Nagano (ナガノ)** 所有。
   * 「LOVE RABBIT (愛心兔)」角色形象之智慧財產權屬原作者 **Nishimura Yuji (西村裕二)** 所有。請支持正版貼圖與作品！
   * 專案內包含之公眾人物迷因角色（如「總統-賴」）純屬社群梗圖娛樂與技術展示，不具任何政治用途或政治立場。
 * **原專案致謝**：本專案的動作參數與最初素材整理參考自 [gitChara-dot/Yaha-Pet](https://github.com/gitChara-dot/Yaha-Pet) 的 Python/PyQt6 開源實作，特此致謝。

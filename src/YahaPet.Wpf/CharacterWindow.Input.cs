@@ -29,20 +29,7 @@ public partial class CharacterWindow
         SetSprite(_grabbedSprite);
         _dragOffset = e.GetPosition(this);
         _holdTimer.Start();
-
-        PlayRandomGrabbedSound();
         CaptureMouse();
-    }
-
-    private void PlayRandomGrabbedSound()
-    {
-        string soundsDir = Path.Combine(_assetRoot, "sounds");
-        if (!Directory.Exists(soundsDir)) return; // Hachiware: no-op, matches Global Constraints note.
-
-        var candidates = Directory.GetFiles(soundsDir, "grabbed*.wav");
-        if (candidates.Length == 0) return;
-
-        SoundPlayerFactory.PlayIfExists(candidates[Random.Shared.Next(candidates.Length)]);
     }
 
     private void OnMouseMove(object sender, MouseEventArgs e)

@@ -83,18 +83,18 @@ public class ImageOptimizerTests
     {
         string sourceDir = Path.Combine(Path.GetTempPath(), $"pipeline-src-{Guid.NewGuid()}");
         string outputDir = Path.Combine(Path.GetTempPath(), $"pipeline-dst-{Guid.NewGuid()}");
-        Directory.CreateDirectory(Path.Combine(sourceDir, "sounds"));
+        Directory.CreateDirectory(Path.Combine(sourceDir, "extra"));
         try
         {
-            File.WriteAllText(Path.Combine(sourceDir, "sounds", "test.wav"), "RIFF dummy wav content");
+            File.WriteAllText(Path.Combine(sourceDir, "extra", "test.txt"), "dummy text content");
             File.WriteAllText(Path.Combine(sourceDir, "icon.ico"), "dummy ico");
 
             int count = ImageOptimizer.OptimizeDirectory(sourceDir, outputDir, maxDimension: 200);
 
             Assert.Equal(0, count); // count only tracks PNGs processed
-            Assert.True(File.Exists(Path.Combine(outputDir, "sounds", "test.wav")));
+            Assert.True(File.Exists(Path.Combine(outputDir, "extra", "test.txt")));
             Assert.True(File.Exists(Path.Combine(outputDir, "icon.ico")));
-            Assert.Equal("RIFF dummy wav content", File.ReadAllText(Path.Combine(outputDir, "sounds", "test.wav")));
+            Assert.Equal("dummy text content", File.ReadAllText(Path.Combine(outputDir, "extra", "test.txt")));
         }
         finally
         {

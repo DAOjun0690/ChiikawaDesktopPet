@@ -160,12 +160,8 @@ public partial class CharacterWindow
         _frameTimer.Interval = TimeSpan.FromMilliseconds(1000.0 / fps);
         _isAnimating = true;
         _pendingOnComplete = onComplete;
-        PlayAnimationSound(animationName);
         _frameTimer.Start();
     }
-
-    private void PlayAnimationSound(string animationName) =>
-        SoundPlayerFactory.PlayIfExists(Path.Combine(_assetRoot, "sounds", $"{animationName}.wav"));
 
     private void OnFrameTick()
     {
