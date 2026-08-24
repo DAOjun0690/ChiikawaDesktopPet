@@ -45,6 +45,9 @@ public partial class App : Application
         var spawnJokeBear = new MenuItem("JokeBear");
         spawnJokeBear.Click += (_, _) => SpawnCharacter("jokebear");
         spawnMenu.DropDownItems.Add(spawnJokeBear);
+        var spawnLai = new MenuItem("總統-賴");
+        spawnLai.Click += (_, _) => SpawnCharacter("lai");
+        spawnMenu.DropDownItems.Add(spawnLai);
         contextMenu.Items.Add(spawnMenu);
 
         _playAnimationMenu = new MenuItem("播放動畫") { Enabled = false };
@@ -211,6 +214,7 @@ public partial class App : Application
         "tapdance" => "踢踏舞",
         "danceswirl" => "旋轉舞",
         "mock" => "嘲諷搖擺",
+        "bushi" => "不是不是喔",
         _ => animName
     };
 

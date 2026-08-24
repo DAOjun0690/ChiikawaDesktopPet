@@ -26,5 +26,13 @@
       "sleep": { "fps": 10 },
       "bounce": { "fps": 18 }
     }
+  },
+  "lai": {
+    "animations": {
+      "walkleft": { "fps": 10 },
+      "walkright": { "fps": 10 },
+      "bushi": { "fps": 12 },
+      "cheer": { "fps": 10 }
+    }
   }
 }

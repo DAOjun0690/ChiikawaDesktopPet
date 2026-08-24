@@ -76,4 +76,17 @@ public class ConfigTests
             File.Delete(path);
         }
     }
+
+    [Fact]
+    public void ConfigLoader_Load_ShippedConfig_ContainsLaiConfig()
+    {
+        string path = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "YahaPet.Wpf", "config.default.json");
+        if (File.Exists(path))
+        {
+            var result = ConfigLoader.Load(path);
+            Assert.Equal(10, BehaviorPlanner.GetFps(result, "lai", "walkleft"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "lai", "bushi"));
+            Assert.Equal(10, BehaviorPlanner.GetFps(result, "lai", "cheer"));
+        }
+    }
 }
