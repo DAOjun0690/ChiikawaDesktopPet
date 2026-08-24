@@ -1,6 +1,6 @@
 # ChiikawaDesktopPet (吉伊卡哇桌面寵物)
 
-基於 **C# / .NET 8 WPF** 打造的高效能、輕量化吉伊卡哇桌面寵物應用程式。
+基於 **C# / .NET 10 WPF** 打造的高效能、輕量化吉伊卡哇桌面寵物應用程式。
 
 本專案完全重構自社群開源的 Python/PyQt6 實作，具備極致輕量的執行體積、原生 Windows 桌面流暢度與完整的互動支援。
 
@@ -8,7 +8,7 @@
 
 ## ✨ 特色功能 (Features)
 
-* **輕量與原生體驗**：基於 .NET 8 WPF，以無邊框、背景透明、永遠置頂視窗呈現，單檔發布大小僅約 **2.3 MB**。
+* **輕量與原生體驗**：基於 .NET 10 WPF，以無邊框、背景透明、永遠置頂視窗呈現，單檔發布大小僅約 **2.3 MB**。
 * **多位人氣與趣味角色完整登場**：
   * 🌸 **吉伊卡哇 (Chiikawa)**
   * 🐱 **小八貓 (Hachiware)**
@@ -48,7 +48,7 @@ src/
 ## 🚀 開發與建置 (Development & Build)
 
 ### 需求條件
-* [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) 或更高版本
+* [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) 或更高版本
 * Windows 10 / 11
 
 ### 本地執行
@@ -63,7 +63,7 @@ dotnet test src/YahaPet.sln
 
 ### 發布專案 (Publish)
 
-#### 1. 輕量單檔發布（需本機已安裝 .NET 8 Desktop Runtime，體積僅約 ~2.3 MB）
+#### 1. 輕量單檔發布（需本機已安裝 .NET 10 Desktop Runtime，體積僅約 ~2.3 MB）
 ```powershell
 dotnet publish src/YahaPet.Wpf/YahaPet.Wpf.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
 ```
@@ -73,6 +73,14 @@ dotnet publish src/YahaPet.Wpf/YahaPet.Wpf.csproj -c Release -r win-x64 --self-c
 ```powershell
 dotnet publish src/YahaPet.Wpf/YahaPet.Wpf.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish-standalone
 ```
+
+> [!TIP]
+> **可攜式 / 免安裝 SDK 開發者提示**：
+> 若本機未全域安裝 .NET SDK，只需在終端機先指定環境變數即可直接編譯與執行：
+> ```powershell
+> $env:DOTNET_ROOT = "<你的 .NET 10 SDK 目錄>"
+> $env:PATH = "$env:DOTNET_ROOT;$env:PATH"
+> ```
 
 ---
 

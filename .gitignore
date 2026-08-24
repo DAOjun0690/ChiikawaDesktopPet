@@ -13,8 +13,10 @@ publish-standalone/
 *.userosscache
 *.sln.docstates
 
-# Local runtime configs
+# Local runtime configs & scripts
 config.json
+global.json
+*.ps1
 
 # OS and temporary files
 Thumbs.db
