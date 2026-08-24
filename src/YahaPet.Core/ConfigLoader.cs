@@ -16,10 +16,10 @@ public static class ConfigLoader
         try
         {
             string json = File.ReadAllText(path);
-            var result = JsonSerializer.Deserialize<Dictionary<string, CharacterConfig>>(
-                json,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            return result ?? new Dictionary<string, CharacterConfig>(StringComparer.OrdinalIgnoreCase);
+            var result = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringCharacterConfig);
+            return result != null
+                ? new Dictionary<string, CharacterConfig>(result, StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, CharacterConfig>(StringComparer.OrdinalIgnoreCase);
         }
         catch (JsonException)
         {

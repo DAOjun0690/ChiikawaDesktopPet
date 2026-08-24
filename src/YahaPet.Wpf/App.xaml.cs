@@ -1,6 +1,8 @@
 // src/YahaPet.Wpf/App.xaml.cs
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
+using System.IO;
 using System.Windows;
 using System.Windows.Forms;
 using Application = System.Windows.Application;
@@ -10,6 +12,53 @@ namespace YahaPet.Wpf;
 
 public partial class App : Application
 {
+    private static readonly FrozenDictionary<string, string> CharacterDisplayNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["hachiware"] = "Hachiware",
+        ["chiikawa"] = "Chiikawa",
+        ["usagi"] = "Usagi",
+        ["momonga"] = "Momonga",
+        ["jokebear"] = "JokeBear",
+        ["loverabbit"] = "LOVE RABBIT",
+        ["lai"] = "總統-賴"
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly FrozenDictionary<string, string> AnimationDisplayNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["walkleft"] = "向左走",
+        ["walkright"] = "向右走",
+        ["jumpleft"] = "向左跳",
+        ["jumpright"] = "向右跳",
+        ["bounce"] = "原地彈跳",
+        ["dance"] = "狂歡跳舞",
+        ["eat"] = "吃拉麵",
+        ["cheer"] = "拍手歡呼",
+        ["drama"] = "崩潰搥地",
+        ["sleep"] = "躺平睡覺",
+        ["appeal"] = "展現魅力",
+        ["stomp"] = "跺腳生氣",
+        ["tapdance"] = "踢踏舞",
+        ["danceswirl"] = "旋轉舞",
+        ["mock"] = "嘲諷搖擺",
+        ["bushi"] = "不是不是喔",
+        ["heart"] = "發送愛心",
+        ["kiss"] = "飛吻放閃",
+        ["run"] = "快步狂奔",
+        ["cry"] = "痛哭流涕",
+        ["party"] = "派對狂歡"
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly (string Key, string DisplayName)[] CharacterDefinitions =
+    [
+        ("hachiware", "Hachiware"),
+        ("chiikawa", "Chiikawa"),
+        ("usagi", "Usagi"),
+        ("momonga", "Momonga"),
+        ("jokebear", "JokeBear"),
+        ("loverabbit", "LOVE RABBIT"),
+        ("lai", "總統-賴")
+    ];
+
     private NotifyIcon? _trayIcon;
     private ToolStripMenuItem? _playAnimationMenu;
     private ToolStripMenuItem? _kickMenu;
@@ -23,35 +72,15 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        // ponytail: the Python original shows an invisible, contentless full-screen
-        // background window (`yahawindow`) that nothing ever draws on and no user story
-        // observably depends on. ShutdownMode=OnExplicitShutdown already keeps this app
-        // alive with only a tray icon, so that vestigial window is not ported.
-
         var contextMenu = new ContextMenuStrip();
 
         var spawnMenu = new MenuItem("生成角色");
-        var spawnHachiware = new MenuItem("Hachiware");
-        spawnHachiware.Click += (_, _) => SpawnCharacter("hachiware");
-        spawnMenu.DropDownItems.Add(spawnHachiware);
-        var spawnChiikawa = new MenuItem("Chiikawa");
-        spawnChiikawa.Click += (_, _) => SpawnCharacter("chiikawa");
-        spawnMenu.DropDownItems.Add(spawnChiikawa);
-        var spawnUsagi = new MenuItem("Usagi");
-        spawnUsagi.Click += (_, _) => SpawnCharacter("usagi");
-        spawnMenu.DropDownItems.Add(spawnUsagi);
-        var spawnMomonga = new MenuItem("Momonga");
-        spawnMomonga.Click += (_, _) => SpawnCharacter("momonga");
-        spawnMenu.DropDownItems.Add(spawnMomonga);
-        var spawnJokeBear = new MenuItem("JokeBear");
-        spawnJokeBear.Click += (_, _) => SpawnCharacter("jokebear");
-        spawnMenu.DropDownItems.Add(spawnJokeBear);
-        var spawnLoveRabbit = new MenuItem("LOVE RABBIT");
-        spawnLoveRabbit.Click += (_, _) => SpawnCharacter("loverabbit");
-        spawnMenu.DropDownItems.Add(spawnLoveRabbit);
-        var spawnLai = new MenuItem("總統-賴");
-        spawnLai.Click += (_, _) => SpawnCharacter("lai");
-        spawnMenu.DropDownItems.Add(spawnLai);
+        foreach (var (key, displayName) in CharacterDefinitions)
+        {
+            var item = new MenuItem(displayName);
+            item.Click += (_, _) => SpawnCharacter(key);
+            spawnMenu.DropDownItems.Add(item);
+        }
         contextMenu.Items.Add(spawnMenu);
 
         _playAnimationMenu = new MenuItem("播放動畫") { Enabled = false };
@@ -87,23 +116,23 @@ public partial class App : Application
         exitItem.Click += (_, _) => Shutdown();
         contextMenu.Items.Add(exitItem);
 
-        string icoPath = System.IO.Path.Combine(AppContext.BaseDirectory, "assets", "app.ico");
-        string pngPath = System.IO.Path.Combine(AppContext.BaseDirectory, "assets", "app_icon.png");
+        string icoPath = Path.Combine(AppContext.BaseDirectory, "assets", "app.ico");
+        string pngPath = Path.Combine(AppContext.BaseDirectory, "assets", "app_icon.png");
         System.Drawing.Icon trayIcon;
 
-        if (System.IO.File.Exists(icoPath))
+        if (File.Exists(icoPath))
         {
             trayIcon = new System.Drawing.Icon(icoPath);
         }
-        else if (System.IO.File.Exists(pngPath))
+        else if (File.Exists(pngPath))
         {
             using var iconBitmap = new System.Drawing.Bitmap(pngPath);
             trayIcon = System.Drawing.Icon.FromHandle(iconBitmap.GetHicon());
         }
         else
         {
-            string fallbackPath = System.IO.Path.Combine(AppContext.BaseDirectory, "assets", "hachiware", "icons", "icon.png");
-            if (System.IO.File.Exists(fallbackPath))
+            string fallbackPath = Path.Combine(AppContext.BaseDirectory, "assets", "hachiware", "icons", "icon.png");
+            if (File.Exists(fallbackPath))
             {
                 using var fallbackBmp = new System.Drawing.Bitmap(fallbackPath);
                 trayIcon = System.Drawing.Icon.FromHandle(fallbackBmp.GetHicon());
@@ -205,11 +234,19 @@ public partial class App : Application
             _trayIcon!.ShowBalloonTip(500, "等等！", "你還沒有生成任何角色！", ToolTipIcon.Info);
             return;
         }
-        string chosen = (specificKey != null && _characters.ContainsKey(specificKey))
-            ? specificKey
-            : new List<string>(_characters.Keys)[new Random().Next(_characters.Count)];
 
-        SoundPlayerFactory.PlayIfExists(System.IO.Path.Combine(AppContext.BaseDirectory, "assets", chosen, "sounds", "hi.wav"));
+        string chosen;
+        if (specificKey != null && _characters.ContainsKey(specificKey))
+        {
+            chosen = specificKey;
+        }
+        else
+        {
+            var keys = new List<string>(_characters.Keys);
+            chosen = keys[Random.Shared.Next(keys.Count)];
+        }
+
+        SoundPlayerFactory.PlayIfExists(Path.Combine(AppContext.BaseDirectory, "assets", chosen, "sounds", "hi.wav"));
         _trayIcon!.ShowBalloonTip(500, $"{chosen} 說：", "嗨！", ToolTipIcon.Info);
     }
 
@@ -220,43 +257,11 @@ public partial class App : Application
         _muteAllItem!.Text = _muteAll ? "取消全部靜音" : "全部靜音";
     }
 
-    public static string GetCharacterDisplayName(string characterName) => characterName.ToLowerInvariant() switch
-    {
-        "hachiware" => "Hachiware",
-        "chiikawa" => "Chiikawa",
-        "usagi" => "Usagi",
-        "momonga" => "Momonga",
-        "jokebear" => "JokeBear",
-        "loverabbit" => "LOVE RABBIT",
-        "lai" => "總統-賴",
-        _ => characterName
-    };
+    public static string GetCharacterDisplayName(string characterName) =>
+        CharacterDisplayNames.TryGetValue(characterName, out var name) ? name : characterName;
 
-    public static string GetAnimationDisplayName(string animName) => animName.ToLowerInvariant() switch
-    {
-        "walkleft" => "向左走",
-        "walkright" => "向右走",
-        "jumpleft" => "向左跳",
-        "jumpright" => "向右跳",
-        "bounce" => "原地彈跳",
-        "dance" => "狂歡跳舞",
-        "eat" => "吃拉麵",
-        "cheer" => "拍手歡呼",
-        "drama" => "崩潰搥地",
-        "sleep" => "躺平睡覺",
-        "appeal" => "展現魅力",
-        "stomp" => "跺腳生氣",
-        "tapdance" => "踢踏舞",
-        "danceswirl" => "旋轉舞",
-        "mock" => "嘲諷搖擺",
-        "bushi" => "不是不是喔",
-        "heart" => "發送愛心",
-        "kiss" => "飛吻放閃",
-        "run" => "快步狂奔",
-        "cry" => "痛哭流涕",
-        "party" => "派對狂歡",
-        _ => animName
-    };
+    public static string GetAnimationDisplayName(string animName) =>
+        AnimationDisplayNames.TryGetValue(animName, out var name) ? name : animName;
 
     protected override void OnExit(ExitEventArgs e)
     {

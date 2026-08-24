@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
@@ -32,16 +31,17 @@ public static class SpriteLoader
 
     public static List<BitmapSource> LoadFrames(string animationFolder, int maxWidth, int maxHeight)
     {
-        var files = Directory.GetFiles(animationFolder, "*.png")
-            .OrderBy(f =>
-            {
-                string stem = Path.GetFileNameWithoutExtension(f);
-                string leading = stem.Split('-')[0];
-                return int.TryParse(leading, out int n) ? n : int.MaxValue;
-            })
-            .ToList();
+        if (!Directory.Exists(animationFolder)) return [];
 
-        return files.Select(f => LoadSingle(f, maxWidth, maxHeight)).ToList();
+        var files = Directory.GetFiles(animationFolder, "*.png");
+        Array.Sort(files, static (a, b) => GetLeadingNumber(a).CompareTo(GetLeadingNumber(b)));
+
+        var frames = new List<BitmapSource>(files.Length);
+        foreach (var file in files)
+        {
+            frames.Add(LoadSingle(file, maxWidth, maxHeight));
+        }
+        return frames;
     }
 
     public static BitmapSource Mirror(BitmapSource source)
@@ -49,5 +49,13 @@ public static class SpriteLoader
         var mirrored = new TransformedBitmap(source, new ScaleTransform(-1, 1));
         mirrored.Freeze();
         return mirrored;
+    }
+
+    private static int GetLeadingNumber(string filePath)
+    {
+        ReadOnlySpan<char> fileName = Path.GetFileNameWithoutExtension(filePath.AsSpan());
+        int dashIndex = fileName.IndexOf('-');
+        ReadOnlySpan<char> leading = dashIndex >= 0 ? fileName[..dashIndex] : fileName;
+        return int.TryParse(leading, out int n) ? n : int.MaxValue;
     }
 }

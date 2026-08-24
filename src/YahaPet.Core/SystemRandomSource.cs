@@ -2,7 +2,7 @@ namespace YahaPet.Core;
 
 public sealed class SystemRandomSource : IRandomSource
 {
-    private readonly Random _random = new();
+    public static readonly SystemRandomSource Shared = new();
 
-    public int Next(int minInclusive, int maxExclusive) => _random.Next(minInclusive, maxExclusive);
+    public int Next(int minInclusive, int maxExclusive) => Random.Shared.Next(minInclusive, maxExclusive);
 }
