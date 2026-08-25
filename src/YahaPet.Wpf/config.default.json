@@ -86,6 +86,25 @@
       "heart": { "fps": 12 }
     }
   },
+  "capoo": {
+    "animations": {
+      "walkleft": { "fps": 8 },
+      "walkright": { "fps": 8 },
+      "jumpleft": { "fps": 15 },
+      "jumpright": { "fps": 15 },
+      "bounce": { "fps": 15 },
+      "eat": { "fps": 12 },
+      "heart": { "fps": 15 },
+      "appeal": { "fps": 15 },
+      "cry": { "fps": 12 },
+      "dance": { "fps": 15 },
+      "roar": { "fps": 15 },
+      "cheer": { "fps": 12 },
+      "thunder": { "fps": 12 },
+      "squeeze": { "fps": 12 },
+      "party": { "fps": 15 }
+    }
+  },
   "coanimations": {
     "animations": {
       "chiikawa_momonga": { "fps": 15 }

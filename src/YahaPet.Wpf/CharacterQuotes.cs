@@ -17,7 +17,8 @@ public static class CharacterQuotes
         ["loverabbit"] = "啾～❤️ 最喜歡你了！",
         ["lai"] = "Team Taiwan！台灣加油！",
         ["poro"] = "咕嚕嚕～❤️（吐舌頭嚼普羅點心）",
-        ["pochita"] = "汪！汪！（鏈鋸引擎轟鳴運轉）"
+        ["pochita"] = "汪！汪！（鏈鋸引擎轟鳴運轉）",
+        ["capoo"] = "肉肉！肉肉！（興奮扭動討肉吃）"
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     public static string GetDefaultQuote(string characterName) =>

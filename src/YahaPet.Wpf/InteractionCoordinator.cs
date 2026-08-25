@@ -45,6 +45,7 @@ public sealed class InteractionCoordinator
         "lai" => 7,
         "poro" => 8,
         "pochita" => 9,
+        "capoo" => 10,
         _ => 0
     };
 
@@ -59,6 +60,7 @@ public sealed class InteractionCoordinator
         7 => "lai",
         8 => "poro",
         9 => "pochita",
+        10 => "capoo",
         _ => null
     };
 

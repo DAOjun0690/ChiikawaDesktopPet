@@ -16,6 +16,7 @@ public class CharacterQuotesTests
     [InlineData("lai", "Team Taiwan！台灣加油！")]
     [InlineData("poro", "咕嚕嚕～❤️（吐舌頭嚼普羅點心）")]
     [InlineData("pochita", "汪！汪！（鏈鋸引擎轟鳴運轉）")]
+    [InlineData("capoo", "肉肉！肉肉！（興奮扭動討肉吃）")]
     public void GetDefaultQuote_KnownCharacters_ReturnsExpectedQuote(string characterName, string expectedQuote)
     {
         string quote = CharacterQuotes.GetDefaultQuote(characterName);

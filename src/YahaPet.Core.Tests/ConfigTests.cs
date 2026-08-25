@@ -89,4 +89,18 @@ public class ConfigTests
             Assert.Equal(10, BehaviorPlanner.GetFps(result, "lai", "cheer"));
         }
     }
+
+    [Fact]
+    public void ConfigLoader_Load_ShippedConfig_ContainsCapooConfig()
+    {
+        string path = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "YahaPet.Wpf", "config.default.json");
+        if (File.Exists(path))
+        {
+            var result = ConfigLoader.Load(path);
+            Assert.Equal(8, BehaviorPlanner.GetFps(result, "capoo", "walkleft"));
+            Assert.Equal(15, BehaviorPlanner.GetFps(result, "capoo", "bounce"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "capoo", "eat"));
+            Assert.Equal(15, BehaviorPlanner.GetFps(result, "capoo", "roar"));
+        }
+    }
 }
