@@ -143,8 +143,8 @@ public partial class CharacterWindow
         var result = ownExists ? sourceFrames : sourceFrames.ConvertAll(SpriteLoader.Mirror);
         _frames[animationName] = result;
 
-        // Populating both directions from a single decode
-        if (isMirrorable)
+        // Populating both directions from a single decode if mirrored folder doesn't exist on disk
+        if (isMirrorable && !Directory.Exists(Path.Combine(_assetRoot, "animations", mirroredName)))
             _frames[mirroredName] = ownExists ? sourceFrames.ConvertAll(SpriteLoader.Mirror) : sourceFrames;
 
         return result;

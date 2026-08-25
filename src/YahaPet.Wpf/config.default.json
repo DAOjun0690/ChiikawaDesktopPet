@@ -54,5 +54,18 @@
       "bushi": { "fps": 12 },
       "cheer": { "fps": 10 }
     }
+  },
+  "poro": {
+    "animations": {
+      "walkleft": { "fps": 12 },
+      "walkright": { "fps": 12 },
+      "bounce": { "fps": 12 },
+      "eat": { "fps": 10 },
+      "heart": { "fps": 12 },
+      "sleep": { "fps": 8 },
+      "cheer": { "fps": 12 },
+      "cry": { "fps": 12 },
+      "party": { "fps": 10 }
+    }
   }
 }

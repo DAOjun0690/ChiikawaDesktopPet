@@ -46,6 +46,10 @@
       <Link>assets\lai\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="..\..\assets\optimized\poro\**\*.*">
+      <Link>assets\poro\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="config.default.json">
       <Link>config.json</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

@@ -20,7 +20,8 @@ public partial class App : Application
         ["momonga"] = "Momonga",
         ["jokebear"] = "JokeBear",
         ["loverabbit"] = "LOVE RABBIT",
-        ["lai"] = "總統-賴"
+        ["lai"] = "總統-賴",
+        ["poro"] = "普羅 (Poro)"
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     private static readonly FrozenDictionary<string, string> AnimationDisplayNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -56,13 +57,26 @@ public partial class App : Application
         ("momonga", "Momonga"),
         ("jokebear", "JokeBear"),
         ("loverabbit", "LOVE RABBIT"),
-        ("lai", "總統-賴")
+        ("lai", "總統-賴"),
+        ("poro", "普羅 (Poro)")
     ];
 
     private static readonly string[] AutoSpawnCandidates =
     [
-        "hachiware", "chiikawa", "usagi", "momonga", "jokebear", "loverabbit"
+        "hachiware", "chiikawa", "usagi", "momonga", "jokebear", "loverabbit", "poro"
     ];
+
+    private sealed class CharacterTrayItems(
+        ToolStripMenuItem playSubmenu,
+        ToolStripMenuItem kickItem,
+        ToolStripMenuItem stopResumeItem,
+        ToolStripMenuItem jumpItem)
+    {
+        public ToolStripMenuItem PlaySubmenu { get; } = playSubmenu;
+        public ToolStripMenuItem KickItem { get; } = kickItem;
+        public ToolStripMenuItem StopResumeItem { get; } = stopResumeItem;
+        public ToolStripMenuItem JumpItem { get; } = jumpItem;
+    }
 
     private NotifyIcon? _trayIcon;
     private ToolStripMenuItem? _playAnimationMenu;
@@ -70,6 +84,8 @@ public partial class App : Application
     private ToolStripMenuItem? _stopResumeMenu;
     private ToolStripMenuItem? _jumpMenu;
     private readonly Dictionary<string, CharacterWindow> _characters = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, ToolStripMenuItem> _spawnMenuItems = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, CharacterTrayItems> _characterTrayItems = new(StringComparer.OrdinalIgnoreCase);
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -81,8 +97,10 @@ public partial class App : Application
         foreach (var (key, displayName) in CharacterDefinitions)
         {
             var item = new MenuItem(displayName);
-            item.Click += (_, _) => SpawnCharacter(key);
+            string k = key;
+            item.Click += (_, _) => ToggleCharacter(k);
             spawnMenu.DropDownItems.Add(item);
+            _spawnMenuItems[key] = item;
         }
         contextMenu.Items.Add(spawnMenu);
 
@@ -155,18 +173,35 @@ public partial class App : Application
         SpawnCharacter(initialCharacter);
     }
 
+    private void ToggleCharacter(string name)
+    {
+        string key = name.ToLowerInvariant();
+        if (_characters.ContainsKey(key))
+        {
+            KickCharacter(key);
+        }
+        else
+        {
+            SpawnCharacter(key);
+        }
+    }
+
     private void SpawnCharacter(string name)
     {
         string key = name.ToLowerInvariant();
         if (_characters.ContainsKey(key))
         {
-            System.Windows.MessageBox.Show("角色已經生成過了！", "失敗");
             return;
         }
 
         var window = new CharacterWindow(key);
         _characters[key] = window;
         window.Spawn();
+
+        if (_spawnMenuItems.TryGetValue(key, out var spawnMenuItem))
+        {
+            spawnMenuItem.Checked = true;
+        }
 
         var playSubmenu = new ToolStripMenuItem(key);
         foreach (var animName in window.AllAnimationNames())
@@ -198,32 +233,44 @@ public partial class App : Application
         _jumpMenu.Enabled = true;
 
         var kickItem = new ToolStripMenuItem(key);
-        kickItem.Click += (_, _) => KickCharacter(key, playSubmenu, kickItem, stopResumeItem, jumpItem);
+        kickItem.Click += (_, _) => KickCharacter(key);
         _kickMenu!.DropDownItems.Add(kickItem);
         _kickMenu.Enabled = true;
 
-        window.KickRequested += () => KickCharacter(key, playSubmenu, kickItem, stopResumeItem, jumpItem);
+        _characterTrayItems[key] = new CharacterTrayItems(playSubmenu, kickItem, stopResumeItem, jumpItem);
+
+        window.KickRequested += () => KickCharacter(key);
         window.SayHiRequested += () => SayHi(key);
     }
 
-    private void KickCharacter(string key, ToolStripMenuItem playSubmenu, ToolStripMenuItem kickItem, ToolStripMenuItem stopResumeItem, ToolStripMenuItem jumpItem)
+    private void KickCharacter(string name)
     {
+        string key = name.ToLowerInvariant();
         if (_characters.TryGetValue(key, out var window))
         {
             window.Shutdown();
             _characters.Remove(key);
         }
-        _playAnimationMenu!.DropDownItems.Remove(playSubmenu);
-        _kickMenu!.DropDownItems.Remove(kickItem);
-        _stopResumeMenu!.DropDownItems.Remove(stopResumeItem);
-        _jumpMenu!.DropDownItems.Remove(jumpItem);
+
+        if (_characterTrayItems.Remove(key, out var items))
+        {
+            _playAnimationMenu!.DropDownItems.Remove(items.PlaySubmenu);
+            _kickMenu!.DropDownItems.Remove(items.KickItem);
+            _stopResumeMenu!.DropDownItems.Remove(items.StopResumeItem);
+            _jumpMenu!.DropDownItems.Remove(items.JumpItem);
+        }
+
+        if (_spawnMenuItems.TryGetValue(key, out var spawnMenuItem))
+        {
+            spawnMenuItem.Checked = false;
+        }
 
         if (_characters.Count == 0)
         {
-            _playAnimationMenu.Enabled = false;
-            _kickMenu.Enabled = false;
-            _stopResumeMenu.Enabled = false;
-            _jumpMenu.Enabled = false;
+            _playAnimationMenu!.Enabled = false;
+            _kickMenu!.Enabled = false;
+            _stopResumeMenu!.Enabled = false;
+            _jumpMenu!.Enabled = false;
         }
     }
 

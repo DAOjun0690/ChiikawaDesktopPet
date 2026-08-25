@@ -370,7 +370,7 @@ public partial class CharacterWindow : Window
 
         // If the character has a bounce/idle animation, loop it during idle
         var idleFrames = GetOrLoadFrames("bounce");
-        if (idleFrames.Count > 0 && (CharacterName == "jokebear" || CharacterName == "loverabbit"))
+        if (idleFrames.Count > 0 && (CharacterName == "jokebear" || CharacterName == "loverabbit" || CharacterName == "poro"))
         {
             _currentAnimationFrames = idleFrames;
             _currentFrameIndex = 0;

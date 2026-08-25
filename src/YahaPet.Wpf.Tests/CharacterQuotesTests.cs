@@ -14,6 +14,7 @@ public class CharacterQuotesTests
     [InlineData("jokebear", "（微笑凝視）")]
     [InlineData("loverabbit", "啾～❤️ 最喜歡你了！")]
     [InlineData("lai", "Team Taiwan！台灣加油！")]
+    [InlineData("poro", "咕嚕嚕～❤️（吐舌頭嚼普羅點心）")]
     public void GetDefaultQuote_KnownCharacters_ReturnsExpectedQuote(string characterName, string expectedQuote)
     {
         string quote = CharacterQuotes.GetDefaultQuote(characterName);
