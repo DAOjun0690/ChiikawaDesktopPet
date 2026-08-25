@@ -67,5 +67,23 @@
       "cry": { "fps": 12 },
       "party": { "fps": 10 }
     }
+  },
+  "pochita": {
+    "animations": {
+      "walkleft": { "fps": 12 },
+      "walkright": { "fps": 12 },
+      "jumpleft": { "fps": 12 },
+      "jumpright": { "fps": 12 },
+      "bounce": { "fps": 12 },
+      "spin": { "fps": 15 },
+      "chainsaw": { "fps": 15 },
+      "bark": { "fps": 12 },
+      "cheer": { "fps": 10 },
+      "sleep": { "fps": 8 },
+      "cry": { "fps": 12 },
+      "dance": { "fps": 12 },
+      "eat": { "fps": 10 },
+      "heart": { "fps": 12 }
+    }
   }
 }

@@ -15,6 +15,7 @@ public class TrayMenuTests
     [InlineData("loverabbit", "LOVE RABBIT")]
     [InlineData("lai", "總統-賴")]
     [InlineData("poro", "普羅 (Poro)")]
+    [InlineData("pochita", "波奇塔 (Pochita)")]
     public void GetCharacterDisplayName_KnownCharacter_ReturnsExpectedDisplayName(string key, string expectedDisplayName)
     {
         string displayName = App.GetCharacterDisplayName(key);
@@ -37,6 +38,9 @@ public class TrayMenuTests
     [InlineData("cheer", "拍手歡呼")]
     [InlineData("heart", "發送愛心")]
     [InlineData("party", "派對狂歡")]
+    [InlineData("chainsaw", "鏈鋸狂飆")]
+    [InlineData("spin", "旋轉狂舞")]
+    [InlineData("bark", "汪汪叫")]
     public void GetAnimationDisplayName_KnownAnimation_ReturnsExpectedDisplayName(string key, string expectedDisplayName)
     {
         string displayName = App.GetAnimationDisplayName(key);

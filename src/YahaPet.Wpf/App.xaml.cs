@@ -21,7 +21,8 @@ public partial class App : Application
         ["jokebear"] = "JokeBear",
         ["loverabbit"] = "LOVE RABBIT",
         ["lai"] = "總統-賴",
-        ["poro"] = "普羅 (Poro)"
+        ["poro"] = "普羅 (Poro)",
+        ["pochita"] = "波奇塔 (Pochita)"
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     private static readonly FrozenDictionary<string, string> AnimationDisplayNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -46,7 +47,10 @@ public partial class App : Application
         ["kiss"] = "飛吻放閃",
         ["run"] = "快步狂奔",
         ["cry"] = "痛哭流涕",
-        ["party"] = "派對狂歡"
+        ["party"] = "派對狂歡",
+        ["chainsaw"] = "鏈鋸狂飆",
+        ["spin"] = "旋轉狂舞",
+        ["bark"] = "汪汪叫"
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     private static readonly (string Key, string DisplayName)[] CharacterDefinitions =
@@ -58,12 +62,13 @@ public partial class App : Application
         ("jokebear", "JokeBear"),
         ("loverabbit", "LOVE RABBIT"),
         ("lai", "總統-賴"),
-        ("poro", "普羅 (Poro)")
+        ("poro", "普羅 (Poro)"),
+        ("pochita", "波奇塔 (Pochita)")
     ];
 
     private static readonly string[] AutoSpawnCandidates =
     [
-        "hachiware", "chiikawa", "usagi", "momonga", "jokebear", "loverabbit", "poro"
+        "hachiware", "chiikawa", "usagi", "momonga", "jokebear", "loverabbit", "poro", "pochita"
     ];
 
     private sealed class CharacterTrayItems(
