@@ -103,4 +103,22 @@ public class ConfigTests
             Assert.Equal(15, BehaviorPlanner.GetFps(result, "capoo", "roar"));
         }
     }
+
+    [Fact]
+    public void ConfigLoader_Load_ShippedConfig_ContainsChestHairMonkeyConfig()
+    {
+        string path = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "YahaPet.Wpf", "config.default.json");
+        if (File.Exists(path))
+        {
+            var result = ConfigLoader.Load(path);
+            Assert.Equal(10, BehaviorPlanner.GetFps(result, "chesthair_monkey", "walkleft"));
+            Assert.Equal(10, BehaviorPlanner.GetFps(result, "chesthair_monkey", "bounce"));
+            Assert.Equal(10, BehaviorPlanner.GetFps(result, "chesthair_monkey", "eat"));
+            Assert.Equal(10, BehaviorPlanner.GetFps(result, "chesthair_monkey", "worship"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "chesthair_monkey", "keyboard"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "chesthair_monkey", "chair"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "chesthair_monkey", "smash"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "chesthair_monkey", "error"));
+        }
+    }
 }

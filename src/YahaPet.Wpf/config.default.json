@@ -105,6 +105,29 @@
       "party": { "fps": 15 }
     }
   },
+  "chesthair_monkey": {
+    "animations": {
+      "walkleft": { "fps": 10 },
+      "walkright": { "fps": 10 },
+      "jumpleft": { "fps": 12 },
+      "jumpright": { "fps": 12 },
+      "bounce": { "fps": 10 },
+      "eat": { "fps": 10 },
+      "worship": { "fps": 10 },
+      "keyboard": { "fps": 12 },
+      "chair": { "fps": 12 },
+      "smash": { "fps": 12 },
+      "cry": { "fps": 12 },
+      "dance": { "fps": 12 },
+      "error": { "fps": 12 },
+      "toilet": { "fps": 10 },
+      "swing": { "fps": 10 },
+      "flat": { "fps": 10 },
+      "sleep": { "fps": 8 },
+      "cheer": { "fps": 12 },
+      "scream": { "fps": 12 }
+    }
+  },
   "coanimations": {
     "animations": {
       "chiikawa_momonga": { "fps": 15 }
