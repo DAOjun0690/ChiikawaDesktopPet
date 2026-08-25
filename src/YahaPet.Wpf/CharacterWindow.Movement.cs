@@ -7,6 +7,116 @@ namespace YahaPet.Wpf;
 
 public partial class CharacterWindow
 {
+    internal bool TryGetAttachedWindowBounds(out NativeMethods.RECT rect)
+    {
+        if (_attachedHwnd is { } hwnd)
+        {
+            return NativeMethods.TryGetWindowBounds(hwnd, out rect);
+        }
+        rect = default;
+        return false;
+    }
+
+    internal void AttachToWindow(IntPtr hwnd, NativeMethods.RECT rect)
+    {
+        _attachedHwnd = hwnd;
+        double scale = GetDipScale();
+        double winLeft = rect.Left * scale;
+        double winTop = rect.Top * scale;
+
+        Top = winTop - Height;
+        _attachedRelativeX = Left - winLeft;
+        _isFalling = false;
+        _isWalking = false;
+        _isJumping = false;
+        _windowTrackingTimer.Start();
+        EnterIdleState();
+    }
+
+    internal void DetachFromWindow()
+    {
+        _attachedHwnd = null;
+        _windowTrackingTimer.Stop();
+        _isWalking = false;
+        _isJumping = false;
+    }
+
+    internal void DetachAndFall()
+    {
+        if (_isFalling && _attachedHwnd == null) return;
+        DetachFromWindow();
+        BeginAnimation(LeftProperty, null);
+        BeginAnimation(TopProperty, null);
+        _frameTimer.Stop();
+        _loopCurrentAnimation = false;
+        FallTo();
+    }
+
+    private void OnWindowTrackingTick()
+    {
+        if (_attachedHwnd is not { } hwnd || !NativeMethods.IsWindow(hwnd) || !NativeMethods.IsWindowVisible(hwnd) || NativeMethods.IsIconic(hwnd))
+        {
+            DetachAndFall();
+            return;
+        }
+
+        if (NativeMethods.IsZoomed(hwnd))
+        {
+            DetachAndFall();
+            return;
+        }
+
+        if (!NativeMethods.TryGetWindowBounds(hwnd, out var rect))
+        {
+            DetachAndFall();
+            return;
+        }
+
+        double scale = GetDipScale();
+        double winLeftDip = rect.Left * scale;
+        double winTopDip = rect.Top * scale;
+        double winRightDip = rect.Right * scale;
+
+        // Squeezed against the top of the monitor / screen
+        if (BehaviorPlanner.IsWindowSqueezed((int)winTopDip, 0))
+        {
+            DetachAndFall();
+            return;
+        }
+
+        if (!_isDragging && !_isFalling)
+        {
+            if (_isWalking)
+            {
+                // If walking along the window top edge, check if stepped off
+                if (BehaviorPlanner.IsSteppedOffWindow((int)Left, (int)Width, (int)winLeftDip, (int)winRightDip))
+                {
+                    BeginAnimation(LeftProperty, null);
+                    DetachAndFall();
+                    return;
+                }
+                Top = winTopDip - Height;
+            }
+            else if (_isJumping)
+            {
+                // Jump handles its own arc animations
+            }
+            else
+            {
+                // Idle, talking, custom animation, or pinned mode (random animations disabled)
+                Top = winTopDip - Height;
+                Left = winLeftDip + _attachedRelativeX;
+
+                // Check if window resize left the pet stranded outside
+                if (BehaviorPlanner.IsSteppedOffWindow((int)Left, (int)Width, (int)winLeftDip, (int)winRightDip))
+                {
+                    DetachAndFall();
+                    return;
+                }
+            }
+        }
+    }
+
     private void FallTo()
     {
         _isAnimating = true;
@@ -70,10 +180,20 @@ public partial class CharacterWindow
     private void PlayWalk(BehaviorPlanner.WalkDirection? forcedDirection = null)
     {
         var (minX, maxX) = GetWalkJumpXBoundsInDips();
-        var plan = BehaviorPlanner.PlanWalk(new PetPoint((int)Left, (int)Top), minX, maxX, (int)Width, SystemRandomSource.Shared, forcedDirection);
+        int planMinX = minX;
+        int planMaxX = maxX;
+        if (_attachedHwnd != null)
+        {
+            // Expand walk range beyond window edges so random walk can step off
+            planMinX = minX - (int)Width - 80;
+            planMaxX = maxX + (int)Width + 80;
+        }
+
+        var plan = BehaviorPlanner.PlanWalk(new PetPoint((int)Left, (int)Top), planMinX, planMaxX, (int)Width, SystemRandomSource.Shared, forcedDirection);
         if (plan is null) return;
 
         _isAnimating = true;
+        _isWalking = true;
         _loopCurrentAnimation = true;
         string animationName = plan.Direction == BehaviorPlanner.WalkDirection.Left ? "walkleft" : "walkright";
         PlayFrameSequence(animationName, onComplete: static () => { });
@@ -83,8 +203,23 @@ public partial class CharacterWindow
         {
             BeginAnimation(LeftProperty, null);
             Left = plan.TargetX;
+            _isWalking = false;
             _loopCurrentAnimation = false;
             _frameTimer.Stop();
+
+            if (_attachedHwnd is { } hwnd && TryGetAttachedWindowBounds(out var currentRect))
+            {
+                double scale = GetDipScale();
+                double wLeft = currentRect.Left * scale;
+                double wRight = currentRect.Right * scale;
+                if (BehaviorPlanner.IsSteppedOffWindow((int)Left, (int)Width, (int)wLeft, (int)wRight))
+                {
+                    DetachAndFall();
+                    return;
+                }
+                _attachedRelativeX = Left - wLeft;
+            }
+
             EnterIdleState();
         };
         BeginAnimation(LeftProperty, animation);
@@ -98,6 +233,15 @@ public partial class CharacterWindow
         var screen = System.Windows.Forms.Screen.FromPoint(screenPoint);
         int landingY = (int)(screen.WorkingArea.Bottom * dipScale);
 
+        int planMinX = minX;
+        int planMaxX = maxX;
+        if (_attachedHwnd is { } hwnd && TryGetAttachedWindowBounds(out var rect))
+        {
+            landingY = (int)(rect.Top * dipScale);
+            planMinX = minX - (int)Width - 60;
+            planMaxX = maxX + (int)Width + 60;
+        }
+
         // PlanJump's edge-avoidance treats maxX as the boundary for the character's LEFT
         // edge (X), with no allowance for its own width -- unlike PlanWalk, which already
         // reserves characterWidth for its rightward endpoint. Reserving it here too keeps
@@ -105,13 +249,14 @@ public partial class CharacterWindow
         var plan = BehaviorPlanner.PlanJump(
             new PetPoint((int)Left, (int)Top),
             (int)Height,
-            minX,
-            maxX - (int)Width,
+            planMinX,
+            planMaxX - (int)Width,
             landingY,
             SystemRandomSource.Shared,
             forcedDirection);
         _isAnimating = true;
         _isFalling = true;
+        _isJumping = true;
 
         string animationName = plan.Direction == BehaviorPlanner.JumpDirection.Left ? "jumpleft" : "jumpright";
         var frames = GetOrLoadFrames(animationName);
@@ -154,7 +299,22 @@ public partial class CharacterWindow
                 Top = plan.LandTarget.Y;
                 Left = plan.LandTarget.X;
                 _loopCurrentAnimation = false;
+                _isJumping = false;
                 _frameTimer.Stop();
+
+                if (_attachedHwnd is { } attachedHwnd && TryGetAttachedWindowBounds(out var currentRect))
+                {
+                    double scale = GetDipScale();
+                    double wLeft = currentRect.Left * scale;
+                    double wRight = currentRect.Right * scale;
+                    if (BehaviorPlanner.IsSteppedOffWindow((int)Left, (int)Width, (int)wLeft, (int)wRight))
+                    {
+                        DetachAndFall();
+                        return;
+                    }
+                    _attachedRelativeX = Left - wLeft;
+                }
+
                 EnterIdleState();
             };
             BeginAnimation(TopProperty, landAnimation);
@@ -164,4 +324,3 @@ public partial class CharacterWindow
         BeginAnimation(LeftProperty, riseAnimationX);
     }
 }
-

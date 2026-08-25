@@ -2,7 +2,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
 using YahaPet.Core;
 
 namespace YahaPet.Wpf;
@@ -20,6 +22,7 @@ public partial class CharacterWindow
 
         if (_isAnimating) return;
 
+        DetachFromWindow();
         _frameTimer.Stop();
         _loopCurrentAnimation = false;
         _isDragging = true;
@@ -79,7 +82,55 @@ public partial class CharacterWindow
         _isShaking = false;
         _grabbedSprite = null;
 
-        FallTo();
+        if (TryFindSnapTargetWindow(out var targetHwnd, out var targetRect))
+        {
+            AttachToWindow(targetHwnd, targetRect);
+        }
+        else
+        {
+            FallTo();
+        }
+    }
+
+    private bool TryFindSnapTargetWindow(out IntPtr targetHwnd, out NativeMethods.RECT targetRect)
+    {
+        targetHwnd = IntPtr.Zero;
+        targetRect = default;
+
+        double scale = GetDipScale();
+        double petBottomDip = Top + Height;
+        double petCenterXDip = Left + Width / 2.0;
+
+        int physicalCenterX = (int)(petCenterXDip / scale);
+        int physicalBottomY = (int)(petBottomDip / scale);
+
+        var thisHwnd = new WindowInteropHelper(this).Handle;
+
+        IntPtr foundHwnd = NativeMethods.FindTopLevelWindowForSnap(
+            physicalCenterX,
+            physicalBottomY,
+            dipTolerance: 30.0,
+            dipScale: scale,
+            currentPetHwnd: thisHwnd,
+            isPetWindowPredicate: static hwnd =>
+            {
+                if (Application.Current == null) return false;
+                foreach (Window window in Application.Current.Windows)
+                {
+                    if (new WindowInteropHelper(window).Handle == hwnd) return true;
+                }
+                return false;
+            },
+            out var rect);
+
+        if (foundHwnd != IntPtr.Zero)
+        {
+            targetHwnd = foundHwnd;
+            targetRect = rect;
+            return true;
+        }
+
+        return false;
     }
 
     private void OnMouseRightButtonUp(object sender, MouseButtonEventArgs e)
@@ -115,4 +166,3 @@ public partial class CharacterWindow
         ShowContextMenu();
     }
 }
-

@@ -27,14 +27,23 @@ public partial class CharacterWindow : Window
 
     private readonly DispatcherTimer _idleTimer = new();
     private readonly DispatcherTimer _frameTimer = new();
+    private readonly DispatcherTimer _windowTrackingTimer = new() { Interval = TimeSpan.FromMilliseconds(16) };
     private readonly Dictionary<string, CharacterConfig> _config;
     private List<string> _otherAnimationNames = [];
     private bool _isAnimating;
     private bool _isDragging;
+    private bool _isWalking;
+    private bool _isJumping;
     private List<BitmapSource> _currentAnimationFrames = [];
     private int _currentFrameIndex;
     private bool _loopCurrentAnimation;
     private Action? _pendingOnComplete;
+
+    private IntPtr? _attachedHwnd;
+    private double _attachedRelativeX;
+
+    public bool IsAttachedToWindow => _attachedHwnd != null;
+    public IntPtr? AttachedWindowHwnd => _attachedHwnd;
 
     public event Action<bool>? RandomAnimationsEnabledChanged;
     public event Action<bool>? JumpEnabledChanged;
@@ -74,6 +83,7 @@ public partial class CharacterWindow : Window
         _idleTimer.Tick += (_, _) => OnIdleTick();
         _frameTimer.Tick += (_, _) => OnFrameTick();
         _bubbleTimer.Tick += (_, _) => OnBubbleTimerTick();
+        _windowTrackingTimer.Tick += (_, _) => OnWindowTrackingTick();
 
         MouseLeftButtonDown += OnMouseLeftButtonDown;
         MouseMove += OnMouseMove;
@@ -208,7 +218,7 @@ public partial class CharacterWindow : Window
 
     private void ClampToScreen()
     {
-        if (IsLoaded && !_isFalling && !_isDragging)
+        if (IsLoaded && !_isFalling && !_isDragging && _attachedHwnd == null)
         {
             double dipScale = GetDipScale();
             var screenPoint = new System.Drawing.Point((int)(Left / dipScale), (int)(Top / dipScale));
@@ -353,9 +363,14 @@ public partial class CharacterWindow : Window
 
     private (int MinX, int MaxX) GetWalkJumpXBoundsInDips()
     {
+        double scale = GetDipScale();
+        if (_attachedHwnd is { } hwnd && TryGetAttachedWindowBounds(out var rect))
+        {
+            return ((int)(rect.Left * scale), (int)(rect.Right * scale));
+        }
+
         if (!ConfineToCurrentMonitor) return GetVirtualDesktopXBoundsInDips();
 
-        double scale = GetDipScale();
         var screenPoint = new System.Drawing.Point((int)(Left / scale), (int)(Top / scale));
         var bounds = System.Windows.Forms.Screen.FromPoint(screenPoint).Bounds;
         return ((int)(bounds.Left * scale), (int)(bounds.Right * scale));
@@ -367,6 +382,14 @@ public partial class CharacterWindow : Window
         TalkActionTimer = null;
         _isAnimating = false;
         _isFalling = false;
+        _isWalking = false;
+        _isJumping = false;
+
+        if (_attachedHwnd is { } hwnd && TryGetAttachedWindowBounds(out var rect))
+        {
+            double scale = GetDipScale();
+            _attachedRelativeX = Left - (rect.Left * scale);
+        }
 
         // If the character has a bounce/idle animation, loop it during idle
         var idleFrames = GetOrLoadFrames("bounce");
@@ -446,6 +469,8 @@ public partial class CharacterWindow : Window
             ContextMenu.IsOpen = false;
             ContextMenu = null;
         }
+        _windowTrackingTimer.Stop();
+        _attachedHwnd = null;
         _idleTimer.Stop();
         _frameTimer.Stop();
         _holdTimer.Stop();
