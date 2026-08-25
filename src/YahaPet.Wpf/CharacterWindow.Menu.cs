@@ -28,6 +28,20 @@ public partial class CharacterWindow
             item.Click += (_, _) => PlayAnimationByName(nameCopy);
             playMenu.Items.Add(item);
         }
+
+        playMenu.Items.Add(new Separator());
+        var coopItem = new MenuItem { Header = "【雙人互動】飛撲蹭臉 (Chiikawa & Momonga)" };
+        coopItem.Click += (_, _) =>
+        {
+            bool success = InteractionCoordinator.Instance.TriggerManualInteraction(this);
+            if (!success)
+            {
+                SetCustomText("所需角色不足（需要 Chiikawa 與 Momonga 同時在場）");
+                ShowSpeechBubble(3500);
+            }
+        };
+        playMenu.Items.Add(coopItem);
+
         contextMenu.Items.Add(playMenu);
 
         var randomAnimItem = new MenuItem

@@ -85,5 +85,10 @@
       "eat": { "fps": 10 },
       "heart": { "fps": 12 }
     }
+  },
+  "coanimations": {
+    "animations": {
+      "chiikawa_momonga": { "fps": 15 }
+    }
   }
 }

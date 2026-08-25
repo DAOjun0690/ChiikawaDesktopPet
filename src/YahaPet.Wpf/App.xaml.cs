@@ -216,6 +216,22 @@ public partial class App : Application
             item.Click += (_, _) => window.PlayAnimationByName(nameCopy);
             playSubmenu.DropDownItems.Add(item);
         }
+
+        if (key is "chiikawa" or "momonga")
+        {
+            playSubmenu.DropDownItems.Add(new ToolStripSeparator());
+            var coopItem = new ToolStripMenuItem("【雙人互動】飛撲蹭臉 (Chiikawa & Momonga)");
+            coopItem.Click += (_, _) =>
+            {
+                bool success = InteractionCoordinator.Instance.TriggerManualInteraction(window);
+                if (!success)
+                {
+                    _trayIcon?.ShowBalloonTip(1500, "雙人互動提示", "所需角色不足（需要 Chiikawa 與 Momonga 同時在場）", ToolTipIcon.Info);
+                }
+            };
+            playSubmenu.DropDownItems.Add(coopItem);
+        }
+
         _playAnimationMenu!.DropDownItems.Add(playSubmenu);
         _playAnimationMenu.Enabled = true;
 

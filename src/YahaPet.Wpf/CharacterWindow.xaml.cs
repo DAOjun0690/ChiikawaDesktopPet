@@ -100,7 +100,50 @@ public partial class CharacterWindow : Window
         {
             var hwnd = new WindowInteropHelper(this).Handle;
             NativeMethods.MakeToolWindow(hwnd);
+
+            int typeId = InteractionCoordinator.GetCharacterTypeId(CharacterName);
+            NativeMethods.SetProp(hwnd, "YahaPet_PetType", (IntPtr)typeId);
+            NativeMethods.SetProp(hwnd, "YahaPet_IsReady", (IntPtr)1);
+
+            var source = HwndSource.FromHwnd(hwnd);
+            source?.AddHook(WndProc);
+
+            InteractionCoordinator.Instance.RegisterPet(this);
         };
+    }
+
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if ((uint)msg == InteractionCoordinator.Instance.MessageId)
+        {
+            int cmd = (int)wParam;
+            switch (cmd)
+            {
+                case InteractionCoordinator.CMD_QUERY:
+                    handled = true;
+                    return (IntPtr)InteractionCoordinator.GetCharacterTypeId(CharacterName);
+
+                case InteractionCoordinator.CMD_ENTER_INTERACTION:
+                    handled = true;
+                    EnterInteractionState();
+                    return (IntPtr)1;
+
+                case InteractionCoordinator.CMD_EXIT_INTERACTION:
+                    handled = true;
+                    int targetX = (int)NativeMethods.GetProp(hwnd, "YahaPet_TargetX");
+                    int targetY = (int)NativeMethods.GetProp(hwnd, "YahaPet_TargetY");
+                    ExitInteractionState(new PetPoint(targetX, targetY));
+                    return (IntPtr)1;
+
+                case InteractionCoordinator.CMD_MOVE_TO:
+                    handled = true;
+                    int moveX = (int)NativeMethods.GetProp(hwnd, "YahaPet_TargetX");
+                    int moveY = (int)NativeMethods.GetProp(hwnd, "YahaPet_TargetY");
+                    SmoothMoveTo(new PetPoint(moveX, moveY), null);
+                    return (IntPtr)1;
+            }
+        }
+        return IntPtr.Zero;
     }
 
     public void Spawn()
@@ -461,9 +504,57 @@ public partial class CharacterWindow : Window
 
     public void ToggleJump() => SetJumpEnabled(!_jumpEnabled);
 
+    private bool _isInteracting;
+    public bool IsInteracting => _isInteracting;
+    public bool IsReadyForInteraction => !_isInteracting && !_isDragging && !_isAnimating && !_isFalling && IsLoaded;
+
+    public void EnterInteractionState()
+    {
+        _isInteracting = true;
+        TalkActionTimer?.Stop();
+        TalkActionTimer = null;
+        _idleTimer.Stop();
+        _frameTimer.Stop();
+        BeginAnimation(LeftProperty, null);
+        BeginAnimation(TopProperty, null);
+        Hide();
+    }
+
+    public void ExitInteractionState(PetPoint reappearPos)
+    {
+        _isInteracting = false;
+        _isFalling = false;
+        _isWalking = false;
+        _isJumping = false;
+        _attachedHwnd = null;
+        _windowTrackingTimer.Stop();
+
+        Left = reappearPos.X;
+        Show();
+        EnterIdleState();
+
+        double dipScale = GetDipScale();
+        var screenPoint = new System.Drawing.Point((int)(reappearPos.X / dipScale), (int)(reappearPos.Y / dipScale));
+        var screen = System.Windows.Forms.Screen.FromPoint(screenPoint);
+        Top = (screen.WorkingArea.Bottom * dipScale) - Height;
+
+        ClampToScreen();
+        if (_randomAnimationsEnabled) StartIdleTimer();
+    }
+
     public void Shutdown()
     {
         _isShuttingDown = true;
+        InteractionCoordinator.Instance.UnregisterPet(this);
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd != IntPtr.Zero)
+        {
+            NativeMethods.RemoveProp(hwnd, "YahaPet_PetType");
+            NativeMethods.RemoveProp(hwnd, "YahaPet_IsReady");
+            NativeMethods.RemoveProp(hwnd, "YahaPet_TargetX");
+            NativeMethods.RemoveProp(hwnd, "YahaPet_TargetY");
+        }
+
         if (ContextMenu != null)
         {
             ContextMenu.IsOpen = false;

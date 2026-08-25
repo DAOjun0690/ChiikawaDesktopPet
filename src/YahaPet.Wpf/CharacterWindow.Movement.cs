@@ -323,4 +323,34 @@ public partial class CharacterWindow
         BeginAnimation(TopProperty, riseAnimation);
         BeginAnimation(LeftProperty, riseAnimationX);
     }
+
+    public void SmoothMoveTo(PetPoint target, Action? onArrived)
+    {
+        _idleTimer.Stop();
+        _isAnimating = true;
+        _loopCurrentAnimation = true;
+        string animName = target.X < Left ? "walkleft" : "walkright";
+        PlayFrameSequence(animName, static () => { });
+
+        double dist = Math.Sqrt(Math.Pow(target.X - Left, 2) + Math.Pow(target.Y - Top, 2));
+        int durationMs = Math.Max(300, (int)(dist * 3.5));
+
+        var animX = new DoubleAnimation(Left, target.X, TimeSpan.FromMilliseconds(durationMs));
+        var animY = new DoubleAnimation(Top, target.Y, TimeSpan.FromMilliseconds(durationMs));
+
+        animX.Completed += (_, _) =>
+        {
+            BeginAnimation(LeftProperty, null);
+            BeginAnimation(TopProperty, null);
+            Left = target.X;
+            Top = target.Y;
+            _isAnimating = false;
+            _loopCurrentAnimation = false;
+            _frameTimer.Stop();
+            onArrived?.Invoke();
+        };
+
+        BeginAnimation(LeftProperty, animX);
+        BeginAnimation(TopProperty, animY);
+    }
 }
