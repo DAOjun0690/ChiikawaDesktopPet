@@ -83,6 +83,8 @@ public partial class App : Application
         public ToolStripMenuItem JumpItem { get; } = jumpItem;
     }
 
+    public static bool EnableWindowsNotifications { get; set; } = false;
+
     private NotifyIcon? _trayIcon;
     private ToolStripMenuItem? _playAnimationMenu;
     private ToolStripMenuItem? _kickMenu;
@@ -99,6 +101,11 @@ public partial class App : Application
         var contextMenu = new ContextMenuStrip();
 
         var spawnMenu = new MenuItem("生成角色");
+        var spawnAllItem = new MenuItem("生成所有角色");
+        spawnAllItem.Click += (_, _) => SpawnAllCharacters();
+        spawnMenu.DropDownItems.Add(spawnAllItem);
+        spawnMenu.DropDownItems.Add(new ToolStripSeparator());
+
         foreach (var (key, displayName) in CharacterDefinitions)
         {
             var item = new MenuItem(displayName);
@@ -133,6 +140,15 @@ public partial class App : Application
         confineToMonitorItem.Click += (_, _) =>
             CharacterWindow.ConfineToCurrentMonitor = confineToMonitorItem.Checked;
         contextMenu.Items.Add(confineToMonitorItem);
+
+        var notificationItem = new MenuItem("啟用 Windows 系統通知")
+        {
+            CheckOnClick = true,
+            Checked = EnableWindowsNotifications
+        };
+        notificationItem.Click += (_, _) =>
+            EnableWindowsNotifications = notificationItem.Checked;
+        contextMenu.Items.Add(notificationItem);
 
         var exitItem = new MenuItem("結束程式");
         exitItem.Click += (_, _) => Shutdown();
@@ -191,7 +207,24 @@ public partial class App : Application
         }
     }
 
-    private void SpawnCharacter(string name)
+    private void SpawnAllCharacters()
+    {
+        double screenWidth = SystemParameters.PrimaryScreenWidth;
+        int minX = 50;
+        int maxX = Math.Max(minX, (int)screenWidth - 200);
+
+        foreach (var name in AutoSpawnCandidates)
+        {
+            string key = name.ToLowerInvariant();
+            if (!_characters.ContainsKey(key))
+            {
+                double randomX = Random.Shared.Next(minX, maxX);
+                SpawnCharacter(key, randomX);
+            }
+        }
+    }
+
+    private void SpawnCharacter(string name, double? initialX = null)
     {
         string key = name.ToLowerInvariant();
         if (_characters.ContainsKey(key))
@@ -201,7 +234,7 @@ public partial class App : Application
 
         var window = new CharacterWindow(key);
         _characters[key] = window;
-        window.Spawn();
+        window.Spawn(initialX);
 
         if (_spawnMenuItems.TryGetValue(key, out var spawnMenuItem))
         {
@@ -226,7 +259,18 @@ public partial class App : Application
                 bool success = InteractionCoordinator.Instance.TriggerManualInteraction(window);
                 if (!success)
                 {
-                    _trayIcon?.ShowBalloonTip(1500, "雙人互動提示", "所需角色不足（需要 Chiikawa 與 Momonga 同時在場）", ToolTipIcon.Info);
+                    if (EnableWindowsNotifications)
+                    {
+                        _trayIcon?.ShowBalloonTip(1500, "雙人互動提示", "所需角色不足（需要 Chiikawa 與 Momonga 同時在場）", ToolTipIcon.Info);
+                    }
+                    else
+                    {
+                        System.Windows.MessageBox.Show(
+                            "所需角色不足（需要 Chiikawa 與 Momonga 同時在場）",
+                            "雙人互動提示",
+                            System.Windows.MessageBoxButton.OK,
+                            System.Windows.MessageBoxImage.Information);
+                    }
                 }
             };
             playSubmenu.DropDownItems.Add(coopItem);
@@ -299,7 +343,10 @@ public partial class App : Application
     {
         if (_characters.Count == 0)
         {
-            _trayIcon!.ShowBalloonTip(500, "等等！", "你還沒有生成任何角色！", ToolTipIcon.Info);
+            if (EnableWindowsNotifications)
+            {
+                _trayIcon!.ShowBalloonTip(500, "等等！", "你還沒有生成任何角色！", ToolTipIcon.Info);
+            }
             return;
         }
 
@@ -317,9 +364,12 @@ public partial class App : Application
         if (_characters.TryGetValue(chosen, out var window))
         {
             window.ShowSpeechBubble();
-            string dialogueText = window.CurrentDialogueText;
-            string displayName = GetCharacterDisplayName(chosen);
-            _trayIcon!.ShowBalloonTip(500, $"{displayName} 說：", dialogueText, ToolTipIcon.Info);
+            if (EnableWindowsNotifications && window.HasCustomText)
+            {
+                string dialogueText = window.CurrentDialogueText;
+                string displayName = GetCharacterDisplayName(chosen);
+                _trayIcon!.ShowBalloonTip(500, $"{displayName} 說：", dialogueText, ToolTipIcon.Info);
+            }
         }
     }
 

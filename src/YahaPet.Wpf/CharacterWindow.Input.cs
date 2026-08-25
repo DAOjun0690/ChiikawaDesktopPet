@@ -11,33 +11,53 @@ namespace YahaPet.Wpf;
 
 public partial class CharacterWindow
 {
+    private System.Windows.Point _mouseDownScreenPos;
+    private bool _hasDragged;
+
     private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (TalkActionTimer != null)
-        {
-            TalkActionTimer.Stop();
-            TalkActionTimer = null;
-            _isAnimating = false;
-        }
-
-        if (_isAnimating) return;
-
-        DetachFromWindow();
-        _frameTimer.Stop();
-        _loopCurrentAnimation = false;
-        _isDragging = true;
-        _isFalling = false;
-        _isShaking = false;
-        _grabbedSprite = RandomFrom(_sprites, "grabbed");
-        SetSprite(_grabbedSprite);
+        _hasDragged = false;
+        _mouseDownScreenPos = PointToScreen(e.GetPosition(this));
         _dragOffset = e.GetPosition(this);
-        _holdTimer.Start();
         CaptureMouse();
     }
 
     private void OnMouseMove(object sender, MouseEventArgs e)
     {
-        if (!_isDragging || _isAnimating) return;
+        if (!IsMouseCaptured) return;
+
+        if (!_hasDragged)
+        {
+            var currentScreen = PointToScreen(e.GetPosition(this));
+            if (Math.Abs(currentScreen.X - _mouseDownScreenPos.X) > 5 ||
+                Math.Abs(currentScreen.Y - _mouseDownScreenPos.Y) > 5)
+            {
+                _hasDragged = true;
+                _isDragging = true;
+                TalkActionTimer?.Stop();
+                TalkActionTimer = null;
+                _idleTimer.Stop();
+                _frameTimer.Stop();
+                _loopCurrentAnimation = false;
+                BeginAnimation(TopProperty, null);
+                BeginAnimation(LeftProperty, null);
+                _isAnimating = false;
+                _isWalking = false;
+                _isJumping = false;
+                DetachFromWindow();
+                _isFalling = false;
+                _isShaking = false;
+                _grabbedSprite = RandomFrom(_sprites, "grabbed");
+                SetSprite(_grabbedSprite);
+                _holdTimer.Start();
+            }
+            else
+            {
+                return;
+            }
+        }
+
+        if (!_isDragging) return;
 
         double dipScale = GetDipScale();
         var cursor = PointToScreen(e.GetPosition(this));
@@ -74,21 +94,49 @@ public partial class CharacterWindow
 
     private void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (_isAnimating) return;
-
         ReleaseMouseCapture();
-        _isDragging = false;
         _holdTimer.Stop();
-        _isShaking = false;
-        _grabbedSprite = null;
 
-        if (TryFindSnapTargetWindow(out var targetHwnd, out var targetRect))
+        if (_hasDragged)
         {
-            AttachToWindow(targetHwnd, targetRect);
+            _isDragging = false;
+            _isShaking = false;
+            _grabbedSprite = null;
+
+            if (TryFindSnapTargetWindow(out var targetHwnd, out var targetRect))
+            {
+                AttachToWindow(targetHwnd, targetRect);
+            }
+            else
+            {
+                FallTo();
+            }
         }
         else
         {
-            FallTo();
+            _isDragging = false;
+            _isShaking = false;
+            _grabbedSprite = null;
+
+            if (_alwaysShowBubble)
+            {
+                // 永久顯示對話框已勾選時，左鍵點擊觸發下一個隨機動作
+                PlayRandomAction();
+            }
+            else
+            {
+                // 永久顯示對話框未勾選時：
+                if (HasCustomText)
+                {
+                    // 顯示對話框（或刷新顯示時間），當前動作繼續進行不中斷
+                    ShowSpeechBubble(3500);
+                }
+                else
+                {
+                    // 無自訂文字時，觸發下一個隨機動作
+                    PlayRandomAction();
+                }
+            }
         }
     }
 

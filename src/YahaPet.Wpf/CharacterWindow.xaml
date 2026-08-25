@@ -19,7 +19,7 @@
               Grid.Row="0"
               HorizontalAlignment="Center"
               Visibility="Collapsed"
-              Margin="4,4,4,1">
+              Margin="8,8,8,6">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -32,7 +32,7 @@
                     BorderThickness="1.8"
                     CornerRadius="10"
                     Padding="10,6"
-                    MaxWidth="240">
+                    MaxWidth="260">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="6" ShadowDepth="2" Opacity="0.3" Direction="270" />
                 </Border.Effect>

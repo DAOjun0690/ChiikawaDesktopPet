@@ -57,7 +57,7 @@ public partial class TextInputDialog : Window
     private void OnOkClicked(object sender, RoutedEventArgs e)
     {
         string text = InputTextBox.Text.Trim();
-        ResultText = string.IsNullOrEmpty(text) ? _defaultQuote : text;
+        ResultText = text;
         ResultFontSize = FontSizeSlider.Value;
 
         if (AlignLeftRadio.IsChecked == true)

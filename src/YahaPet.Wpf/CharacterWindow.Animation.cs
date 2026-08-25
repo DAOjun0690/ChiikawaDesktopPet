@@ -86,6 +86,60 @@ public partial class CharacterWindow
         PlayNamedAnimation(animationName);
     }
 
+    public void PlayRandomAction()
+    {
+        if (_isDragging) return;
+
+        // Stop current animation/movement to switch immediately
+        _idleTimer.Stop();
+        _frameTimer.Stop();
+        _loopCurrentAnimation = false;
+        double currentTop = Top;
+        double currentLeft = Left;
+        BeginAnimation(TopProperty, null);
+        BeginAnimation(LeftProperty, null);
+        Top = currentTop;
+        Left = currentLeft;
+        _isAnimating = false;
+        _isFalling = false;
+        _isWalking = false;
+        _isJumping = false;
+
+        var candidateActions = new List<Action>();
+
+        // Walk
+        candidateActions.Add(() => PlayWalk());
+
+        // Jump (if enabled and capable)
+        if (_jumpEnabled && HasDirectionalCapability("jumpleft", "jumpright"))
+        {
+            candidateActions.Add(() => PlayJump());
+        }
+
+        // Special animations
+        foreach (var animName in _otherAnimationNames)
+        {
+            string nameCopy = animName;
+            candidateActions.Add(() => PlayNamedAnimation(nameCopy));
+        }
+
+        // Bounce
+        if (Directory.Exists(Path.Combine(_assetRoot, "animations", "bounce")))
+        {
+            candidateActions.Add(() => PlayAnimationByName("bounce"));
+        }
+
+        if (candidateActions.Count > 0)
+        {
+            var chosen = candidateActions[Random.Shared.Next(candidateActions.Count)];
+            chosen();
+        }
+        else
+        {
+            EnterIdleState();
+        }
+    }
+
     private void PlayTimedAnimation(string animationName, int durationMs)
     {
         _isAnimating = true;

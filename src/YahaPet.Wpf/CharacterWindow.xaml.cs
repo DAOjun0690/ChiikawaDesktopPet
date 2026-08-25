@@ -59,7 +59,8 @@ public partial class CharacterWindow : Window
     private BitmapSource? _grabbedSprite;
 
     private string _customText = "";
-    public string CurrentDialogueText => string.IsNullOrEmpty(_customText) ? CharacterQuotes.GetDefaultQuote(CharacterName) : _customText;
+    public bool HasCustomText => !string.IsNullOrWhiteSpace(_customText);
+    public string CurrentDialogueText => _customText;
     public TextAlignment DialogueAlignment { get; private set; } = TextAlignment.Center;
     public double DialogueFontSize { get; private set; } = 13.0;
     private bool _alwaysShowBubble;
@@ -146,12 +147,12 @@ public partial class CharacterWindow : Window
         return IntPtr.Zero;
     }
 
-    public void Spawn()
+    public void Spawn(double? initialX = null)
     {
         LoadStaticSprites();
         DiscoverOtherAnimations();
 
-        double startX = SystemParameters.PrimaryScreenWidth / 2;
+        double startX = initialX ?? (SystemParameters.PrimaryScreenWidth / 2);
         Left = startX;
         Top = 0;
         BubbleText.Text = CurrentDialogueText;
@@ -234,9 +235,9 @@ public partial class CharacterWindow : Window
         double bubbleW = 0;
         double bubbleH = 0;
 
-        if (BubbleContainer.Visibility == Visibility.Visible)
+        if (BubbleContainer.Visibility == Visibility.Visible && HasCustomText)
         {
-            BubbleContainer.Measure(new Size(240, double.PositiveInfinity));
+            BubbleContainer.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             bubbleW = BubbleContainer.DesiredSize.Width;
             bubbleH = BubbleContainer.DesiredSize.Height;
         }
@@ -279,6 +280,12 @@ public partial class CharacterWindow : Window
 
     public void ShowSpeechBubble(int durationMs = 3500)
     {
+        if (!HasCustomText)
+        {
+            HideSpeechBubble();
+            return;
+        }
+
         BubbleText.Text = CurrentDialogueText;
         BubbleText.TextAlignment = DialogueAlignment;
         BubbleText.FontSize = DialogueFontSize;
@@ -320,7 +327,7 @@ public partial class CharacterWindow : Window
     {
         if (_alwaysShowBubble == always) return;
         _alwaysShowBubble = always;
-        if (_alwaysShowBubble)
+        if (_alwaysShowBubble && HasCustomText)
         {
             _bubbleTimer.Stop();
             ShowSpeechBubble();
@@ -341,16 +348,23 @@ public partial class CharacterWindow : Window
         BubbleText.Text = CurrentDialogueText;
         BubbleText.TextAlignment = DialogueAlignment;
         BubbleText.FontSize = DialogueFontSize;
-        if (BubbleContainer.Visibility == Visibility.Visible)
+        if (HasCustomText)
         {
-            UpdateWindowSizeAndLayout(Width, Height);
+            if (BubbleContainer.Visibility == Visibility.Visible)
+            {
+                UpdateWindowSizeAndLayout(Width, Height);
+            }
+            ShowSpeechBubble(3500);
         }
-        ShowSpeechBubble(3500);
+        else
+        {
+            HideSpeechBubble();
+        }
     }
 
     public void ResetToDefaultQuote()
     {
-        _customText = "";
+        _customText = CharacterQuotes.GetDefaultQuote(CharacterName);
         DialogueAlignment = TextAlignment.Center;
         DialogueFontSize = 13.0;
         BubbleText.Text = CurrentDialogueText;
@@ -372,20 +386,10 @@ public partial class CharacterWindow : Window
         }
     }
 
-    private void PlayTalkAction()
+    public void PlayTalkAction()
     {
+        if (!HasCustomText) return;
         ShowSpeechBubble(3500);
-        _isAnimating = true;
-        TalkActionTimer?.Stop();
-        TalkActionTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(3500) };
-        TalkActionTimer.Tick += (_, _) =>
-        {
-            TalkActionTimer.Stop();
-            TalkActionTimer = null;
-            _isAnimating = false;
-            EnterIdleState();
-        };
-        TalkActionTimer.Start();
     }
 
     // Screen.Bounds/WorkingArea/VirtualScreen are physical pixels, but Window.Top/Left (and
@@ -470,7 +474,9 @@ public partial class CharacterWindow : Window
             {
                 case AutonomousActionKind.Jump: PlayJump(); break;
                 case AutonomousActionKind.Walk: PlayWalk(); break;
-                case AutonomousActionKind.Talk: PlayTalkAction(); break;
+                case AutonomousActionKind.Talk:
+                    if (HasCustomText) PlayTalkAction();
+                    break;
                 case AutonomousActionKind.PlayAnimation: PlayNamedAnimation(action.AnimationName!); break;
                 case AutonomousActionKind.NoOp: break;
             }
