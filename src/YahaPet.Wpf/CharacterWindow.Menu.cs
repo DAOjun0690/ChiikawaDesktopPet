@@ -167,10 +167,6 @@ public partial class CharacterWindow
             if (!_isShuttingDown && !_isAnimating && !_isDragging)
             {
                 EnterIdleState();
-                if (_randomAnimationsEnabled)
-                {
-                    StartIdleTimer();
-                }
             }
         };
 

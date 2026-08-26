@@ -22,23 +22,41 @@ public static partial class BehaviorPlanner
     public static WalkPlan? PlanWalk(PetPoint currentPos, int minX, int maxX, int characterWidth, IRandomSource random, WalkDirection? forcedDirection = null)
     {
         const int minMovementDistance = 100;
-        int rollDirection = forcedDirection.HasValue
-            ? (forcedDirection.Value == WalkDirection.Left ? 0 : 1)
-            : random.Next(0, 2);
+        bool canWalkLeft = minX < (currentPos.X - minMovementDistance);
+        bool canWalkRight = (currentPos.X + minMovementDistance) < (maxX - characterWidth);
+
+        if (!canWalkLeft && !canWalkRight) return null;
+
+        WalkDirection direction;
+        if (forcedDirection.HasValue)
+        {
+            direction = forcedDirection.Value;
+            if (direction == WalkDirection.Left && !canWalkLeft) return null;
+            if (direction == WalkDirection.Right && !canWalkRight) return null;
+        }
+        else
+        {
+            int rollDirection = random.Next(0, 2);
+            if (rollDirection == 0)
+            {
+                direction = canWalkLeft ? WalkDirection.Left : WalkDirection.Right;
+            }
+            else
+            {
+                direction = canWalkRight ? WalkDirection.Right : WalkDirection.Left;
+            }
+        }
 
         int startRange, endRange;
-        WalkDirection direction;
-        if (rollDirection == 0)
+        if (direction == WalkDirection.Left)
         {
             startRange = minX;
             endRange = currentPos.X - minMovementDistance;
-            direction = WalkDirection.Left;
         }
         else
         {
             startRange = currentPos.X + minMovementDistance;
             endRange = maxX - characterWidth;
-            direction = WalkDirection.Right;
         }
 
         if (startRange >= endRange) return null;

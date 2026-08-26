@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -162,7 +163,6 @@ public partial class CharacterWindow : Window
         Show();
 
         FallTo();
-        StartIdleTimer();
     }
 
     public double ScaleRatio { get; private set; } = 1.0;
@@ -230,6 +230,55 @@ public partial class CharacterWindow : Window
         UpdateWindowSizeAndLayout(oldWidth, oldHeight);
     }
 
+    public enum SpeechBubblePlacement { Top, Bottom }
+    public SpeechBubblePlacement CurrentBubblePlacement { get; private set; } = SpeechBubblePlacement.Top;
+
+    public void UpdateBubblePlacement(double bubbleH)
+    {
+        bool shouldBeBottom = false;
+
+        if (BubbleContainer.Visibility == Visibility.Visible && HasCustomText && bubbleH > 0)
+        {
+            double dipScale = GetDipScale();
+            var screenPoint = new System.Drawing.Point((int)(Left / dipScale), (int)(Top / dipScale));
+            var workingArea = System.Windows.Forms.Screen.FromPoint(screenPoint).WorkingArea;
+            double topBoundDip = workingArea.Top * dipScale;
+
+            double charHeadTop;
+            if (_attachedHwnd != null && TryGetAttachedWindowBounds(out var rect))
+            {
+                charHeadTop = rect.Top * dipScale;
+            }
+            else
+            {
+                // If bubble was already rendered above the character, character head is at Top + bubbleH.
+                // Otherwise (e.g. bubble was collapsed or was below character), window Top is character head.
+                charHeadTop = (CurrentBubblePlacement == SpeechBubblePlacement.Top && BubbleContainer.IsVisible) ? (Top + bubbleH) : Top;
+            }
+
+            shouldBeBottom = (charHeadTop - topBoundDip) < (bubbleH + 10);
+        }
+
+        if (shouldBeBottom && CurrentBubblePlacement != SpeechBubblePlacement.Bottom)
+        {
+            CurrentBubblePlacement = SpeechBubblePlacement.Bottom;
+            Grid.SetRow(SpriteImage, 0);
+            Grid.SetRow(BubbleContainer, 1);
+            BubblePointerUp.Visibility = Visibility.Visible;
+            BubblePointerDown.Visibility = Visibility.Collapsed;
+            RootGrid.VerticalAlignment = VerticalAlignment.Top;
+        }
+        else if (!shouldBeBottom && CurrentBubblePlacement != SpeechBubblePlacement.Top)
+        {
+            CurrentBubblePlacement = SpeechBubblePlacement.Top;
+            Grid.SetRow(BubbleContainer, 0);
+            Grid.SetRow(SpriteImage, 1);
+            BubblePointerDown.Visibility = Visibility.Visible;
+            BubblePointerUp.Visibility = Visibility.Collapsed;
+            RootGrid.VerticalAlignment = VerticalAlignment.Bottom;
+        }
+    }
+
     private void UpdateWindowSizeAndLayout(double oldWidth = 0, double oldHeight = 0)
     {
         double bubbleW = 0;
@@ -242,27 +291,40 @@ public partial class CharacterWindow : Window
             bubbleH = BubbleContainer.DesiredSize.Height;
         }
 
+        UpdateBubblePlacement(bubbleH);
+
         double newWidth = Math.Max(_currentSpriteWidth, bubbleW);
         double newHeight = _currentSpriteHeight + bubbleH;
 
         Width = newWidth;
         Height = newHeight;
 
-        if (!_isFalling && oldHeight > 0)
+        if (_attachedHwnd != null && TryGetAttachedWindowBounds(out var rect))
         {
-            Top += (oldHeight - newHeight);
+            double scale = GetDipScale();
+            double winTopDip = rect.Top * scale;
+            Top = CurrentBubblePlacement == SpeechBubblePlacement.Top ? (winTopDip - newHeight) : (winTopDip - _currentSpriteHeight);
         }
-        if (oldWidth > 0 && Math.Abs(oldWidth - newWidth) > 0.01)
+        else
         {
-            Left += (oldWidth - newWidth) / 2.0;
+            if (!_isFalling && oldHeight > 0)
+            {
+                if (CurrentBubblePlacement == SpeechBubblePlacement.Top)
+                {
+                    Top += (oldHeight - newHeight);
+                }
+            }
+            if (oldWidth > 0 && Math.Abs(oldWidth - newWidth) > 0.01)
+            {
+                Left += (oldWidth - newWidth) / 2.0;
+            }
+            ClampToScreen();
         }
-
-        ClampToScreen();
     }
 
     private void ClampToScreen()
     {
-        if (IsLoaded && !_isFalling && !_isDragging && _attachedHwnd == null)
+        if (IsLoaded && !_isFalling && !_isDragging)
         {
             double dipScale = GetDipScale();
             var screenPoint = new System.Drawing.Point((int)(Left / dipScale), (int)(Top / dipScale));
@@ -272,9 +334,20 @@ public partial class CharacterWindow : Window
                 (int)(workingArea.Top * dipScale),
                 (int)(workingArea.Right * dipScale),
                 (int)(workingArea.Bottom * dipScale));
-            var clamped = BehaviorPlanner.ClampToBounds(new PetPoint((int)Left, (int)Top), bounds, (int)Width, (int)Height);
-            Left = clamped.X;
-            Top = clamped.Y;
+
+            if (_attachedHwnd == null)
+            {
+                var clamped = BehaviorPlanner.ClampToBounds(new PetPoint((int)Left, (int)Top), bounds, (int)Width, (int)Height);
+                Left = clamped.X;
+                Top = clamped.Y;
+            }
+            else
+            {
+                if (Top < bounds.Top)
+                {
+                    Top = bounds.Top;
+                }
+            }
         }
     }
 
@@ -450,13 +523,18 @@ public partial class CharacterWindow : Window
                 _frameTimer.Interval = TimeSpan.FromMilliseconds(1000.0 / fps);
                 _pendingOnComplete = null;
                 _frameTimer.Start();
+
+                if (_randomAnimationsEnabled && !_isShuttingDown && !_isDragging && !_isFalling && !_isInteracting)
+                {
+                    StartIdleTimer();
+                }
                 return;
             }
         }
 
         // If the character has a bounce/idle animation, loop it during idle
         var idleFrames = GetOrLoadFrames("bounce");
-        if (idleFrames.Count > 0 && (CharacterName == "jokebear" || CharacterName == "loverabbit" || CharacterName == "poro" || CharacterName == "pochita"))
+        if (idleFrames.Count > 0)
         {
             _currentAnimationFrames = idleFrames;
             _currentFrameIndex = 0;
@@ -472,10 +550,16 @@ public partial class CharacterWindow : Window
             _frameTimer.Stop();
             SetSprite(RandomFrom(_sprites, "spawn"));
         }
+
+        if (_randomAnimationsEnabled && !_isShuttingDown && !_isDragging && !_isFalling && !_isInteracting)
+        {
+            StartIdleTimer();
+        }
     }
 
     private void StartIdleTimer()
     {
+        _idleTimer.Stop();
         _idleTimer.Interval = TimeSpan.FromMilliseconds(BehaviorPlanner.NextIdleIntervalMs(SystemRandomSource.Shared));
         _idleTimer.Start();
     }
@@ -483,21 +567,33 @@ public partial class CharacterWindow : Window
     private void OnIdleTick()
     {
         _idleTimer.Stop();
-        if (_randomAnimationsEnabled && !_isAnimating && !_isDragging)
+        if (_randomAnimationsEnabled && !_isShuttingDown && !_isAnimating && !_isDragging && !_isFalling && !_isInteracting)
         {
             var action = BehaviorPlanner.ChooseAutonomousAction(_otherAnimationNames, SystemRandomSource.Shared, _jumpEnabled);
             switch (action.Kind)
             {
-                case AutonomousActionKind.Jump: PlayJump(); break;
-                case AutonomousActionKind.Walk: PlayWalk(); break;
+                case AutonomousActionKind.Jump:
+                    PlayJump();
+                    break;
+                case AutonomousActionKind.Walk:
+                    PlayWalk();
+                    break;
                 case AutonomousActionKind.Talk:
                     if (HasCustomText) PlayTalkAction();
+                    if (_randomAnimationsEnabled && !_isShuttingDown) StartIdleTimer();
                     break;
-                case AutonomousActionKind.PlayAnimation: PlayNamedAnimation(action.AnimationName!); break;
-                case AutonomousActionKind.NoOp: break;
+                case AutonomousActionKind.PlayAnimation:
+                    PlayNamedAnimation(action.AnimationName!);
+                    break;
+                case AutonomousActionKind.NoOp:
+                    if (_randomAnimationsEnabled && !_isShuttingDown) StartIdleTimer();
+                    break;
             }
         }
-        if (_randomAnimationsEnabled) StartIdleTimer();
+        else if (_randomAnimationsEnabled && !_isShuttingDown && !_isAnimating && !_isDragging && !_isFalling && !_isInteracting)
+        {
+            StartIdleTimer();
+        }
     }
 
     private string? _defaultAnimation;
@@ -526,8 +622,17 @@ public partial class CharacterWindow : Window
     {
         if (_randomAnimationsEnabled == enabled) return;
         _randomAnimationsEnabled = enabled;
-        if (_randomAnimationsEnabled) StartIdleTimer();
-        else _idleTimer.Stop();
+        if (_randomAnimationsEnabled)
+        {
+            if (!_isShuttingDown && !_isAnimating && !_isDragging && !_isFalling && !_isInteracting)
+            {
+                StartIdleTimer();
+            }
+        }
+        else
+        {
+            _idleTimer.Stop();
+        }
         RandomAnimationsEnabledChanged?.Invoke(_randomAnimationsEnabled);
     }
 
@@ -579,7 +684,6 @@ public partial class CharacterWindow : Window
         Top = (screen.WorkingArea.Bottom * dipScale) - Height;
 
         ClampToScreen();
-        if (_randomAnimationsEnabled) StartIdleTimer();
     }
 
     public void Shutdown()

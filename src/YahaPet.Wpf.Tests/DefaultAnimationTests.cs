@@ -80,4 +80,112 @@ public class DefaultAnimationTests
             window.Close();
         });
     }
+
+    [Fact]
+    public void CharacterWindow_SpeechBubbleLayout_MeasuresAccurately()
+    {
+        RunInSta(() =>
+        {
+            var window = new CharacterWindow("chesthair_monkey");
+            window.SetCustomText("PrPartnershipInf import BUSINESS_ENAME to Uppercase Yo");
+            window.ShowSpeechBubble();
+
+            var bubble = window.FindName("BubbleContainer") as System.Windows.Controls.Grid;
+            var border = window.FindName("BubbleBorder") as System.Windows.Controls.Border;
+            Assert.NotNull(bubble);
+            Assert.NotNull(border);
+            Assert.Equal(320, border.MaxWidth);
+
+            Assert.True(window.Width >= border.DesiredSize.Width);
+            Assert.True(window.Height >= bubble.DesiredSize.Height);
+
+            window.Close();
+        });
+    }
+
+    [Fact]
+    public void CharacterWindow_SpeechBubble_AutoFlipsWhenSpaceInsufficient()
+    {
+        RunInSta(() =>
+        {
+            var window = new CharacterWindow("chesthair_monkey");
+            window.Top = 10;
+            window.SetCustomText("PrPartnershipInf import BUSINESS_ENAME to Uppercase Yo");
+            window.ShowSpeechBubble();
+
+            var bubble = window.FindName("BubbleContainer") as System.Windows.Controls.Grid;
+            var sprite = window.FindName("SpriteImage") as System.Windows.Controls.Image;
+            var pointerUp = window.FindName("BubblePointerUp") as System.Windows.Shapes.Path;
+            var pointerDown = window.FindName("BubblePointerDown") as System.Windows.Shapes.Path;
+
+            Assert.NotNull(bubble);
+            Assert.NotNull(sprite);
+            Assert.NotNull(pointerUp);
+            Assert.NotNull(pointerDown);
+
+            Assert.Equal(CharacterWindow.SpeechBubblePlacement.Bottom, window.CurrentBubblePlacement);
+            Assert.Equal(0, System.Windows.Controls.Grid.GetRow(sprite));
+            Assert.Equal(1, System.Windows.Controls.Grid.GetRow(bubble));
+            Assert.Equal(System.Windows.Visibility.Visible, pointerUp.Visibility);
+            Assert.Equal(System.Windows.Visibility.Collapsed, pointerDown.Visibility);
+
+            window.Close();
+        });
+    }
+
+    [Fact]
+    public void CharacterWindow_SpeechBubble_StaysOnTopWhenSpaceSufficient()
+    {
+        RunInSta(() =>
+        {
+            var window = new CharacterWindow("chesthair_monkey");
+            window.Top = 600;
+            window.SetCustomText("Hello World");
+            window.ShowSpeechBubble();
+
+            var bubble = window.FindName("BubbleContainer") as System.Windows.Controls.Grid;
+            var sprite = window.FindName("SpriteImage") as System.Windows.Controls.Image;
+            var pointerUp = window.FindName("BubblePointerUp") as System.Windows.Shapes.Path;
+            var pointerDown = window.FindName("BubblePointerDown") as System.Windows.Shapes.Path;
+
+            Assert.NotNull(bubble);
+            Assert.NotNull(sprite);
+            Assert.NotNull(pointerUp);
+            Assert.NotNull(pointerDown);
+
+            Assert.Equal(CharacterWindow.SpeechBubblePlacement.Top, window.CurrentBubblePlacement);
+            Assert.Equal(0, System.Windows.Controls.Grid.GetRow(bubble));
+            Assert.Equal(1, System.Windows.Controls.Grid.GetRow(sprite));
+            Assert.Equal(System.Windows.Visibility.Visible, pointerDown.Visibility);
+            Assert.Equal(System.Windows.Visibility.Collapsed, pointerUp.Visibility);
+
+            window.Close();
+        });
+    }
+
+    [Fact]
+    public void CharacterWindow_EnterIdleState_CanAutoPlayBounceForCapoo()
+    {
+        RunInSta(() =>
+        {
+            var window = new CharacterWindow("capoo");
+            var inPlace = window.InPlaceAnimationNames();
+            Assert.Contains("bounce", inPlace, StringComparer.OrdinalIgnoreCase);
+
+            window.Close();
+        });
+    }
+
+    [Fact]
+    public void CharacterWindow_EnterIdleState_CanAutoPlayBounceForArmi()
+    {
+        RunInSta(() =>
+        {
+            var window = new CharacterWindow("armi");
+            var inPlace = window.InPlaceAnimationNames();
+            Assert.Contains("bounce", inPlace, StringComparer.OrdinalIgnoreCase);
+
+            window.Close();
+        });
+    }
 }

@@ -24,7 +24,11 @@ public partial class CharacterWindow
         double winLeft = rect.Left * scale;
         double winTop = rect.Top * scale;
 
-        Top = winTop - Height;
+        if (BubbleContainer.Visibility == System.Windows.Visibility.Visible && HasCustomText)
+        {
+            UpdateBubblePlacement(BubbleContainer.DesiredSize.Height);
+        }
+        Top = CurrentBubblePlacement == SpeechBubblePlacement.Top ? (winTop - Height) : (winTop - _currentSpriteHeight);
         _attachedRelativeX = Left - winLeft;
         _isFalling = false;
         _isWalking = false;
@@ -86,6 +90,12 @@ public partial class CharacterWindow
 
         if (!_isDragging && !_isFalling)
         {
+            if (BubbleContainer.Visibility == System.Windows.Visibility.Visible && HasCustomText)
+            {
+                UpdateBubblePlacement(BubbleContainer.DesiredSize.Height);
+            }
+            double attachedTop = CurrentBubblePlacement == SpeechBubblePlacement.Top ? (winTopDip - Height) : (winTopDip - _currentSpriteHeight);
+
             if (_isWalking)
             {
                 // If walking along the window top edge, check if stepped off
@@ -95,7 +105,7 @@ public partial class CharacterWindow
                     DetachAndFall();
                     return;
                 }
-                Top = winTopDip - Height;
+                Top = attachedTop;
             }
             else if (_isJumping)
             {
@@ -104,7 +114,7 @@ public partial class CharacterWindow
             else
             {
                 // Idle, talking, custom animation, or pinned mode (random animations disabled)
-                Top = winTopDip - Height;
+                Top = attachedTop;
                 Left = winLeftDip + _attachedRelativeX;
 
                 // Check if window resize left the pet stranded outside
@@ -151,7 +161,13 @@ public partial class CharacterWindow
             if (outcome.Crashed)
             {
                 _isAnimating = false;
+                _isWalking = false;
+                _isJumping = false;
                 SetSprite(_sprites["fallingend"]);
+                if (_randomAnimationsEnabled && !_isShuttingDown && !_isDragging && !_isInteracting)
+                {
+                    StartIdleTimer();
+                }
             }
             else
             {
@@ -190,7 +206,14 @@ public partial class CharacterWindow
         }
 
         var plan = BehaviorPlanner.PlanWalk(new PetPoint((int)Left, (int)Top), planMinX, planMaxX, (int)Width, SystemRandomSource.Shared, forcedDirection);
-        if (plan is null) return;
+        if (plan is null)
+        {
+            if (_randomAnimationsEnabled && !_isShuttingDown && !_isDragging && !_isFalling && !_isInteracting)
+            {
+                StartIdleTimer();
+            }
+            return;
+        }
 
         _isAnimating = true;
         _isWalking = true;
@@ -347,7 +370,14 @@ public partial class CharacterWindow
             _isAnimating = false;
             _loopCurrentAnimation = false;
             _frameTimer.Stop();
-            onArrived?.Invoke();
+            if (onArrived != null)
+            {
+                onArrived.Invoke();
+            }
+            else
+            {
+                EnterIdleState();
+            }
         };
 
         BeginAnimation(LeftProperty, animX);

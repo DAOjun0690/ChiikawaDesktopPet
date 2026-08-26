@@ -36,11 +36,44 @@ public class BehaviorPlannerWalkTests
     }
 
     [Fact]
-    public void PlanWalk_TooCloseToLeftEdge_ReturnsNull()
+    public void PlanWalk_TooCloseToLeftEdge_RollLeft_AutoTurnsRight()
     {
-        // rollDirection=0 (left); startRange=0, endRange = currentX(50) - 100 = -50 -> infeasible
-        var random = new FixedRandomSource(0);
+        // rollDirection=0 (left); left is blocked (50 - 100 < 0), auto turns right, targets 700
+        var random = new FixedRandomSource(0, 700);
         var plan = BehaviorPlanner.PlanWalk(new PetPoint(50, 800), minX: 0, maxX: 1920, characterWidth: 100, random);
+
+        Assert.NotNull(plan);
+        Assert.Equal(BehaviorPlanner.WalkDirection.Right, plan!.Direction);
+        Assert.Equal(700, plan.TargetX);
+    }
+
+    [Fact]
+    public void PlanWalk_TooCloseToRightEdge_RollRight_AutoTurnsLeft()
+    {
+        // rollDirection=1 (right); right is blocked (1800 + 100 >= 1920 - 100), auto turns left, targets 300
+        var random = new FixedRandomSource(1, 300);
+        var plan = BehaviorPlanner.PlanWalk(new PetPoint(1800, 800), minX: 0, maxX: 1920, characterWidth: 100, random);
+
+        Assert.NotNull(plan);
+        Assert.Equal(BehaviorPlanner.WalkDirection.Left, plan!.Direction);
+        Assert.Equal(300, plan.TargetX);
+    }
+
+    [Fact]
+    public void PlanWalk_ForcedDirection_Blocked_ReturnsNull()
+    {
+        var random = new FixedRandomSource();
+        var plan = BehaviorPlanner.PlanWalk(new PetPoint(50, 800), minX: 0, maxX: 1920, characterWidth: 100, random, BehaviorPlanner.WalkDirection.Left);
+
+        Assert.Null(plan);
+    }
+
+    [Fact]
+    public void PlanWalk_BothSidesBlocked_ReturnsNull()
+    {
+        // Screen width is only 150px, character width 100px -> no direction has 100px room
+        var random = new FixedRandomSource(0);
+        var plan = BehaviorPlanner.PlanWalk(new PetPoint(25, 800), minX: 0, maxX: 150, characterWidth: 100, random);
 
         Assert.Null(plan);
     }
