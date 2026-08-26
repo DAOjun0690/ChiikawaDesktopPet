@@ -47,6 +47,7 @@ public sealed class InteractionCoordinator
         "pochita" => 9,
         "capoo" => 10,
         "chesthair_monkey" => 11,
+        "armi" => 12,
         _ => 0
     };
 
@@ -63,6 +64,7 @@ public sealed class InteractionCoordinator
         9 => "pochita",
         10 => "capoo",
         11 => "chesthair_monkey",
+        12 => "armi",
         _ => null
     };
 

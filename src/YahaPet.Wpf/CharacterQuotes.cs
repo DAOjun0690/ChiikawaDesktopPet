@@ -19,7 +19,8 @@ public static class CharacterQuotes
         ["poro"] = "咕嚕嚕～❤️（吐舌頭嚼普羅點心）",
         ["pochita"] = "汪！汪！（鏈鋸引擎轟鳴運轉）",
         ["capoo"] = "肉肉！肉肉！（興奮扭動討肉吃）",
-        ["chesthair_monkey"] = "吱吱！吱吱吱！（翻譯蒟蒻：救命／想吃香蕉）"
+        ["chesthair_monkey"] = "吱吱！吱吱吱！（翻譯蒟蒻：救命／想吃香蕉）",
+        ["armi"] = "爛成一坨了...不想努力了 (躺平)"
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     public static string GetDefaultQuote(string characterName) =>

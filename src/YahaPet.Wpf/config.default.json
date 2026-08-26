@@ -128,6 +128,26 @@
       "scream": { "fps": 12 }
     }
   },
+  "armi": {
+    "animations": {
+      "walkleft": { "fps": 10 },
+      "walkright": { "fps": 10 },
+      "bounce": { "fps": 12 },
+      "cheer": { "fps": 12 },
+      "fine": { "fps": 12 },
+      "melt": { "fps": 10 },
+      "sleep": { "fps": 8 },
+      "rich": { "fps": 12 },
+      "muscle": { "fps": 10 },
+      "laugh": { "fps": 12 },
+      "pompom": { "fps": 12 },
+      "heart": { "fps": 10 },
+      "sparkle": { "fps": 10 },
+      "yay": { "fps": 12 },
+      "wave": { "fps": 10 },
+      "hug": { "fps": 12 }
+    }
+  },
   "coanimations": {
     "animations": {
       "chiikawa_momonga": { "fps": 15 }

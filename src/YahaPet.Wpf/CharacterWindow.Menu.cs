@@ -50,6 +50,31 @@ public partial class CharacterWindow
 
         contextMenu.Items.Add(playMenu);
 
+        var defaultActionMenu = new MenuItem { Header = "預設動作" };
+        var defaultIdleItem = new MenuItem
+        {
+            Header = "【預設待機】",
+            IsCheckable = true,
+            IsChecked = string.IsNullOrEmpty(_defaultAnimation)
+        };
+        defaultIdleItem.Click += (_, _) => SetDefaultAnimation(null);
+        defaultActionMenu.Items.Add(defaultIdleItem);
+        defaultActionMenu.Items.Add(new Separator());
+
+        foreach (var animName in InPlaceAnimationNames())
+        {
+            var item = new MenuItem
+            {
+                Header = App.GetAnimationDisplayName(animName),
+                IsCheckable = true,
+                IsChecked = string.Equals(_defaultAnimation, animName, StringComparison.OrdinalIgnoreCase)
+            };
+            string nameCopy = animName;
+            item.Click += (_, _) => SetDefaultAnimation(nameCopy);
+            defaultActionMenu.Items.Add(item);
+        }
+        contextMenu.Items.Add(defaultActionMenu);
+
         var randomAnimItem = new MenuItem
         {
             Header = "隨機動作",

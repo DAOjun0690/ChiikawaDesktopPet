@@ -38,6 +38,17 @@ public partial class CharacterWindow
         _otherAnimationNames = list;
     }
 
+    public IReadOnlyList<string> InPlaceAnimationNames()
+    {
+        var names = new List<string>(_otherAnimationNames.Count + 1);
+        if (Directory.Exists(Path.Combine(_assetRoot, "animations", "bounce")))
+        {
+            names.Add("bounce");
+        }
+        names.AddRange(_otherAnimationNames);
+        return names;
+    }
+
     public IReadOnlyList<string> AllAnimationNames()
     {
         var names = new List<string>(_otherAnimationNames.Count + 4);

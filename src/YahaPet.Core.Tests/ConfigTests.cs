@@ -121,4 +121,29 @@ public class ConfigTests
             Assert.Equal(12, BehaviorPlanner.GetFps(result, "chesthair_monkey", "error"));
         }
     }
+
+    [Fact]
+    public void ConfigLoader_Load_ShippedConfig_ContainsArmiConfig()
+    {
+        string path = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "YahaPet.Wpf", "config.default.json");
+        if (File.Exists(path))
+        {
+            var result = ConfigLoader.Load(path);
+            Assert.Equal(10, BehaviorPlanner.GetFps(result, "armi", "walkleft"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "armi", "bounce"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "armi", "cheer"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "armi", "fine"));
+            Assert.Equal(10, BehaviorPlanner.GetFps(result, "armi", "melt"));
+            Assert.Equal(8, BehaviorPlanner.GetFps(result, "armi", "sleep"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "armi", "rich"));
+            Assert.Equal(10, BehaviorPlanner.GetFps(result, "armi", "muscle"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "armi", "laugh"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "armi", "pompom"));
+            Assert.Equal(10, BehaviorPlanner.GetFps(result, "armi", "heart"));
+            Assert.Equal(10, BehaviorPlanner.GetFps(result, "armi", "sparkle"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "armi", "yay"));
+            Assert.Equal(10, BehaviorPlanner.GetFps(result, "armi", "wave"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "armi", "hug"));
+        }
+    }
 }

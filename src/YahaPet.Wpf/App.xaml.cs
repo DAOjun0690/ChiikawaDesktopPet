@@ -24,7 +24,8 @@ public partial class App : Application
         ["poro"] = "普羅 (Poro)",
         ["pochita"] = "波奇塔 (Pochita)",
         ["capoo"] = "貓貓蟲咖波 (Capoo)",
-        ["chesthair_monkey"] = "胸毛公寓 猴子朋友"
+        ["chesthair_monkey"] = "胸毛公寓 猴子朋友",
+        ["armi"] = "廢貓阿米 - 左手畫的"
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     private static readonly FrozenDictionary<string, string> AnimationDisplayNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -64,7 +65,17 @@ public partial class App : Application
         ["toilet"] = "馬桶滑手機",
         ["swing"] = "藤蔓擺盪",
         ["flat"] = "趴平融化",
-        ["scream"] = "驚嚇尖叫"
+        ["scream"] = "驚嚇尖叫",
+        ["fine"] = "火海喝茶",
+        ["melt"] = "融化成史萊姆",
+        ["rich"] = "撒錢暴富",
+        ["muscle"] = "秀二頭肌",
+        ["laugh"] = "仰天狂笑",
+        ["pompom"] = "彩球應援",
+        ["sparkle"] = "水汪汪大眼",
+        ["yay"] = "好耶舉手",
+        ["wave"] = "揮手掰掰",
+        ["hug"] = "雙貓互蹭"
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     private static readonly (string Key, string DisplayName)[] CharacterDefinitions =
@@ -79,12 +90,13 @@ public partial class App : Application
         ("poro", "普羅 (Poro)"),
         ("pochita", "波奇塔 (Pochita)"),
         ("capoo", "貓貓蟲咖波 (Capoo)"),
-        ("chesthair_monkey", "胸毛公寓 猴子朋友")
+        ("chesthair_monkey", "胸毛公寓 猴子朋友"),
+        ("armi", "廢貓阿米 - 左手畫的")
     ];
 
     private static readonly string[] AutoSpawnCandidates =
     [
-        "hachiware", "chiikawa", "usagi", "momonga", "jokebear", "loverabbit", "poro", "pochita", "capoo", "chesthair_monkey"
+        "hachiware", "chiikawa", "usagi", "momonga", "jokebear", "loverabbit", "poro", "pochita", "capoo", "chesthair_monkey", "armi"
     ];
 
     private sealed class CharacterTrayItems(

@@ -438,6 +438,22 @@ public partial class CharacterWindow : Window
             _attachedRelativeX = Left - (rect.Left * scale);
         }
 
+        if (!string.IsNullOrEmpty(_defaultAnimation))
+        {
+            var customFrames = GetOrLoadFrames(_defaultAnimation);
+            if (customFrames.Count > 0)
+            {
+                _currentAnimationFrames = customFrames;
+                _currentFrameIndex = 0;
+                _loopCurrentAnimation = true;
+                int fps = BehaviorPlanner.GetFps(_config, CharacterName, _defaultAnimation);
+                _frameTimer.Interval = TimeSpan.FromMilliseconds(1000.0 / fps);
+                _pendingOnComplete = null;
+                _frameTimer.Start();
+                return;
+            }
+        }
+
         // If the character has a bounce/idle animation, loop it during idle
         var idleFrames = GetOrLoadFrames("bounce");
         if (idleFrames.Count > 0 && (CharacterName == "jokebear" || CharacterName == "loverabbit" || CharacterName == "poro" || CharacterName == "pochita"))
@@ -482,6 +498,24 @@ public partial class CharacterWindow : Window
             }
         }
         if (_randomAnimationsEnabled) StartIdleTimer();
+    }
+
+    private string? _defaultAnimation;
+    public string? DefaultAnimation => _defaultAnimation;
+    public event Action<string?>? DefaultAnimationChanged;
+
+    public void SetDefaultAnimation(string? animationName)
+    {
+        string? normalized = string.IsNullOrWhiteSpace(animationName) ? null : animationName.Trim();
+        if (string.Equals(_defaultAnimation, normalized, StringComparison.OrdinalIgnoreCase)) return;
+
+        _defaultAnimation = normalized;
+        DefaultAnimationChanged?.Invoke(_defaultAnimation);
+
+        if (!_isShuttingDown && !_isDragging && !_isFalling && !_isInteracting)
+        {
+            EnterIdleState();
+        }
     }
 
     private bool _randomAnimationsEnabled = true;
