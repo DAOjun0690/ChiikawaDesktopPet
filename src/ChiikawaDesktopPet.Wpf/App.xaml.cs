@@ -13,22 +13,6 @@ namespace ChiikawaDesktopPet.Wpf;
 
 public partial class App : Application
 {
-    private static readonly FrozenDictionary<string, string> CharacterDisplayNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["hachiware"] = "Hachiware",
-        ["chiikawa"] = "Chiikawa",
-        ["usagi"] = "Usagi",
-        ["momonga"] = "Momonga",
-        ["jokebear"] = "JokeBear",
-        ["loverabbit"] = "LOVE RABBIT",
-        ["lai"] = "總統-賴",
-        ["poro"] = "普羅 (Poro)",
-        ["pochita"] = "波奇塔 (Pochita)",
-        ["capoo"] = "貓貓蟲咖波 (Capoo)",
-        ["chesthair_monkey"] = "胸毛公寓 猴子朋友",
-        ["armi"] = "廢貓阿米 - 左手畫的"
-    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
-
     private static readonly FrozenDictionary<string, string> AnimationDisplayNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["walkleft"] = "向左走",
@@ -79,27 +63,6 @@ public partial class App : Application
         ["hug"] = "雙貓互蹭"
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-    private static readonly (string Key, string DisplayName)[] CharacterDefinitions =
-    [
-        ("hachiware", "Hachiware"),
-        ("chiikawa", "Chiikawa"),
-        ("usagi", "Usagi"),
-        ("momonga", "Momonga"),
-        ("jokebear", "JokeBear"),
-        ("loverabbit", "LOVE RABBIT"),
-        ("lai", "總統-賴"),
-        ("poro", "普羅 (Poro)"),
-        ("pochita", "波奇塔 (Pochita)"),
-        ("capoo", "貓貓蟲咖波 (Capoo)"),
-        ("chesthair_monkey", "胸毛公寓 猴子朋友"),
-        ("armi", "廢貓阿米 - 左手畫的")
-    ];
-
-    private static readonly string[] AutoSpawnCandidates =
-    [
-        "hachiware", "chiikawa", "usagi", "momonga", "jokebear", "loverabbit", "poro", "pochita", "capoo", "chesthair_monkey", "armi"
-    ];
-
     private sealed class CharacterInstanceData(
         string instanceId,
         string characterKey,
@@ -144,7 +107,7 @@ public partial class App : Application
         spawnMenu.DropDownItems.Add(spawnAllItem);
         spawnMenu.DropDownItems.Add(new ToolStripSeparator());
 
-        foreach (var (key, displayName) in CharacterDefinitions)
+        foreach (var (key, displayName, _) in CharacterRegistry.All)
         {
             var item = new MenuItem(displayName);
             string k = key;
@@ -239,7 +202,7 @@ public partial class App : Application
         };
 
         // Automatically spawn a random regular character on startup (excluding lai)
-        string initialCharacter = AutoSpawnCandidates[Random.Shared.Next(AutoSpawnCandidates.Length)];
+        string initialCharacter = CharacterRegistry.AutoSpawnCandidates[Random.Shared.Next(CharacterRegistry.AutoSpawnCandidates.Length)];
         SpawnCharacter(initialCharacter);
     }
 
@@ -249,7 +212,7 @@ public partial class App : Application
         int minX = 50;
         int maxX = Math.Max(minX, (int)screenWidth - 200);
 
-        foreach (var name in AutoSpawnCandidates)
+        foreach (var name in CharacterRegistry.AutoSpawnCandidates)
         {
             double randomX = Random.Shared.Next(minX, maxX);
             SpawnCharacter(name, randomX);
@@ -555,7 +518,7 @@ public partial class App : Application
     }
 
     public static string GetCharacterDisplayName(string characterName) =>
-        CharacterDisplayNames.TryGetValue(characterName, out var name) ? name : characterName;
+        CharacterRegistry.GetDisplayName(characterName);
 
     public static string GetCharacterInstanceDisplayName(string characterName, int index) =>
         $"{GetCharacterDisplayName(characterName)} {index}";

@@ -34,39 +34,9 @@ public sealed class InteractionCoordinator
         _scanTimer.Start();
     }
 
-    public static int GetCharacterTypeId(string characterName) => characterName.ToLowerInvariant() switch
-    {
-        "chiikawa" => 1,
-        "momonga" => 2,
-        "hachiware" => 3,
-        "usagi" => 4,
-        "jokebear" => 5,
-        "loverabbit" => 6,
-        "lai" => 7,
-        "poro" => 8,
-        "pochita" => 9,
-        "capoo" => 10,
-        "chesthair_monkey" => 11,
-        "armi" => 12,
-        _ => 0
-    };
+    public static int GetCharacterTypeId(string characterName) => CharacterRegistry.GetTypeId(characterName);
 
-    public static string? GetCharacterNameFromTypeId(int typeId) => typeId switch
-    {
-        1 => "chiikawa",
-        2 => "momonga",
-        3 => "hachiware",
-        4 => "usagi",
-        5 => "jokebear",
-        6 => "loverabbit",
-        7 => "lai",
-        8 => "poro",
-        9 => "pochita",
-        10 => "capoo",
-        11 => "chesthair_monkey",
-        12 => "armi",
-        _ => null
-    };
+    public static string? GetCharacterNameFromTypeId(int typeId) => CharacterRegistry.GetKeyFromTypeId(typeId);
 
     public void RegisterPet(CharacterWindow pet)
     {
