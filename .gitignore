@@ -23,3 +23,17 @@ Thumbs.db
 [Dd]esktop.ini
 .DS_Store
 *.log
+
+# Raw character source art - intermediate input for AssetPipeline, not shipped.
+# The build only needs assets/optimized/<character>/, which stays tracked.
+/assets/armi/
+/assets/capoo/
+/assets/chiikawa/
+/assets/hachiware/
+/assets/jokebear/
+/assets/lai/
+/assets/loverabbit/
+/assets/momonga/
+/assets/pochita/
+/assets/poro/
+/assets/usagi/
