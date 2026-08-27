@@ -20,6 +20,7 @@ public static class CharacterQuotes
         ["pochita"] = "汪！汪！（鏈鋸引擎轟鳴運轉）",
         ["capoo"] = "肉肉！肉肉！（興奮扭動討肉吃）",
         ["chesthair_monkey"] = "吱吱！吱吱吱！（翻譯蒟蒻：救命／想吃香蕉）",
+        ["chesthair_goblin"] = "嘎嘎！咕嚕嚕！（哥布林喵喵怪正在警戒中）",
         ["armi"] = "爛成一坨了...不想努力了 (躺平)"
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 

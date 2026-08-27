@@ -128,6 +128,26 @@
       "scream": { "fps": 12 }
     }
   },
+  "chesthair_goblin": {
+    "animations": {
+      "walkleft": { "fps": 12 },
+      "walkright": { "fps": 12 },
+      "jumpleft": { "fps": 12 },
+      "jumpright": { "fps": 12 },
+      "bounce": { "fps": 12 },
+      "smash": { "fps": 12 },
+      "eat": { "fps": 12 },
+      "sleep": { "fps": 8 },
+      "dance": { "fps": 14 },
+      "cheer": { "fps": 14 },
+      "cry": { "fps": 12 },
+      "roar": { "fps": 12 },
+      "scream": { "fps": 14 },
+      "worship": { "fps": 12 },
+      "swing": { "fps": 12 },
+      "sit": { "fps": 10 }
+    }
+  },
   "armi": {
     "animations": {
       "walkleft": { "fps": 10 },

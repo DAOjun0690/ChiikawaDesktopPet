@@ -60,7 +60,8 @@ public partial class App : Application
         ["sparkle"] = "水汪汪大眼",
         ["yay"] = "好耶舉手",
         ["wave"] = "揮手掰掰",
-        ["hug"] = "雙貓互蹭"
+        ["hug"] = "雙貓互蹭",
+        ["sit"] = "乖乖坐好"
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     private sealed class CharacterInstanceData(

@@ -146,4 +146,28 @@ public class ConfigTests
             Assert.Equal(12, BehaviorPlanner.GetFps(result, "armi", "hug"));
         }
     }
+
+    [Fact]
+    public void ConfigLoader_Load_ShippedConfig_ContainsChestHairGoblinConfig()
+    {
+        string path = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "ChiikawaDesktopPet.Wpf", "config.default.json");
+        if (File.Exists(path))
+        {
+            var result = ConfigLoader.Load(path);
+            Assert.Equal(1.0, result["chesthair_goblin"].Scale);
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "chesthair_goblin", "walkleft"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "chesthair_goblin", "bounce"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "chesthair_goblin", "smash"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "chesthair_goblin", "eat"));
+            Assert.Equal(8, BehaviorPlanner.GetFps(result, "chesthair_goblin", "sleep"));
+            Assert.Equal(14, BehaviorPlanner.GetFps(result, "chesthair_goblin", "dance"));
+            Assert.Equal(14, BehaviorPlanner.GetFps(result, "chesthair_goblin", "cheer"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "chesthair_goblin", "cry"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "chesthair_goblin", "roar"));
+            Assert.Equal(14, BehaviorPlanner.GetFps(result, "chesthair_goblin", "scream"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "chesthair_goblin", "worship"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "chesthair_goblin", "swing"));
+            Assert.Equal(10, BehaviorPlanner.GetFps(result, "chesthair_goblin", "sit"));
+        }
+    }
 }

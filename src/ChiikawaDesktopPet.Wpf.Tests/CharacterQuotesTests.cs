@@ -18,6 +18,7 @@ public class CharacterQuotesTests
     [InlineData("pochita", "汪！汪！（鏈鋸引擎轟鳴運轉）")]
     [InlineData("capoo", "肉肉！肉肉！（興奮扭動討肉吃）")]
     [InlineData("chesthair_monkey", "吱吱！吱吱吱！（翻譯蒟蒻：救命／想吃香蕉）")]
+    [InlineData("chesthair_goblin", "嘎嘎！咕嚕嚕！（哥布林喵喵怪正在警戒中）")]
     [InlineData("armi", "爛成一坨了...不想努力了 (躺平)")]
     public void GetDefaultQuote_KnownCharacters_ReturnsExpectedQuote(string characterName, string expectedQuote)
     {

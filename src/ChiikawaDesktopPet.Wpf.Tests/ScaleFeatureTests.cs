@@ -52,6 +52,17 @@ public class ScaleFeatureTests
         });
     }
 
+    [Fact]
+    public void CharacterWindow_ScaleRatio_DefaultIsOneForAllCharacters()
+    {
+        RunInSta(() =>
+        {
+            var window = new CharacterWindow("chesthair_goblin");
+            Assert.Equal(1.0, window.ScaleRatio);
+            window.Close();
+        });
+    }
+
     [Theory]
     [InlineData(0.5, 0.5)]
     [InlineData(0.75, 0.75)]

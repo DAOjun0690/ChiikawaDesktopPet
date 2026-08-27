@@ -87,6 +87,10 @@ public partial class CharacterWindow : Window
         _physicalCharacterHeight = (int)(System.Windows.Forms.Screen.PrimaryScreen!.Bounds.Height / 10);
 
         _config = ConfigLoader.Load(Path.Combine(AppContext.BaseDirectory, "config.json"));
+        if (_config.TryGetValue(CharacterName, out var charConfig) && charConfig.Scale > 0)
+        {
+            ScaleRatio = Math.Clamp(charConfig.Scale, 0.2, 4.0);
+        }
 
         _idleTimer.Tick += (_, _) => OnIdleTick();
         _frameTimer.Tick += (_, _) => OnFrameTick();

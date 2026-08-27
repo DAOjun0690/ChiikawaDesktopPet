@@ -189,4 +189,17 @@ public class DefaultAnimationTests
             window.Close();
         });
     }
+
+    [Fact]
+    public void CharacterWindow_EnterIdleState_CanAutoPlayBounceForChestHairGoblin()
+    {
+        RunInSta(() =>
+        {
+            var window = new CharacterWindow("chesthair_goblin");
+            var inPlace = window.InPlaceAnimationNames();
+            Assert.Contains("bounce", inPlace, StringComparer.OrdinalIgnoreCase);
+
+            window.Close();
+        });
+    }
 }
