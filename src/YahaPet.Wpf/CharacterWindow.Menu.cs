@@ -10,7 +10,7 @@ public partial class CharacterWindow
     {
         var contextMenu = new ContextMenu();
 
-        string displayName = App.GetCharacterDisplayName(CharacterName);
+        string displayName = InstanceDisplayName;
         var titleItem = new MenuItem
         {
             Header = $"【{displayName}】",

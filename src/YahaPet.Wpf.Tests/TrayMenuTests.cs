@@ -78,4 +78,33 @@ public class TrayMenuTests
         string displayName = App.GetAnimationDisplayName("fly_away");
         Assert.Equal("fly_away", displayName);
     }
+
+    [Theory]
+    [InlineData("chiikawa", 1, "Chiikawa 1")]
+    [InlineData("chiikawa", 2, "Chiikawa 2")]
+    [InlineData("lai", 3, "總統-賴 3")]
+    [InlineData("capoo", 10, "貓貓蟲咖波 (Capoo) 10")]
+    [InlineData("custom_pet", 5, "custom_pet 5")]
+    public void GetCharacterInstanceDisplayName_FormatsExpectedInstanceName(string key, int index, string expectedDisplayName)
+    {
+        string instanceDisplayName = App.GetCharacterInstanceDisplayName(key, index);
+        Assert.Equal(expectedDisplayName, instanceDisplayName);
+    }
+
+    [Fact]
+    public void CharacterWindow_InstanceProperties_InitializeCorrectly()
+    {
+        var thread = new System.Threading.Thread(() =>
+        {
+            var window = new CharacterWindow("chiikawa", 3);
+            Assert.Equal("chiikawa", window.CharacterName);
+            Assert.Equal(3, window.InstanceIndex);
+            Assert.Equal("Chiikawa 3", window.InstanceDisplayName);
+            Assert.Equal("chiikawa_3", window.InstanceId);
+            window.Close();
+        });
+        thread.SetApartmentState(System.Threading.ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+    }
 }

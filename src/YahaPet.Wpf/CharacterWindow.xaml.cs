@@ -14,6 +14,9 @@ namespace YahaPet.Wpf;
 public partial class CharacterWindow : Window
 {
     public string CharacterName { get; }
+    public int InstanceIndex { get; }
+    public string InstanceDisplayName { get; }
+    public string InstanceId { get; }
 
     private readonly int _characterWidth;
     private readonly int _characterHeight;
@@ -69,10 +72,13 @@ public partial class CharacterWindow : Window
     private readonly DispatcherTimer _bubbleTimer = new();
     internal DispatcherTimer? TalkActionTimer { get; set; }
 
-    public CharacterWindow(string characterName)
+    public CharacterWindow(string characterName, int instanceIndex = 1, string? instanceDisplayName = null)
     {
         InitializeComponent();
         CharacterName = characterName.ToLowerInvariant();
+        InstanceIndex = instanceIndex;
+        InstanceDisplayName = instanceDisplayName ?? $"{App.GetCharacterDisplayName(CharacterName)} {instanceIndex}";
+        InstanceId = $"{CharacterName}_{InstanceIndex}";
         _assetRoot = Path.Combine(AppContext.BaseDirectory, "assets", CharacterName);
 
         _characterWidth = (int)(SystemParameters.PrimaryScreenWidth / 10);
@@ -463,6 +469,52 @@ public partial class CharacterWindow : Window
     {
         if (!HasCustomText) return;
         ShowSpeechBubble(3500);
+    }
+
+    public CharacterProfileItem ToProfileItem()
+    {
+        return new CharacterProfileItem
+        {
+            CharacterName = CharacterName,
+            DialogueText = _customText,
+            DialogueAlignment = DialogueAlignment.ToString(),
+            DialogueFontSize = DialogueFontSize,
+            AlwaysShowBubble = _alwaysShowBubble,
+            ScaleRatio = ScaleRatio,
+            DefaultAnimation = _defaultAnimation,
+            RandomAnimationsEnabled = _randomAnimationsEnabled,
+            JumpEnabled = _jumpEnabled
+        };
+    }
+
+    public void ApplyProfile(CharacterProfileItem profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+
+        SetScaleRatio(profile.ScaleRatio > 0 ? profile.ScaleRatio : 1.0);
+
+        var alignment = TextAlignment.Center;
+        if (!string.IsNullOrWhiteSpace(profile.DialogueAlignment) &&
+            Enum.TryParse<TextAlignment>(profile.DialogueAlignment, true, out var parsedAlignment))
+        {
+            alignment = parsedAlignment;
+        }
+
+        double fontSize = profile.DialogueFontSize > 0 ? profile.DialogueFontSize : 13.0;
+
+        if (!string.IsNullOrWhiteSpace(profile.DialogueText))
+        {
+            SetCustomText(profile.DialogueText, alignment, fontSize);
+        }
+        else
+        {
+            SetCustomText("", alignment, fontSize);
+        }
+
+        SetAlwaysShowBubble(profile.AlwaysShowBubble);
+        SetDefaultAnimation(profile.DefaultAnimation);
+        SetRandomAnimationsEnabled(profile.RandomAnimationsEnabled);
+        SetJumpEnabled(profile.JumpEnabled);
     }
 
     // Screen.Bounds/WorkingArea/VirtualScreen are physical pixels, but Window.Top/Left (and

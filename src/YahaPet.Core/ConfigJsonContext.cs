@@ -3,8 +3,11 @@ using System.Text.Json.Serialization;
 
 namespace YahaPet.Core;
 
-[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(WriteIndented = true, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(Dictionary<string, CharacterConfig>))]
+[JsonSerializable(typeof(PetProfile))]
+[JsonSerializable(typeof(CharacterProfileItem))]
+[JsonSerializable(typeof(List<CharacterProfileItem>))]
 public sealed partial class ConfigJsonContext : JsonSerializerContext
 {
 }

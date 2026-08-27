@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Windows;
 using System.Windows.Forms;
+using YahaPet.Core;
 using Application = System.Windows.Application;
 using MenuItem = System.Windows.Forms.ToolStripMenuItem;
 
@@ -99,28 +100,37 @@ public partial class App : Application
         "hachiware", "chiikawa", "usagi", "momonga", "jokebear", "loverabbit", "poro", "pochita", "capoo", "chesthair_monkey", "armi"
     ];
 
-    private sealed class CharacterTrayItems(
-        ToolStripMenuItem playSubmenu,
-        ToolStripMenuItem kickItem,
-        ToolStripMenuItem stopResumeItem,
-        ToolStripMenuItem jumpItem)
+    private sealed class CharacterInstanceData(
+        string instanceId,
+        string characterKey,
+        int index,
+        string displayName,
+        CharacterWindow window,
+        MenuItem playSubmenu,
+        MenuItem kickItem,
+        MenuItem stopResumeItem,
+        MenuItem jumpItem)
     {
-        public ToolStripMenuItem PlaySubmenu { get; } = playSubmenu;
-        public ToolStripMenuItem KickItem { get; } = kickItem;
-        public ToolStripMenuItem StopResumeItem { get; } = stopResumeItem;
-        public ToolStripMenuItem JumpItem { get; } = jumpItem;
+        public string InstanceId { get; } = instanceId;
+        public string CharacterKey { get; } = characterKey;
+        public int Index { get; } = index;
+        public string DisplayName { get; } = displayName;
+        public CharacterWindow Window { get; } = window;
+        public MenuItem PlaySubmenu { get; } = playSubmenu;
+        public MenuItem KickItem { get; } = kickItem;
+        public MenuItem StopResumeItem { get; } = stopResumeItem;
+        public MenuItem JumpItem { get; } = jumpItem;
     }
 
     public static bool EnableWindowsNotifications { get; set; } = false;
 
     private NotifyIcon? _trayIcon;
-    private ToolStripMenuItem? _playAnimationMenu;
-    private ToolStripMenuItem? _kickMenu;
-    private ToolStripMenuItem? _stopResumeMenu;
-    private ToolStripMenuItem? _jumpMenu;
-    private readonly Dictionary<string, CharacterWindow> _characters = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, ToolStripMenuItem> _spawnMenuItems = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, CharacterTrayItems> _characterTrayItems = new(StringComparer.OrdinalIgnoreCase);
+    private MenuItem? _aliveMenu;
+    private MenuItem? _playAnimationMenu;
+    private MenuItem? _stopResumeMenu;
+    private MenuItem? _jumpMenu;
+    private readonly Dictionary<string, int> _characterCounters = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, CharacterInstanceData> _instances = new(StringComparer.OrdinalIgnoreCase);
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -138,11 +148,13 @@ public partial class App : Application
         {
             var item = new MenuItem(displayName);
             string k = key;
-            item.Click += (_, _) => ToggleCharacter(k);
+            item.Click += (_, _) => SpawnCharacter(k);
             spawnMenu.DropDownItems.Add(item);
-            _spawnMenuItems[key] = item;
         }
         contextMenu.Items.Add(spawnMenu);
+
+        _aliveMenu = new MenuItem("現在存活的角色") { Enabled = false };
+        contextMenu.Items.Add(_aliveMenu);
 
         _playAnimationMenu = new MenuItem("播放動畫") { Enabled = false };
         contextMenu.Items.Add(_playAnimationMenu);
@@ -150,9 +162,6 @@ public partial class App : Application
         var sayHiItem = new MenuItem("打個招呼！");
         sayHiItem.Click += (_, _) => SayHi();
         contextMenu.Items.Add(sayHiItem);
-
-        _kickMenu = new MenuItem("踢出角色") { Enabled = false };
-        contextMenu.Items.Add(_kickMenu);
 
         _stopResumeMenu = new MenuItem("停止/恢復隨機動畫...") { Enabled = false };
         contextMenu.Items.Add(_stopResumeMenu);
@@ -177,6 +186,18 @@ public partial class App : Application
         notificationItem.Click += (_, _) =>
             EnableWindowsNotifications = notificationItem.Checked;
         contextMenu.Items.Add(notificationItem);
+
+        contextMenu.Items.Add(new ToolStripSeparator());
+
+        var exportItem = new MenuItem("匯出角色配置...");
+        exportItem.Click += (_, _) => ExportProfile();
+        contextMenu.Items.Add(exportItem);
+
+        var importItem = new MenuItem("匯入角色配置...");
+        importItem.Click += (_, _) => ImportProfile();
+        contextMenu.Items.Add(importItem);
+
+        contextMenu.Items.Add(new ToolStripSeparator());
 
         var exitItem = new MenuItem("結束程式");
         exitItem.Click += (_, _) => Shutdown();
@@ -222,19 +243,6 @@ public partial class App : Application
         SpawnCharacter(initialCharacter);
     }
 
-    private void ToggleCharacter(string name)
-    {
-        string key = name.ToLowerInvariant();
-        if (_characters.ContainsKey(key))
-        {
-            KickCharacter(key);
-        }
-        else
-        {
-            SpawnCharacter(key);
-        }
-    }
-
     private void SpawnAllCharacters()
     {
         double screenWidth = SystemParameters.PrimaryScreenWidth;
@@ -243,36 +251,32 @@ public partial class App : Application
 
         foreach (var name in AutoSpawnCandidates)
         {
-            string key = name.ToLowerInvariant();
-            if (!_characters.ContainsKey(key))
-            {
-                double randomX = Random.Shared.Next(minX, maxX);
-                SpawnCharacter(key, randomX);
-            }
+            double randomX = Random.Shared.Next(minX, maxX);
+            SpawnCharacter(name, randomX);
         }
     }
 
-    private void SpawnCharacter(string name, double? initialX = null)
+    private CharacterWindow SpawnCharacter(string name, double? initialX = null, CharacterProfileItem? profile = null)
     {
         string key = name.ToLowerInvariant();
-        if (_characters.ContainsKey(key))
-        {
-            return;
-        }
+        int nextIndex = _characterCounters.TryGetValue(key, out int count) ? count + 1 : 1;
+        _characterCounters[key] = nextIndex;
 
-        var window = new CharacterWindow(key);
-        _characters[key] = window;
+        string instanceId = $"{key}_{nextIndex}";
+        string displayName = GetCharacterInstanceDisplayName(key, nextIndex);
+
+        var window = new CharacterWindow(key, nextIndex, displayName);
         window.Spawn(initialX);
 
-        if (_spawnMenuItems.TryGetValue(key, out var spawnMenuItem))
+        if (profile != null)
         {
-            spawnMenuItem.Checked = true;
+            window.ApplyProfile(profile);
         }
 
-        var playSubmenu = new ToolStripMenuItem(key);
+        var playSubmenu = new MenuItem(displayName);
         foreach (var animName in window.AllAnimationNames())
         {
-            var item = new ToolStripMenuItem(GetAnimationDisplayName(animName));
+            var item = new MenuItem(GetAnimationDisplayName(animName));
             string nameCopy = animName;
             item.Click += (_, _) => window.PlayAnimationByName(nameCopy);
             playSubmenu.DropDownItems.Add(item);
@@ -281,7 +285,7 @@ public partial class App : Application
         if (key is "chiikawa" or "momonga")
         {
             playSubmenu.DropDownItems.Add(new ToolStripSeparator());
-            var coopItem = new ToolStripMenuItem("【雙人互動】飛撲蹭臉 (Chiikawa & Momonga)");
+            var coopItem = new MenuItem("【雙人互動】飛撲蹭臉 (Chiikawa & Momonga)");
             coopItem.Click += (_, _) =>
             {
                 bool success = InteractionCoordinator.Instance.TriggerManualInteraction(window);
@@ -307,69 +311,222 @@ public partial class App : Application
         _playAnimationMenu!.DropDownItems.Add(playSubmenu);
         _playAnimationMenu.Enabled = true;
 
-        var stopResumeItem = new ToolStripMenuItem($"{key}（點擊以停用）");
+        var stopResumeItem = new MenuItem(window.RandomAnimationsEnabled ? $"{displayName}（點擊以停用）" : $"{displayName}（點擊以啟用）");
         stopResumeItem.Click += (_, _) => window.ToggleRandomAnimations();
         window.RandomAnimationsEnabledChanged += enabled =>
         {
-            stopResumeItem.Text = enabled ? $"{key}（點擊以停用）" : $"{key}（點擊以啟用）";
+            stopResumeItem.Text = enabled ? $"{displayName}（點擊以停用）" : $"{displayName}（點擊以啟用）";
         };
         _stopResumeMenu!.DropDownItems.Add(stopResumeItem);
         _stopResumeMenu.Enabled = true;
 
-        var jumpItem = new ToolStripMenuItem($"{key}（點擊以停用跳躍）");
+        var jumpItem = new MenuItem(window.JumpEnabled ? $"{displayName}（點擊以停用跳躍）" : $"{displayName}（點擊以啟用跳躍）");
         jumpItem.Click += (_, _) => window.ToggleJump();
         window.JumpEnabledChanged += enabled =>
         {
-            jumpItem.Text = enabled ? $"{key}（點擊以停用跳躍）" : $"{key}（點擊以啟用跳躍）";
+            jumpItem.Text = enabled ? $"{displayName}（點擊以停用跳躍）" : $"{displayName}（點擊以啟用跳躍）";
         };
         _jumpMenu!.DropDownItems.Add(jumpItem);
         _jumpMenu.Enabled = true;
 
-        var kickItem = new ToolStripMenuItem(key);
-        kickItem.Click += (_, _) => KickCharacter(key);
-        _kickMenu!.DropDownItems.Add(kickItem);
-        _kickMenu.Enabled = true;
+        var kickItem = new MenuItem(displayName);
+        kickItem.Click += (_, _) => KickCharacter(instanceId);
+        _aliveMenu!.DropDownItems.Add(kickItem);
+        _aliveMenu.Enabled = true;
 
-        _characterTrayItems[key] = new CharacterTrayItems(playSubmenu, kickItem, stopResumeItem, jumpItem);
+        var instanceData = new CharacterInstanceData(
+            instanceId,
+            key,
+            nextIndex,
+            displayName,
+            window,
+            playSubmenu,
+            kickItem,
+            stopResumeItem,
+            jumpItem);
 
-        window.KickRequested += () => KickCharacter(key);
-        window.SayHiRequested += () => SayHi(key);
+        _instances[instanceId] = instanceData;
+
+        window.KickRequested += () => KickCharacter(instanceId);
+        window.SayHiRequested += () => SayHi(instanceId);
+
+        return window;
     }
 
-    private void KickCharacter(string name)
+    private void KickCharacter(string instanceId)
     {
-        string key = name.ToLowerInvariant();
-        if (_characters.TryGetValue(key, out var window))
+        if (_instances.Remove(instanceId, out var data))
         {
-            window.Shutdown();
-            _characters.Remove(key);
+            data.Window.Shutdown();
+            _playAnimationMenu!.DropDownItems.Remove(data.PlaySubmenu);
+            _aliveMenu!.DropDownItems.Remove(data.KickItem);
+            _stopResumeMenu!.DropDownItems.Remove(data.StopResumeItem);
+            _jumpMenu!.DropDownItems.Remove(data.JumpItem);
         }
 
-        if (_characterTrayItems.Remove(key, out var items))
+        if (_instances.Count == 0)
         {
-            _playAnimationMenu!.DropDownItems.Remove(items.PlaySubmenu);
-            _kickMenu!.DropDownItems.Remove(items.KickItem);
-            _stopResumeMenu!.DropDownItems.Remove(items.StopResumeItem);
-            _jumpMenu!.DropDownItems.Remove(items.JumpItem);
-        }
-
-        if (_spawnMenuItems.TryGetValue(key, out var spawnMenuItem))
-        {
-            spawnMenuItem.Checked = false;
-        }
-
-        if (_characters.Count == 0)
-        {
+            _aliveMenu!.Enabled = false;
             _playAnimationMenu!.Enabled = false;
-            _kickMenu!.Enabled = false;
             _stopResumeMenu!.Enabled = false;
             _jumpMenu!.Enabled = false;
         }
     }
 
-    private void SayHi(string? specificKey = null)
+    private void KickAllCharacters()
     {
-        if (_characters.Count == 0)
+        var allIds = new List<string>(_instances.Keys);
+        foreach (var id in allIds)
+        {
+            KickCharacter(id);
+        }
+        _characterCounters.Clear();
+    }
+
+    private void ExportProfile()
+    {
+        if (_instances.Count == 0)
+        {
+            if (EnableWindowsNotifications)
+            {
+                _trayIcon?.ShowBalloonTip(1500, "匯出提示", "目前沒有任何角色可以匯出！", ToolTipIcon.Info);
+            }
+            else
+            {
+                System.Windows.MessageBox.Show(
+                    "目前沒有任何角色可以匯出！",
+                    "匯出提示",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
+            }
+            return;
+        }
+
+        using var saveDialog = new System.Windows.Forms.SaveFileDialog
+        {
+            Title = "匯出角色配置",
+            Filter = "JSON 檔案 (*.json)|*.json|所有檔案 (*.*)|*.*",
+            FileName = "chiikawapet_profile.json",
+            DefaultExt = "json",
+            AddExtension = true
+        };
+
+        if (saveDialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+        {
+            return;
+        }
+
+        try
+        {
+            var profile = new PetProfile
+            {
+                Version = 1,
+                Characters = new List<CharacterProfileItem>()
+            };
+
+            foreach (var instance in _instances.Values)
+            {
+                profile.Characters.Add(instance.Window.ToProfileItem());
+            }
+
+            ProfileManager.SaveToFile(saveDialog.FileName, profile);
+
+            string msg = $"成功匯出 {profile.Characters.Count} 個角色配置！";
+            if (EnableWindowsNotifications)
+            {
+                _trayIcon?.ShowBalloonTip(1500, "匯出成功", msg, ToolTipIcon.Info);
+            }
+            else
+            {
+                System.Windows.MessageBox.Show(
+                    msg,
+                    "匯出成功",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"匯出失敗：{ex.Message}",
+                "錯誤",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Error);
+        }
+    }
+
+    private void ImportProfile()
+    {
+        using var openDialog = new System.Windows.Forms.OpenFileDialog
+        {
+            Title = "匯入角色配置",
+            Filter = "JSON 檔案 (*.json)|*.json|所有檔案 (*.*)|*.*",
+            FileName = "chiikawapet_profile.json",
+            DefaultExt = "json"
+        };
+
+        if (openDialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+        {
+            return;
+        }
+
+        PetProfile? profile;
+        try
+        {
+            profile = ProfileManager.LoadFromFile(openDialog.FileName);
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"讀取檔案失敗：{ex.Message}",
+                "錯誤",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Error);
+            return;
+        }
+
+        if (profile == null || profile.Characters == null || profile.Characters.Count == 0)
+        {
+            System.Windows.MessageBox.Show(
+                "設定檔格式不正確或未包含任何角色資料！",
+                "匯入失敗",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Warning);
+            return;
+        }
+
+        // Clear existing characters (replace mode)
+        KickAllCharacters();
+
+        double screenWidth = SystemParameters.PrimaryScreenWidth;
+        int minX = 50;
+        int maxX = Math.Max(minX, (int)screenWidth - 200);
+
+        foreach (var charItem in profile.Characters)
+        {
+            if (string.IsNullOrWhiteSpace(charItem.CharacterName)) continue;
+            double randomX = Random.Shared.Next(minX, maxX);
+            SpawnCharacter(charItem.CharacterName, randomX, charItem);
+        }
+
+        string msg = $"成功匯入 {profile.Characters.Count} 個角色！";
+        if (EnableWindowsNotifications)
+        {
+            _trayIcon?.ShowBalloonTip(1500, "匯入成功", msg, ToolTipIcon.Info);
+        }
+        else
+        {
+            System.Windows.MessageBox.Show(
+                msg,
+                "匯入成功",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Information);
+        }
+    }
+
+    private void SayHi(string? specificInstanceId = null)
+    {
+        if (_instances.Count == 0)
         {
             if (EnableWindowsNotifications)
             {
@@ -378,31 +535,30 @@ public partial class App : Application
             return;
         }
 
-        string chosen;
-        if (specificKey != null && _characters.ContainsKey(specificKey))
+        CharacterInstanceData chosen;
+        if (specificInstanceId != null && _instances.TryGetValue(specificInstanceId, out var targetInstance))
         {
-            chosen = specificKey;
+            chosen = targetInstance;
         }
         else
         {
-            var keys = new List<string>(_characters.Keys);
-            chosen = keys[Random.Shared.Next(keys.Count)];
+            var list = new List<CharacterInstanceData>(_instances.Values);
+            chosen = list[Random.Shared.Next(list.Count)];
         }
 
-        if (_characters.TryGetValue(chosen, out var window))
+        chosen.Window.ShowSpeechBubble();
+        if (EnableWindowsNotifications && chosen.Window.HasCustomText)
         {
-            window.ShowSpeechBubble();
-            if (EnableWindowsNotifications && window.HasCustomText)
-            {
-                string dialogueText = window.CurrentDialogueText;
-                string displayName = GetCharacterDisplayName(chosen);
-                _trayIcon!.ShowBalloonTip(500, $"{displayName} 說：", dialogueText, ToolTipIcon.Info);
-            }
+            string dialogueText = chosen.Window.CurrentDialogueText;
+            _trayIcon!.ShowBalloonTip(500, $"{chosen.DisplayName} 說：", dialogueText, ToolTipIcon.Info);
         }
     }
 
     public static string GetCharacterDisplayName(string characterName) =>
         CharacterDisplayNames.TryGetValue(characterName, out var name) ? name : characterName;
+
+    public static string GetCharacterInstanceDisplayName(string characterName, int index) =>
+        $"{GetCharacterDisplayName(characterName)} {index}";
 
     public static string GetAnimationDisplayName(string animName) =>
         AnimationDisplayNames.TryGetValue(animName, out var name) ? name : animName;
