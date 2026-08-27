@@ -4,16 +4,16 @@
 
 **Goal:** Build a C#/WPF system-tray application that can spawn and fully control the Hachiware character — autonomous movement, drag/drop, tray controls, config-driven timing — matching the corrected behavior of the Python/PyQt6 original, plus a validated asset-optimization pipeline run against Hachiware's own asset set.
 
-**Architecture:** A `YahaPet.Core` class library holds all decision logic (autonomous action rolls, jump/walk trajectory planning, screen clamping, fall outcome, config lookup) as pure, UI-free functions taking an injectable random source — this is the project's one testing seam. `YahaPet.Wpf` is a lean code-behind WPF app (no MVVM, no DI) with a tray icon (via WinForms `NotifyIcon` interop) and one borderless, always-on-top, transparent `CharacterWindow` per spawned character, which calls into `YahaPet.Core` for every decision and only performs the resulting window moves/frame swaps itself. `YahaPet.AssetPipeline` is a standalone console tool that resizes, recompresses, and frame-resamples a character's PNG animation set into `assets/optimized/<character>/`, validated here against Hachiware's small asset set before it's later pointed at Usagi's much larger one.
+**Architecture:** A `ChiikawaDesktopPet.Core` class library holds all decision logic (autonomous action rolls, jump/walk trajectory planning, screen clamping, fall outcome, config lookup) as pure, UI-free functions taking an injectable random source — this is the project's one testing seam. `ChiikawaDesktopPet.Wpf` is a lean code-behind WPF app (no MVVM, no DI) with a tray icon (via WinForms `NotifyIcon` interop) and one borderless, always-on-top, transparent `CharacterWindow` per spawned character, which calls into `ChiikawaDesktopPet.Core` for every decision and only performs the resulting window moves/frame swaps itself. `ChiikawaDesktopPet.AssetPipeline` is a standalone console tool that resizes, recompresses, and frame-resamples a character's PNG animation set into `assets/optimized/<character>/`, validated here against Hachiware's small asset set before it's later pointed at Usagi's much larger one.
 
-**Tech Stack:** .NET 8 (`net8.0-windows`), WPF, `System.Windows.Forms.NotifyIcon` (via `UseWindowsForms`), `System.Media.SoundPlayer`, `System.Text.Json`, `System.Drawing.Common` (asset pipeline only), xUnit.
+**Tech Stack:** .NET 10 (`net10.0-windows`), WPF, `System.Windows.Forms.NotifyIcon` (via `UseWindowsForms`), `System.Media.SoundPlayer`, `System.Text.Json`, `System.Drawing.Common` (asset pipeline only), xUnit.
 
 **Spec:** [docs/specs/hachiware-wpf-port.md](../../specs/hachiware-wpf-port.md)
 
 ## Global Constraints
 
-- Target framework: `net8.0-windows`, WPF, Windows-only. Framework-dependent deployment — target machines already have a .NET 8+ Desktop Runtime, so no self-contained bundling or runtime-install-prompt handling is in scope.
-- Architecture: exactly one pure-logic seam (`YahaPet.Core`, no WPF/WinForms/System.Drawing references) with all randomness routed through an injectable `IRandomSource`. Everything else is direct, lean WPF code-behind — no MVVM, no DI container.
+- Target framework: `net10.0-windows`, WPF, Windows-only. Framework-dependent deployment — target machines already have a .NET Desktop Runtime, so no self-contained bundling or runtime-install-prompt handling is in scope.
+- Architecture: exactly one pure-logic seam (`ChiikawaDesktopPet.Core`, no WPF/WinForms/System.Drawing references) with all randomness routed through an injectable `IRandomSource`. Everything else is direct, lean WPF code-behind — no MVVM, no DI container.
 - Autonomous behavior uses a **corrected** weighted roll — jump 10% / walk 40% / other named animation 45% / no-op 5% — deliberately diverging from the shipped Python version's `roll <= 100` bug, which makes every autonomous tick a jump (see spec User Story 8a).
 - The "co-op animation" feature from the Python original is permanently out of scope — no module, stub, or menu entry is created for it.
 - Asset pipeline output goes to `assets/optimized/<character>/`; the original `assets/<character>/` tree is never modified by the pipeline.

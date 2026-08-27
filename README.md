@@ -89,12 +89,12 @@ flowchart TD
 
 ```
 src/
-  ├── YahaPet.Core/               純 C# 核心類別庫（無 UI 依賴，包含完全可單元測試的移動、跳躍、邊界判定、設定檔資料模型與 ProfileManager 邏輯）
-  ├── YahaPet.Core.Tests/         核心決策邏輯與 ProfileManager xUnit 單元測試
-  ├── YahaPet.Wpf/                WPF 桌面應用程式（系統匣控制、透明視窗、對話框、縮放與流暢動畫播放器）
-  ├── YahaPet.Wpf.Tests/          WPF 層元件與 Profile 套用單元測試
-  ├── YahaPet.AssetPipeline/      獨立素材批次重取樣與壓縮工具（Frame Resampling & Image Optimization）
-  └── YahaPet.AssetPipeline.Tests/素材處理管線單元測試
+  ├── ChiikawaDesktopPet.Core/               純 C# 核心類別庫（無 UI 依賴，包含完全可單元測試的移動、跳躍、邊界判定、設定檔資料模型與 ProfileManager 邏輯）
+  ├── ChiikawaDesktopPet.Core.Tests/         核心決策邏輯與 ProfileManager xUnit 單元測試
+  ├── ChiikawaDesktopPet.Wpf/                WPF 桌面應用程式（系統匣控制、透明視窗、對話框、縮放與流暢動畫播放器）
+  ├── ChiikawaDesktopPet.Wpf.Tests/          WPF 層元件與 Profile 套用單元測試
+  ├── ChiikawaDesktopPet.AssetPipeline/      獨立素材批次重取樣與壓縮工具（Frame Resampling & Image Optimization）
+  └── ChiikawaDesktopPet.AssetPipeline.Tests/素材處理管線單元測試
 ```
 
 ---
@@ -107,25 +107,25 @@ src/
 
 ### 本地執行
 ```powershell
-dotnet run --project src/YahaPet.Wpf
+dotnet run --project src/ChiikawaDesktopPet.Wpf
 ```
 
 ### 執行單元測試
 ```powershell
-dotnet test src/YahaPet.sln
+dotnet test src/ChiikawaDesktopPet.sln
 ```
 
 ### 發布專案 (Publish)
 
-#### 1. 輕量單檔發布（需本機已安裝 .NET 10 Desktop Runtime，體積僅約 ~2.3 MB）
+#### 1. 輕量單檔發布（需本機已安裝 .NET 10 Desktop Runtime，檔案體積僅約 2 MB，圖檔體積約 110 MB）
 ```powershell
-dotnet publish src/YahaPet.Wpf/YahaPet.Wpf.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
+dotnet publish src/ChiikawaDesktopPet.Wpf/ChiikawaDesktopPet.Wpf.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
 ```
-發布後直接將 `publish/` 資料夾打包分享即可。
+發布後直接將 `publish/` 資料夾打包分享即可（產出 `ChiikawaDesktopPet.exe`）。
 
-#### 2. 自包含獨立發布（無需安裝 .NET Runtime，體積約 ~157 MB）
+#### 2. 自包含獨立發布（無需安裝 .NET Runtime，總體積約 ~180 MB）
 ```powershell
-dotnet publish src/YahaPet.Wpf/YahaPet.Wpf.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish-standalone
+dotnet publish src/ChiikawaDesktopPet.Wpf/ChiikawaDesktopPet.Wpf.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish-standalone
 ```
 
 > [!TIP]
@@ -142,7 +142,7 @@ dotnet publish src/YahaPet.Wpf/YahaPet.Wpf.csproj -c Release -r win-x64 --self-c
 
 若需加入新動作或新角色素材，可透過內建的 AssetPipeline 工具進行尺寸縮放與幀率最佳化：
 ```powershell
-dotnet run --project src/YahaPet.AssetPipeline -- assets/<character> assets/optimized/<character> --max-dimension 320 --frame-stride 2
+dotnet run --project src/ChiikawaDesktopPet.AssetPipeline -- assets/<character> assets/optimized/<character> --max-dimension 320 --frame-stride 2
 ```
 
 ---

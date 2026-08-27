@@ -1,0 +1,571 @@
+// src/ChiikawaDesktopPet.Wpf/App.xaml.cs
+using System;
+using System.Collections.Frozen;
+using System.Collections.Generic;
+using System.IO;
+using System.Windows;
+using System.Windows.Forms;
+using ChiikawaDesktopPet.Core;
+using Application = System.Windows.Application;
+using MenuItem = System.Windows.Forms.ToolStripMenuItem;
+
+namespace ChiikawaDesktopPet.Wpf;
+
+public partial class App : Application
+{
+    private static readonly FrozenDictionary<string, string> CharacterDisplayNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["hachiware"] = "Hachiware",
+        ["chiikawa"] = "Chiikawa",
+        ["usagi"] = "Usagi",
+        ["momonga"] = "Momonga",
+        ["jokebear"] = "JokeBear",
+        ["loverabbit"] = "LOVE RABBIT",
+        ["lai"] = "總統-賴",
+        ["poro"] = "普羅 (Poro)",
+        ["pochita"] = "波奇塔 (Pochita)",
+        ["capoo"] = "貓貓蟲咖波 (Capoo)",
+        ["chesthair_monkey"] = "胸毛公寓 猴子朋友",
+        ["armi"] = "廢貓阿米 - 左手畫的"
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly FrozenDictionary<string, string> AnimationDisplayNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["walkleft"] = "向左走",
+        ["walkright"] = "向右走",
+        ["jumpleft"] = "向左跳",
+        ["jumpright"] = "向右跳",
+        ["bounce"] = "原地彈跳",
+        ["dance"] = "狂歡跳舞",
+        ["eat"] = "吃拉麵",
+        ["cheer"] = "拍手歡呼",
+        ["drama"] = "崩潰搥地",
+        ["sleep"] = "躺平睡覺",
+        ["appeal"] = "展現魅力",
+        ["stomp"] = "跺腳生氣",
+        ["tapdance"] = "踢踏舞",
+        ["danceswirl"] = "旋轉舞",
+        ["mock"] = "嘲諷搖擺",
+        ["bushi"] = "不是不是喔",
+        ["heart"] = "發送愛心",
+        ["kiss"] = "飛吻放閃",
+        ["run"] = "快步狂奔",
+        ["cry"] = "痛哭流涕",
+        ["party"] = "派對狂歡",
+        ["chainsaw"] = "鏈鋸狂飆",
+        ["spin"] = "旋轉狂舞",
+        ["bark"] = "汪汪叫",
+        ["roar"] = "張大嘴怒吼",
+        ["thunder"] = "小雞觸電",
+        ["squeeze"] = "胖到溢出來",
+        ["worship"] = "膜拜香蕉",
+        ["keyboard"] = "狂敲鍵盤",
+        ["chair"] = "辦公椅狂飆",
+        ["smash"] = "鐵鎚砸手機",
+        ["error"] = "筆電報錯",
+        ["toilet"] = "馬桶滑手機",
+        ["swing"] = "藤蔓擺盪",
+        ["flat"] = "趴平融化",
+        ["scream"] = "驚嚇尖叫",
+        ["fine"] = "火海喝茶",
+        ["melt"] = "融化成史萊姆",
+        ["rich"] = "撒錢暴富",
+        ["muscle"] = "秀二頭肌",
+        ["laugh"] = "仰天狂笑",
+        ["pompom"] = "彩球應援",
+        ["sparkle"] = "水汪汪大眼",
+        ["yay"] = "好耶舉手",
+        ["wave"] = "揮手掰掰",
+        ["hug"] = "雙貓互蹭"
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly (string Key, string DisplayName)[] CharacterDefinitions =
+    [
+        ("hachiware", "Hachiware"),
+        ("chiikawa", "Chiikawa"),
+        ("usagi", "Usagi"),
+        ("momonga", "Momonga"),
+        ("jokebear", "JokeBear"),
+        ("loverabbit", "LOVE RABBIT"),
+        ("lai", "總統-賴"),
+        ("poro", "普羅 (Poro)"),
+        ("pochita", "波奇塔 (Pochita)"),
+        ("capoo", "貓貓蟲咖波 (Capoo)"),
+        ("chesthair_monkey", "胸毛公寓 猴子朋友"),
+        ("armi", "廢貓阿米 - 左手畫的")
+    ];
+
+    private static readonly string[] AutoSpawnCandidates =
+    [
+        "hachiware", "chiikawa", "usagi", "momonga", "jokebear", "loverabbit", "poro", "pochita", "capoo", "chesthair_monkey", "armi"
+    ];
+
+    private sealed class CharacterInstanceData(
+        string instanceId,
+        string characterKey,
+        int index,
+        string displayName,
+        CharacterWindow window,
+        MenuItem playSubmenu,
+        MenuItem kickItem,
+        MenuItem stopResumeItem,
+        MenuItem jumpItem)
+    {
+        public string InstanceId { get; } = instanceId;
+        public string CharacterKey { get; } = characterKey;
+        public int Index { get; } = index;
+        public string DisplayName { get; } = displayName;
+        public CharacterWindow Window { get; } = window;
+        public MenuItem PlaySubmenu { get; } = playSubmenu;
+        public MenuItem KickItem { get; } = kickItem;
+        public MenuItem StopResumeItem { get; } = stopResumeItem;
+        public MenuItem JumpItem { get; } = jumpItem;
+    }
+
+    public static bool EnableWindowsNotifications { get; set; } = false;
+
+    private NotifyIcon? _trayIcon;
+    private MenuItem? _aliveMenu;
+    private MenuItem? _playAnimationMenu;
+    private MenuItem? _stopResumeMenu;
+    private MenuItem? _jumpMenu;
+    private readonly Dictionary<string, int> _characterCounters = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, CharacterInstanceData> _instances = new(StringComparer.OrdinalIgnoreCase);
+
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        base.OnStartup(e);
+
+        var contextMenu = new ContextMenuStrip();
+
+        var spawnMenu = new MenuItem("生成角色");
+        var spawnAllItem = new MenuItem("生成所有角色");
+        spawnAllItem.Click += (_, _) => SpawnAllCharacters();
+        spawnMenu.DropDownItems.Add(spawnAllItem);
+        spawnMenu.DropDownItems.Add(new ToolStripSeparator());
+
+        foreach (var (key, displayName) in CharacterDefinitions)
+        {
+            var item = new MenuItem(displayName);
+            string k = key;
+            item.Click += (_, _) => SpawnCharacter(k);
+            spawnMenu.DropDownItems.Add(item);
+        }
+        contextMenu.Items.Add(spawnMenu);
+
+        _aliveMenu = new MenuItem("現在存活的角色") { Enabled = false };
+        contextMenu.Items.Add(_aliveMenu);
+
+        _playAnimationMenu = new MenuItem("播放動畫") { Enabled = false };
+        contextMenu.Items.Add(_playAnimationMenu);
+
+        var sayHiItem = new MenuItem("打個招呼！");
+        sayHiItem.Click += (_, _) => SayHi();
+        contextMenu.Items.Add(sayHiItem);
+
+        _stopResumeMenu = new MenuItem("停止/恢復隨機動畫...") { Enabled = false };
+        contextMenu.Items.Add(_stopResumeMenu);
+
+        _jumpMenu = new MenuItem("停止/恢復隨機跳躍...") { Enabled = false };
+        contextMenu.Items.Add(_jumpMenu);
+
+        var confineToMonitorItem = new MenuItem("限制角色只能在單一螢幕內移動")
+        {
+            CheckOnClick = true,
+            Checked = CharacterWindow.ConfineToCurrentMonitor
+        };
+        confineToMonitorItem.Click += (_, _) =>
+            CharacterWindow.ConfineToCurrentMonitor = confineToMonitorItem.Checked;
+        contextMenu.Items.Add(confineToMonitorItem);
+
+        var notificationItem = new MenuItem("啟用 Windows 系統通知")
+        {
+            CheckOnClick = true,
+            Checked = EnableWindowsNotifications
+        };
+        notificationItem.Click += (_, _) =>
+            EnableWindowsNotifications = notificationItem.Checked;
+        contextMenu.Items.Add(notificationItem);
+
+        contextMenu.Items.Add(new ToolStripSeparator());
+
+        var exportItem = new MenuItem("匯出角色配置...");
+        exportItem.Click += (_, _) => ExportProfile();
+        contextMenu.Items.Add(exportItem);
+
+        var importItem = new MenuItem("匯入角色配置...");
+        importItem.Click += (_, _) => ImportProfile();
+        contextMenu.Items.Add(importItem);
+
+        contextMenu.Items.Add(new ToolStripSeparator());
+
+        var exitItem = new MenuItem("結束程式");
+        exitItem.Click += (_, _) => Shutdown();
+        contextMenu.Items.Add(exitItem);
+
+        string icoPath = Path.Combine(AppContext.BaseDirectory, "assets", "app.ico");
+        string pngPath = Path.Combine(AppContext.BaseDirectory, "assets", "app_icon.png");
+        System.Drawing.Icon trayIcon;
+
+        if (File.Exists(icoPath))
+        {
+            trayIcon = new System.Drawing.Icon(icoPath);
+        }
+        else if (File.Exists(pngPath))
+        {
+            using var iconBitmap = new System.Drawing.Bitmap(pngPath);
+            trayIcon = System.Drawing.Icon.FromHandle(iconBitmap.GetHicon());
+        }
+        else
+        {
+            string fallbackPath = Path.Combine(AppContext.BaseDirectory, "assets", "hachiware", "icons", "icon.png");
+            if (File.Exists(fallbackPath))
+            {
+                using var fallbackBmp = new System.Drawing.Bitmap(fallbackPath);
+                trayIcon = System.Drawing.Icon.FromHandle(fallbackBmp.GetHicon());
+            }
+            else
+            {
+                trayIcon = System.Drawing.SystemIcons.Application;
+            }
+        }
+
+        _trayIcon = new NotifyIcon
+        {
+            Icon = trayIcon,
+            Visible = true,
+            ContextMenuStrip = contextMenu,
+            Text = "ChiikawaDesktopPet"
+        };
+
+        // Automatically spawn a random regular character on startup (excluding lai)
+        string initialCharacter = AutoSpawnCandidates[Random.Shared.Next(AutoSpawnCandidates.Length)];
+        SpawnCharacter(initialCharacter);
+    }
+
+    private void SpawnAllCharacters()
+    {
+        double screenWidth = SystemParameters.PrimaryScreenWidth;
+        int minX = 50;
+        int maxX = Math.Max(minX, (int)screenWidth - 200);
+
+        foreach (var name in AutoSpawnCandidates)
+        {
+            double randomX = Random.Shared.Next(minX, maxX);
+            SpawnCharacter(name, randomX);
+        }
+    }
+
+    private CharacterWindow SpawnCharacter(string name, double? initialX = null, CharacterProfileItem? profile = null)
+    {
+        string key = name.ToLowerInvariant();
+        int nextIndex = _characterCounters.TryGetValue(key, out int count) ? count + 1 : 1;
+        _characterCounters[key] = nextIndex;
+
+        string instanceId = $"{key}_{nextIndex}";
+        string displayName = GetCharacterInstanceDisplayName(key, nextIndex);
+
+        var window = new CharacterWindow(key, nextIndex, displayName);
+        window.Spawn(initialX);
+
+        if (profile != null)
+        {
+            window.ApplyProfile(profile);
+        }
+
+        var playSubmenu = new MenuItem(displayName);
+        foreach (var animName in window.AllAnimationNames())
+        {
+            var item = new MenuItem(GetAnimationDisplayName(animName));
+            string nameCopy = animName;
+            item.Click += (_, _) => window.PlayAnimationByName(nameCopy);
+            playSubmenu.DropDownItems.Add(item);
+        }
+
+        if (key is "chiikawa" or "momonga")
+        {
+            playSubmenu.DropDownItems.Add(new ToolStripSeparator());
+            var coopItem = new MenuItem("【雙人互動】飛撲蹭臉 (Chiikawa & Momonga)");
+            coopItem.Click += (_, _) =>
+            {
+                bool success = InteractionCoordinator.Instance.TriggerManualInteraction(window);
+                if (!success)
+                {
+                    if (EnableWindowsNotifications)
+                    {
+                        _trayIcon?.ShowBalloonTip(1500, "雙人互動提示", "所需角色不足（需要 Chiikawa 與 Momonga 同時在場）", ToolTipIcon.Info);
+                    }
+                    else
+                    {
+                        System.Windows.MessageBox.Show(
+                            "所需角色不足（需要 Chiikawa 與 Momonga 同時在場）",
+                            "雙人互動提示",
+                            System.Windows.MessageBoxButton.OK,
+                            System.Windows.MessageBoxImage.Information);
+                    }
+                }
+            };
+            playSubmenu.DropDownItems.Add(coopItem);
+        }
+
+        _playAnimationMenu!.DropDownItems.Add(playSubmenu);
+        _playAnimationMenu.Enabled = true;
+
+        var stopResumeItem = new MenuItem(window.RandomAnimationsEnabled ? $"{displayName}（點擊以停用）" : $"{displayName}（點擊以啟用）");
+        stopResumeItem.Click += (_, _) => window.ToggleRandomAnimations();
+        window.RandomAnimationsEnabledChanged += enabled =>
+        {
+            stopResumeItem.Text = enabled ? $"{displayName}（點擊以停用）" : $"{displayName}（點擊以啟用）";
+        };
+        _stopResumeMenu!.DropDownItems.Add(stopResumeItem);
+        _stopResumeMenu.Enabled = true;
+
+        var jumpItem = new MenuItem(window.JumpEnabled ? $"{displayName}（點擊以停用跳躍）" : $"{displayName}（點擊以啟用跳躍）");
+        jumpItem.Click += (_, _) => window.ToggleJump();
+        window.JumpEnabledChanged += enabled =>
+        {
+            jumpItem.Text = enabled ? $"{displayName}（點擊以停用跳躍）" : $"{displayName}（點擊以啟用跳躍）";
+        };
+        _jumpMenu!.DropDownItems.Add(jumpItem);
+        _jumpMenu.Enabled = true;
+
+        var kickItem = new MenuItem(displayName);
+        kickItem.Click += (_, _) => KickCharacter(instanceId);
+        _aliveMenu!.DropDownItems.Add(kickItem);
+        _aliveMenu.Enabled = true;
+
+        var instanceData = new CharacterInstanceData(
+            instanceId,
+            key,
+            nextIndex,
+            displayName,
+            window,
+            playSubmenu,
+            kickItem,
+            stopResumeItem,
+            jumpItem);
+
+        _instances[instanceId] = instanceData;
+
+        window.KickRequested += () => KickCharacter(instanceId);
+        window.SayHiRequested += () => SayHi(instanceId);
+
+        return window;
+    }
+
+    private void KickCharacter(string instanceId)
+    {
+        if (_instances.Remove(instanceId, out var data))
+        {
+            data.Window.Shutdown();
+            _playAnimationMenu!.DropDownItems.Remove(data.PlaySubmenu);
+            _aliveMenu!.DropDownItems.Remove(data.KickItem);
+            _stopResumeMenu!.DropDownItems.Remove(data.StopResumeItem);
+            _jumpMenu!.DropDownItems.Remove(data.JumpItem);
+        }
+
+        if (_instances.Count == 0)
+        {
+            _aliveMenu!.Enabled = false;
+            _playAnimationMenu!.Enabled = false;
+            _stopResumeMenu!.Enabled = false;
+            _jumpMenu!.Enabled = false;
+        }
+    }
+
+    private void KickAllCharacters()
+    {
+        var allIds = new List<string>(_instances.Keys);
+        foreach (var id in allIds)
+        {
+            KickCharacter(id);
+        }
+        _characterCounters.Clear();
+    }
+
+    private void ExportProfile()
+    {
+        if (_instances.Count == 0)
+        {
+            if (EnableWindowsNotifications)
+            {
+                _trayIcon?.ShowBalloonTip(1500, "匯出提示", "目前沒有任何角色可以匯出！", ToolTipIcon.Info);
+            }
+            else
+            {
+                System.Windows.MessageBox.Show(
+                    "目前沒有任何角色可以匯出！",
+                    "匯出提示",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
+            }
+            return;
+        }
+
+        using var saveDialog = new System.Windows.Forms.SaveFileDialog
+        {
+            Title = "匯出角色配置",
+            Filter = "JSON 檔案 (*.json)|*.json|所有檔案 (*.*)|*.*",
+            FileName = "chiikawapet_profile.json",
+            DefaultExt = "json",
+            AddExtension = true
+        };
+
+        if (saveDialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+        {
+            return;
+        }
+
+        try
+        {
+            var profile = new PetProfile
+            {
+                Version = 1,
+                Characters = new List<CharacterProfileItem>()
+            };
+
+            foreach (var instance in _instances.Values)
+            {
+                profile.Characters.Add(instance.Window.ToProfileItem());
+            }
+
+            ProfileManager.SaveToFile(saveDialog.FileName, profile);
+
+            string msg = $"成功匯出 {profile.Characters.Count} 個角色配置！";
+            if (EnableWindowsNotifications)
+            {
+                _trayIcon?.ShowBalloonTip(1500, "匯出成功", msg, ToolTipIcon.Info);
+            }
+            else
+            {
+                System.Windows.MessageBox.Show(
+                    msg,
+                    "匯出成功",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"匯出失敗：{ex.Message}",
+                "錯誤",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Error);
+        }
+    }
+
+    private void ImportProfile()
+    {
+        using var openDialog = new System.Windows.Forms.OpenFileDialog
+        {
+            Title = "匯入角色配置",
+            Filter = "JSON 檔案 (*.json)|*.json|所有檔案 (*.*)|*.*",
+            FileName = "chiikawapet_profile.json",
+            DefaultExt = "json"
+        };
+
+        if (openDialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+        {
+            return;
+        }
+
+        PetProfile? profile;
+        try
+        {
+            profile = ProfileManager.LoadFromFile(openDialog.FileName);
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"讀取檔案失敗：{ex.Message}",
+                "錯誤",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Error);
+            return;
+        }
+
+        if (profile == null || profile.Characters == null || profile.Characters.Count == 0)
+        {
+            System.Windows.MessageBox.Show(
+                "設定檔格式不正確或未包含任何角色資料！",
+                "匯入失敗",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Warning);
+            return;
+        }
+
+        // Clear existing characters (replace mode)
+        KickAllCharacters();
+
+        double screenWidth = SystemParameters.PrimaryScreenWidth;
+        int minX = 50;
+        int maxX = Math.Max(minX, (int)screenWidth - 200);
+
+        foreach (var charItem in profile.Characters)
+        {
+            if (string.IsNullOrWhiteSpace(charItem.CharacterName)) continue;
+            double randomX = Random.Shared.Next(minX, maxX);
+            SpawnCharacter(charItem.CharacterName, randomX, charItem);
+        }
+
+        string msg = $"成功匯入 {profile.Characters.Count} 個角色！";
+        if (EnableWindowsNotifications)
+        {
+            _trayIcon?.ShowBalloonTip(1500, "匯入成功", msg, ToolTipIcon.Info);
+        }
+        else
+        {
+            System.Windows.MessageBox.Show(
+                msg,
+                "匯入成功",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Information);
+        }
+    }
+
+    private void SayHi(string? specificInstanceId = null)
+    {
+        if (_instances.Count == 0)
+        {
+            if (EnableWindowsNotifications)
+            {
+                _trayIcon!.ShowBalloonTip(500, "等等！", "你還沒有生成任何角色！", ToolTipIcon.Info);
+            }
+            return;
+        }
+
+        CharacterInstanceData chosen;
+        if (specificInstanceId != null && _instances.TryGetValue(specificInstanceId, out var targetInstance))
+        {
+            chosen = targetInstance;
+        }
+        else
+        {
+            var list = new List<CharacterInstanceData>(_instances.Values);
+            chosen = list[Random.Shared.Next(list.Count)];
+        }
+
+        chosen.Window.ShowSpeechBubble();
+        if (EnableWindowsNotifications && chosen.Window.HasCustomText)
+        {
+            string dialogueText = chosen.Window.CurrentDialogueText;
+            _trayIcon!.ShowBalloonTip(500, $"{chosen.DisplayName} 說：", dialogueText, ToolTipIcon.Info);
+        }
+    }
+
+    public static string GetCharacterDisplayName(string characterName) =>
+        CharacterDisplayNames.TryGetValue(characterName, out var name) ? name : characterName;
+
+    public static string GetCharacterInstanceDisplayName(string characterName, int index) =>
+        $"{GetCharacterDisplayName(characterName)} {index}";
+
+    public static string GetAnimationDisplayName(string animName) =>
+        AnimationDisplayNames.TryGetValue(animName, out var name) ? name : animName;
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _trayIcon?.Dispose();
+        base.OnExit(e);
+    }
+}

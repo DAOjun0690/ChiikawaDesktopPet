@@ -1,0 +1,145 @@
+<!-- src/ChiikawaDesktopPet.Wpf/TextInputDialog.xaml -->
+<Window x:Class="ChiikawaDesktopPet.Wpf.TextInputDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="設定對話文字"
+        Width="410"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="#FAFAFA"
+        FontFamily="Microsoft JhengHei, Segoe UI, sans-serif"
+        WindowStyle="SingleBorderWindow">
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,5" />
+            <Setter Property="Margin" Value="4,0" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style TargetType="RadioButton">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+    </Window.Resources>
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="PromptLabel"
+                   Grid.Row="0"
+                   Text="請輸入角色頭頂對話框要顯示的文字："
+                   FontSize="13"
+                   FontWeight="SemiBold"
+                   Foreground="#333333" />
+
+        <TextBox x:Name="InputTextBox"
+                 Grid.Row="1"
+                 Margin="0,10,0,8"
+                 Padding="8,8"
+                 FontSize="{Binding Value, ElementName=FontSizeSlider}"
+                 MinHeight="90"
+                 MaxHeight="180"
+                 MaxLength="300"
+                 AcceptsReturn="True"
+                 TextWrapping="Wrap"
+                 VerticalScrollBarVisibility="Auto"
+                 VerticalContentAlignment="Top"
+                 BorderBrush="#CCCCCC"
+                 BorderThickness="1"
+                 PreviewKeyDown="OnInputTextBoxPreviewKeyDown" />
+
+        <!-- Alignment Selector & Hint -->
+        <DockPanel Grid.Row="2" Margin="0,0,0,10" LastChildFill="False">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
+                <TextBlock Text="文字對齊："
+                           FontSize="12.5"
+                           FontWeight="SemiBold"
+                           Foreground="#555555"
+                           VerticalAlignment="Center"
+                           Margin="0,0,6,0" />
+                <RadioButton x:Name="AlignLeftRadio"
+                             Content="靠左"
+                             GroupName="TextAlignmentGroup"
+                             Margin="0,0,10,0" />
+                <RadioButton x:Name="AlignCenterRadio"
+                             Content="置中"
+                             GroupName="TextAlignmentGroup"
+                             IsChecked="True"
+                             Margin="0,0,10,0" />
+                <RadioButton x:Name="AlignRightRadio"
+                             Content="靠右"
+                             GroupName="TextAlignmentGroup" />
+            </StackPanel>
+
+            <TextBlock DockPanel.Dock="Right"
+                       Text="(Ctrl+Enter 送出)"
+                       FontSize="11"
+                       Foreground="#888888"
+                       VerticalAlignment="Center" />
+        </DockPanel>
+
+        <!-- Font Size Slider -->
+        <DockPanel Grid.Row="3" Margin="0,0,0,16" LastChildFill="True">
+            <TextBlock Text="字體大小："
+                       FontSize="12.5"
+                       FontWeight="SemiBold"
+                       Foreground="#555555"
+                       VerticalAlignment="Center"
+                       DockPanel.Dock="Left"
+                       Margin="0,0,6,0" />
+            <TextBlock x:Name="FontSizeValueLabel"
+                       Text="{Binding Value, ElementName=FontSizeSlider, StringFormat={}{0:F0} px}"
+                       FontSize="12.5"
+                       FontWeight="SemiBold"
+                       Foreground="#333333"
+                       VerticalAlignment="Center"
+                       DockPanel.Dock="Right"
+                       MinWidth="42"
+                       TextAlignment="Right"
+                       Margin="8,0,0,0" />
+            <Slider x:Name="FontSizeSlider"
+                    Minimum="9"
+                    Maximum="36"
+                    Value="13"
+                    SmallChange="1"
+                    LargeChange="2"
+                    TickFrequency="1"
+                    IsSnapToTickEnabled="True"
+                    VerticalAlignment="Center"
+                    Cursor="Hand" />
+        </DockPanel>
+
+        <!-- Actions -->
+        <DockPanel Grid.Row="4" LastChildFill="False">
+            <Button x:Name="ResetButton"
+                    DockPanel.Dock="Left"
+                    Content="恢復預設台詞"
+                    Background="#F0F0F0"
+                    Click="OnResetClicked" />
+
+            <Button x:Name="CancelButton"
+                    DockPanel.Dock="Right"
+                    Content="取消"
+                    IsCancel="True"
+                    Background="#F0F0F0"
+                    Click="OnCancelClicked" />
+
+            <Button x:Name="OkButton"
+                    DockPanel.Dock="Right"
+                    Content="確定"
+                    Background="#4CAF50"
+                    Foreground="White"
+                    FontWeight="Bold"
+                    Click="OnOkClicked" />
+        </DockPanel>
+    </Grid>
+</Window>
+

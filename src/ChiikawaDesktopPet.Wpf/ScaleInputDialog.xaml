@@ -1,0 +1,125 @@
+<!-- src/ChiikawaDesktopPet.Wpf/ScaleInputDialog.xaml -->
+<Window x:Class="ChiikawaDesktopPet.Wpf.ScaleInputDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="調整角色比例"
+        Width="380"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="#FAFAFA"
+        FontFamily="Microsoft JhengHei, Segoe UI, sans-serif"
+        WindowStyle="SingleBorderWindow">
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,5" />
+            <Setter Property="Margin" Value="4,0" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+    </Window.Resources>
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Prompt Label -->
+        <TextBlock x:Name="PromptLabel"
+                   Grid.Row="0"
+                   Text="請調整角色的顯示比例（20% ~ 400%）："
+                   FontSize="13"
+                   FontWeight="SemiBold"
+                   Foreground="#333333" />
+
+        <!-- Slider & Value Box -->
+        <DockPanel Grid.Row="1" Margin="0,16,0,12" LastChildFill="True">
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="10,0,0,0">
+                <TextBox x:Name="ScaleTextBox"
+                         Width="55"
+                         Height="28"
+                         FontSize="13"
+                         FontWeight="Bold"
+                         TextAlignment="Right"
+                         VerticalContentAlignment="Center"
+                         Padding="4,2"
+                         MaxLength="4"
+                         BorderBrush="#CCCCCC"
+                         BorderThickness="1"
+                         PreviewKeyDown="OnScaleTextBoxPreviewKeyDown"
+                         TextChanged="OnScaleTextBoxTextChanged"
+                         LostFocus="OnScaleTextBoxLostFocus" />
+                <TextBlock Text="%"
+                           FontSize="13"
+                           FontWeight="Bold"
+                           Foreground="#555555"
+                           VerticalAlignment="Center"
+                           Margin="4,0,0,0" />
+            </StackPanel>
+
+            <Slider x:Name="ScaleSlider"
+                    Minimum="20"
+                    Maximum="400"
+                    Value="100"
+                    SmallChange="5"
+                    LargeChange="25"
+                    TickFrequency="10"
+                    IsSnapToTickEnabled="False"
+                    VerticalAlignment="Center"
+                    Cursor="Hand"
+                    ValueChanged="OnScaleSliderValueChanged" />
+        </DockPanel>
+
+        <!-- Quick Preset Buttons -->
+        <DockPanel Grid.Row="2" Margin="0,0,0,16" LastChildFill="False">
+            <TextBlock Text="快捷選擇："
+                       FontSize="12"
+                       Foreground="#777777"
+                       VerticalAlignment="Center"
+                       DockPanel.Dock="Left"
+                       Margin="0,0,4,0" />
+            <Button Content="50%" Padding="6,2" Margin="2,0" Background="#ECECEC" Click="OnPresetClicked" Tag="50" />
+            <Button Content="75%" Padding="6,2" Margin="2,0" Background="#ECECEC" Click="OnPresetClicked" Tag="75" />
+            <Button Content="100%" Padding="6,2" Margin="2,0" Background="#ECECEC" Click="OnPresetClicked" Tag="100" />
+            <Button Content="150%" Padding="6,2" Margin="2,0" Background="#ECECEC" Click="OnPresetClicked" Tag="150" />
+            <Button Content="200%" Padding="6,2" Margin="2,0" Background="#ECECEC" Click="OnPresetClicked" Tag="200" />
+        </DockPanel>
+
+        <!-- Range / Error Hint -->
+        <TextBlock x:Name="HintLabel"
+                   Grid.Row="3"
+                   Text="可輸入 20 至 400 之間的數值 (預設為 100%)"
+                   FontSize="11"
+                   Foreground="#888888"
+                   Margin="0,0,0,16" />
+
+        <!-- Actions -->
+        <DockPanel Grid.Row="4" LastChildFill="False">
+            <Button x:Name="ResetButton"
+                    DockPanel.Dock="Left"
+                    Content="恢復 100%"
+                    Background="#F0F0F0"
+                    Click="OnResetClicked" />
+
+            <Button x:Name="CancelButton"
+                    DockPanel.Dock="Right"
+                    Content="取消"
+                    IsCancel="True"
+                    Background="#F0F0F0"
+                    Click="OnCancelClicked" />
+
+            <Button x:Name="OkButton"
+                    DockPanel.Dock="Right"
+                    Content="確定"
+                    Background="#4CAF50"
+                    Foreground="White"
+                    FontWeight="Bold"
+                    Click="OnOkClicked" />
+        </DockPanel>
+    </Grid>
+</Window>
+
