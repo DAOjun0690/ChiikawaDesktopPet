@@ -3,6 +3,7 @@ using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Interop;
@@ -111,6 +112,13 @@ public partial class App : Application
     public static bool EnableWindowsNotifications { get; set; } = false;
     public static bool IsAllHidden { get; private set; } = false;
 
+    private const string MutexName = @"Local\ChiikawaDesktopPet_SingleInstance_Mutex";
+    private const string WakeupEventName = @"Local\ChiikawaDesktopPet_Wakeup_Event";
+
+    private Mutex? _singleInstanceMutex;
+    private EventWaitHandle? _wakeupEvent;
+    private RegisteredWaitHandle? _registeredWaitHandle;
+
     private const int HOTKEY_ID = 0xB055;
     private HwndSource? _hotkeyHwndSource;
     private NotifyIcon? _trayIcon;
@@ -127,6 +135,56 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        bool isFirstInstance;
+        Mutex? mutex = null;
+        try
+        {
+            mutex = new Mutex(true, MutexName, out isFirstInstance);
+        }
+        catch
+        {
+            isFirstInstance = false;
+        }
+
+        if (!isFirstInstance)
+        {
+            mutex?.Dispose();
+
+            // Another instance is already running. Signal it to wake up/unhide if hidden.
+            try
+            {
+                if (EventWaitHandle.TryOpenExisting(WakeupEventName, out var existingEvent))
+                {
+                    existingEvent.Set();
+                    existingEvent.Dispose();
+                }
+            }
+            catch
+            {
+                // Ignore failure to signal
+            }
+
+            Shutdown();
+            return;
+        }
+
+        _singleInstanceMutex = mutex;
+
+        try
+        {
+            _wakeupEvent = new EventWaitHandle(false, EventResetMode.AutoReset, WakeupEventName);
+            _registeredWaitHandle = ThreadPool.RegisterWaitForSingleObject(
+                _wakeupEvent,
+                OnWakeupSignaled,
+                null,
+                -1,
+                false);
+        }
+        catch
+        {
+            // Ignore if wakeup event registration fails
+        }
 
         _trayContextMenu = new ContextMenuStrip();
 
@@ -650,8 +708,61 @@ public partial class App : Application
     public static string GetAnimationDisplayName(string animName) =>
         AnimationDisplayNames.TryGetValue(animName, out var name) ? name : animName;
 
+    private void OnWakeupSignaled(object? state, bool timedOut)
+    {
+        if (timedOut) return;
+
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (IsAllHidden)
+            {
+                UnhideAllCharacters();
+            }
+        });
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
+        if (_registeredWaitHandle != null)
+        {
+            try
+            {
+                _registeredWaitHandle.Unregister(null);
+            }
+            catch
+            {
+                // ignore
+            }
+            _registeredWaitHandle = null;
+        }
+
+        if (_wakeupEvent != null)
+        {
+            try
+            {
+                _wakeupEvent.Dispose();
+            }
+            catch
+            {
+                // ignore
+            }
+            _wakeupEvent = null;
+        }
+
+        if (_singleInstanceMutex != null)
+        {
+            try
+            {
+                _singleInstanceMutex.ReleaseMutex();
+            }
+            catch
+            {
+                // ignore
+            }
+            _singleInstanceMutex.Dispose();
+            _singleInstanceMutex = null;
+        }
+
         if (_hotkeyHwndSource != null)
         {
             try

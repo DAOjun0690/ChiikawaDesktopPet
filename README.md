@@ -1,8 +1,24 @@
 # ChiikawaDesktopPet (吉伊卡哇桌面寵物)
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
+[![.NET](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/download/dotnet/10.0)
+[![Platform](https://img.shields.io/badge/platform-Windows-0078D6?logo=windows&logoColor=white)](#-開發與建置-development--build)
+
 基於 **C# / .NET 10 WPF** 打造的高效能、輕量化吉伊卡哇桌面寵物應用程式。
 
 本專案完全重構自社群開源的 Python/PyQt6 實作，具備極致輕量的執行體積、原生 Windows 桌面流暢度與完整的互動支援。
+
+---
+
+## 目錄 (Table of Contents)
+
+* [✨ 特色功能 (Features)](#-特色功能-features)
+* [📦 下載與安裝 (Download)](#-下載與安裝-download)
+* [🚀 開發與建置 (Development & Build)](#-開發與建置-development--build)
+* [🏗️ 專案架構 (Architecture)](#️-專案架構-architecture)
+* [🔄 視窗吸附與行為互動流程 (Window Interaction Flow)](#-視窗吸附與行為互動流程-window-interaction-flow)
+* [🎨 素材優化工具 (Asset Pipeline)](#-素材優化工具-asset-pipeline)
+* [📄 授權與免責聲明 (License & Disclaimer)](#-授權與免責聲明-license--disclaimer)
 
 ---
 
@@ -10,26 +26,13 @@
 
 * **輕量與原生體驗**：基於 .NET 10 WPF，以無邊框、背景透明、永遠置頂視窗呈現，單檔發布大小僅約 **2.3 MB**。
 * **靜音辦公友善 (Office-Friendly)**：全域完全無突發音效干擾，安心在辦公室與專注工作環境中陪伴。
-* **多位人氣與趣味角色完整登場（支援多實例召喚）**：
-  * **吉伊卡哇 (Chiikawa)**
-  * **小八貓 (Hachiware)**
-  * **兔兔烏薩奇 (Usagi)**（包含旋轉舞、狂歡跳舞等多種專屬動作）
-  * **小桃 (Momonga)**（包含裝可愛、生氣跺腳等特色動作）
-  * **自嘲熊 (JokeBear)**（包含待機循環彈跳、狂歡跳舞、崩潰搥地、吃拉麵等豐富動作）
-  * **愛心兔 (LOVE RABBIT)**（來自西村裕二作品，包含待機循環律動、發送愛心、狂歡跳舞、派對狂歡、痛哭流涕等豐富動作）
-  * **普羅 (Poro)**（英雄聯盟吉祥物，包含待機吐舌彈跳、嚼普羅點心、歡呼等動作）
-  * **鏈鋸人 波奇塔 (Pochita / ポチタ)**（鏈鋸惡魔，包含待機搖尾律動、鏈鋸狂飆疾走、旋轉狂舞、汪汪叫、吃吐司等豐富動作）
-  * **貓貓蟲咖波 (Bugcat Capoo)**（超人氣獵奇萌寵，包含待機吐舌律動、毛毛蟲蠕動漫步、圓球跳躍、大口搶食、水汪汪大眼、張大嘴怒吼、小雞觸電等豐富動作）
-  * **胸毛公寓 猴子朋友 (Chest Hair Monkey)**（超魔性趣味萌寵，包含奔跑漫步、空中躍起、原地彈跳、大吃香蕉、膜拜神聖香蕉、崩潰敲鍵盤、辦公椅狂飆、鐵鎚砸手機、崩潰大哭、魔性跳舞、筆電報錯、馬桶滑手機、藤蔓擺盪、趴平融化等豐富動作）
-  * **胸毛公寓 哥布林喵喵怪 (Chest Hair Goblin)**（胸毛公寓亞種萌寵，包含左右巡邏漫步、彈跳待機、揮棒重擊、大口吃肉、呼呼大睡、哥布林之舞、拍手歡呼、委屈痛哭、張牙舞爪怒吼、抱頭驚嚇尖叫、膜拜、藤蔓擺盪、乖乖坐好等豐富動作）
-  * **廢貓阿米 - 左手畫的 (Armi)**（超魔性又厭世的搞笑廢貓，包含火海喝茶、融化成史萊姆、撒錢暴富、秀二頭肌、仰天狂笑、彩球應援、水汪汪大眼、好耶舉手、揮手掰掰、雙貓互蹭等豐富動作）
-  * **けたわん (Ketawan2)**（魔性柴犬狗勾，包含急速橫移、扭屁股、瘋狂搖呼拉圈、搓毛巾、躺平雙腿畫圈、魔性魔幻舞步等豐富動作）
-  * **天空饒舌歌手 (Sky Rapper)**（超人氣天頂迷因神尊，包含 Hip-hop 浮空飄行漫步、節奏彈跳、雙手比讚「いいね」、魔性大笑「草」、身後大爆炸比讚、BRO兄弟深情、抽菸一服中、咬鈔票搖擺、開喝乾杯、晚安星空等魔性連續動作補幀演繹）
-  * **總統-賴 (Lai)**（包含「不是不是喔」、加油比讚等趣味動作）
+* **多位人氣與趣味角色完整登場（支援多實例召喚）**：吉伊卡哇 (Chiikawa)、小八貓 (Hachiware)、兔兔烏薩奇 (Usagi)、小桃 (Momonga)、自嘲熊 (JokeBear)、愛心兔 (LOVE RABBIT)、普羅 (Poro)、鏈鋸人 波奇塔 (Pochita)、貓貓蟲咖波 (Bugcat Capoo)、胸毛公寓 猴子朋友、胸毛公寓 哥布林喵喵怪、廢貓阿米 - 左手畫的 (Armi)、けたわん (Ketawan2)、天空饒舌歌手 (Sky Rapper)、總統-賴 (Lai) 等，每位角色皆有各自專屬的待機、漫遊與趣味彩蛋動作。
 * **🤫 Boss Key 一鍵隱藏與解除封印 (Boss Key & Unseal Mode)**：
   * **一鍵緊急隱藏**：支援全域快捷鍵 **`Win + Alt + H`** 或點選任一角色右鍵選單最頂部的 **「一鍵隱藏」**，瞬間隱藏畫面上所有角色。
   * **凍結靜音低消耗**：隱藏期間所有角色完全凍結並暫停所有動畫、動作與計時器，不佔用 CPU 也不會彈出任何對話氣泡或系統通知。
-  * **解除封印快速恢復**：角色隱藏後，系統匣右鍵選單最頂部將動態顯示 **「與你訂下約定的我命令你，封印解除!」**，點選該項目或直接**雙擊系統匣圖示**即可解除封印並在原地恢復所有角色活動（在隱藏期間從系統匣「生成角色」或「匯入配置」亦會自動解除封印）。
+  * **解除封印快速恢復**：角色隱藏後，系統匣右鍵選單最頂部將動態顯示 **「與你訂下約定的我命令你，封印解除!」**，點選該項目、**雙擊系統匣圖示**或**再次點擊啟動 exe** 即可解除封印並在原地恢復所有角色活動（在隱藏期間從系統匣「生成角色」或「匯入配置」亦會自動解除封印）。
+* **🛡️ 單一實例保護 (Single Instance)**：
+  * 限制程式單一執行個體，重複開啟 exe 時不會重複建立系統匣圖示或分散進程；若目前處於隱藏狀態則會自動喚醒並解除封印。
 * **💾 角色配置匯出與匯入 (Profile Backup & Restore)**：
   * **一鍵備份配置**：可將目前畫面上所有召喚的角色、自訂對話文字、對齊方式、字體大小、永久對話框開關、角色縮放比例、預設待機動作、隨機動作開關與隨機跳躍開關完整匯出為 JSON 設定檔（預設檔名 `chiikawapet_profile.json`）。
   * **快速還原場景**：透過系統匣匯入設定檔，自動清空畫面並依序將保存的角色隨機分佈落下生成，精準套用所有外觀與對話設定。
@@ -66,44 +69,14 @@
 
 ---
 
-## 🔄 視窗吸附與行為互動流程 (Window Interaction Flow)
+## 📦 下載與安裝 (Download)
 
-```mermaid
-flowchart TD
-    A[滑鼠拖曳放開 OnMouseLeftButtonUp] --> B{檢查釋放點下方視窗}
-    B -->|非桌寵/非桌面 且 距頂部 ±30px| C[吸附至視窗頂部 AttachToWindow]
-    B -->|否| D[執行原有 FallTo 掉回工作列]
-    
-    C --> E[啟動視窗追蹤定時器 / 事件 Hook]
-    E --> F{視窗狀態檢查}
-    
-    F -->|視窗移動 / 縮放| G[更新角色 Left / Top 即時跟隨]
-    F -->|視窗最大化 IsZoomed / 關閉 / 最小化| H[觸發擠壓墜落 DetachAndFall]
-    
-    C --> I{隨機動作開關}
-    I -->|關閉 固定模式| J[靜止於相對位置 僅跟隨移動]
-    I -->|開啟 隨機模式| K[在視窗頂部進行 Walk / Jump / Talk]
-    
-    K --> L{行走/跳躍是否超出視窗邊緣?}
-    L -->|是 踩空| H
-    L -->|否| G
-    
-    H --> D
-```
+目前尚未發布 GitHub Release，請至 [Releases](https://github.com/DAOjun0690/ChiikawaDesktopPet/releases) 頁面確認是否已有現成的執行檔可直接下載，或依照下方[開發與建置](#-開發與建置-development--build)章節的指令自行建置。
 
----
+日後發布 Release 時，將提供以下兩種版本：
 
-## 🏗️ 專案架構 (Architecture)
-
-```
-src/
-  ├── ChiikawaDesktopPet.Core/               純 C# 核心類別庫（無 UI 依賴，包含完全可單元測試的移動、跳躍、邊界判定、設定檔資料模型與 ProfileManager 邏輯）
-  ├── ChiikawaDesktopPet.Core.Tests/         核心決策邏輯與 ProfileManager xUnit 單元測試
-  ├── ChiikawaDesktopPet.Wpf/                WPF 桌面應用程式（系統匣控制、透明視窗、對話框、縮放與流暢動畫播放器）
-  ├── ChiikawaDesktopPet.Wpf.Tests/          WPF 層元件與 Profile 套用單元測試
-  ├── ChiikawaDesktopPet.AssetPipeline/      獨立素材批次重取樣與壓縮工具（Frame Resampling & Image Optimization）
-  └── ChiikawaDesktopPet.AssetPipeline.Tests/素材處理管線單元測試
-```
+* **輕量單檔版**：需本機已安裝 [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)，檔案體積小（約 2 MB，另加約 110 MB 圖檔）。
+* **自包含獨立版**：免安裝 .NET Runtime，開箱即用，總體積約 180 MB。
 
 ---
 
@@ -143,6 +116,47 @@ dotnet publish src/ChiikawaDesktopPet.Wpf/ChiikawaDesktopPet.Wpf.csproj -c Relea
 > $env:DOTNET_ROOT = "<你的 .NET 10 SDK 目錄>"
 > $env:PATH = "$env:DOTNET_ROOT;$env:PATH"
 > ```
+
+---
+
+## 🏗️ 專案架構 (Architecture)
+
+```
+src/
+  ├── ChiikawaDesktopPet.Core/               純 C# 核心類別庫（無 UI 依賴，包含完全可單元測試的移動、跳躍、邊界判定、設定檔資料模型與 ProfileManager 邏輯）
+  ├── ChiikawaDesktopPet.Core.Tests/         核心決策邏輯與 ProfileManager xUnit 單元測試
+  ├── ChiikawaDesktopPet.Wpf/                WPF 桌面應用程式（系統匣控制、透明視窗、對話框、縮放與流暢動畫播放器）
+  ├── ChiikawaDesktopPet.Wpf.Tests/          WPF 層元件與 Profile 套用單元測試
+  ├── ChiikawaDesktopPet.AssetPipeline/      獨立素材批次重取樣與壓縮工具（Frame Resampling & Image Optimization）
+  └── ChiikawaDesktopPet.AssetPipeline.Tests/素材處理管線單元測試
+```
+
+---
+
+## 🔄 視窗吸附與行為互動流程 (Window Interaction Flow)
+
+```mermaid
+flowchart TD
+    A[滑鼠拖曳放開 OnMouseLeftButtonUp] --> B{檢查釋放點下方視窗}
+    B -->|非桌寵/非桌面 且 距頂部 ±30px| C[吸附至視窗頂部 AttachToWindow]
+    B -->|否| D[執行原有 FallTo 掉回工作列]
+    
+    C --> E[啟動視窗追蹤定時器 / 事件 Hook]
+    E --> F{視窗狀態檢查}
+    
+    F -->|視窗移動 / 縮放| G[更新角色 Left / Top 即時跟隨]
+    F -->|視窗最大化 IsZoomed / 關閉 / 最小化| H[觸發擠壓墜落 DetachAndFall]
+    
+    C --> I{隨機動作開關}
+    I -->|關閉 固定模式| J[靜止於相對位置 僅跟隨移動]
+    I -->|開啟 隨機模式| K[在視窗頂部進行 Walk / Jump / Talk]
+    
+    K --> L{行走/跳躍是否超出視窗邊緣?}
+    L -->|是 踩空| H
+    L -->|否| G
+    
+    H --> D
+```
 
 ---
 

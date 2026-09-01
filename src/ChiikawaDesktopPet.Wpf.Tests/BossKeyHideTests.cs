@@ -68,4 +68,33 @@ public class BossKeyHideTests
         thread.Start();
         thread.Join();
     }
+
+    [Fact]
+    public void SingleInstance_Mutex_DetectsDuplicateInstance()
+    {
+        string testMutexName = $@"Local\ChiikawaPet_TestMutex_{Guid.NewGuid():N}";
+        using var firstMutex = new Mutex(true, testMutexName, out bool firstCreated);
+        Assert.True(firstCreated);
+
+        using var secondMutex = new Mutex(true, testMutexName, out bool secondCreated);
+        Assert.False(secondCreated);
+    }
+
+    [Fact]
+    public void SingleInstance_EventWaitHandle_SignalsWakeupSuccessfully()
+    {
+        string testEventName = $@"Local\ChiikawaPet_TestEvent_{Guid.NewGuid():N}";
+        using var mainEvent = new EventWaitHandle(false, EventResetMode.AutoReset, testEventName);
+
+        bool opened = EventWaitHandle.TryOpenExisting(testEventName, out var secondEvent);
+        Assert.True(opened);
+        Assert.NotNull(secondEvent);
+
+        bool signaled = secondEvent.Set();
+        Assert.True(signaled);
+        secondEvent.Dispose();
+
+        bool received = mainEvent.WaitOne(1000);
+        Assert.True(received);
+    }
 }
