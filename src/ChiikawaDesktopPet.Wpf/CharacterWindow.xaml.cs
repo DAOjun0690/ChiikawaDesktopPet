@@ -93,6 +93,8 @@ public partial class CharacterWindow : Window
             ScaleRatio = Math.Clamp(charConfig.Scale, 0.2, 4.0);
         }
 
+        DiscoverOtherAnimations();
+
         _idleTimer.Tick += (_, _) => OnIdleTick();
         _frameTimer.Tick += (_, _) => OnFrameTick();
         _bubbleTimer.Tick += (_, _) => OnBubbleTimerTick();

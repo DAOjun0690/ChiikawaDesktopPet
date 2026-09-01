@@ -21,6 +21,7 @@ public class TrayMenuTests
     [InlineData("chesthair_monkey", "胸毛公寓 猴子朋友")]
     [InlineData("chesthair_goblin", "胸毛公寓 哥布林喵喵怪")]
     [InlineData("armi", "廢貓阿米 - 左手畫的")]
+    [InlineData("ketawan2", "けたわん (Ketawan2)")]
     public void GetCharacterDisplayName_KnownCharacter_ReturnsExpectedDisplayName(string key, string expectedDisplayName)
     {
         string displayName = App.GetCharacterDisplayName(key);
@@ -69,6 +70,16 @@ public class TrayMenuTests
     [InlineData("wave", "揮手掰掰")]
     [InlineData("hug", "雙貓互蹭")]
     [InlineData("sit", "乖乖坐好")]
+    [InlineData("dash", "急速橫移")]
+    [InlineData("butt", "開心扭屁股")]
+    [InlineData("isolated", "角落畫圈自閉")]
+    [InlineData("shy", "害羞雙手摀臉")]
+    [InlineData("hulahoop", "瘋狂搖呼拉圈")]
+    [InlineData("towel", "雙手搓毛巾")]
+    [InlineData("legcircle", "躺平雙腿畫圈")]
+    [InlineData("sillydance", "魔性魔幻舞步")]
+    [InlineData("lookup", "抬頭看上面")]
+    [InlineData("music", "戴耳機聽音樂")]
     public void GetAnimationDisplayName_KnownAnimation_ReturnsExpectedDisplayName(string key, string expectedDisplayName)
     {
         string displayName = App.GetAnimationDisplayName(key);

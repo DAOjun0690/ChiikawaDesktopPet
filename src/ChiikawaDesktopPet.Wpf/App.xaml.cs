@@ -62,7 +62,18 @@ public partial class App : Application
         ["yay"] = "好耶舉手",
         ["wave"] = "揮手掰掰",
         ["hug"] = "雙貓互蹭",
-        ["sit"] = "乖乖坐好"
+        ["sit"] = "乖乖坐好",
+        ["dash"] = "急速橫移",
+        ["dashleft"] = "向左滑行",
+        ["butt"] = "開心扭屁股",
+        ["isolated"] = "角落畫圈自閉",
+        ["shy"] = "害羞雙手摀臉",
+        ["hulahoop"] = "瘋狂搖呼拉圈",
+        ["towel"] = "雙手搓毛巾",
+        ["legcircle"] = "躺平雙腿畫圈",
+        ["sillydance"] = "魔性魔幻舞步",
+        ["lookup"] = "抬頭看上面",
+        ["music"] = "戴耳機聽音樂"
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     private sealed class CharacterInstanceData(

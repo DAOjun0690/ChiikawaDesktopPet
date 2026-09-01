@@ -168,6 +168,28 @@
       "hug": { "fps": 12 }
     }
   },
+  "ketawan2": {
+    "animations": {
+      "walkleft": { "fps": 12 },
+      "walkright": { "fps": 12 },
+      "dash": { "fps": 15 },
+      "dashleft": { "fps": 15 },
+      "bounce": { "fps": 14 },
+      "jumpright": { "fps": 14 },
+      "jumpleft": { "fps": 14 },
+      "dance": { "fps": 14 },
+      "butt": { "fps": 12 },
+      "isolated": { "fps": 10 },
+      "shy": { "fps": 12 },
+      "hulahoop": { "fps": 15 },
+      "towel": { "fps": 14 },
+      "legcircle": { "fps": 16 },
+      "sillydance": { "fps": 12 },
+      "lookup": { "fps": 14 },
+      "music": { "fps": 14 },
+      "sleep": { "fps": 8 }
+    }
+  },
   "coanimations": {
     "animations": {
       "chiikawa_momonga": { "fps": 15 }

@@ -170,4 +170,29 @@ public class ConfigTests
             Assert.Equal(10, BehaviorPlanner.GetFps(result, "chesthair_goblin", "sit"));
         }
     }
+
+    [Fact]
+    public void ConfigLoader_Load_ShippedConfig_ContainsKetawan2Config()
+    {
+        string path = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "ChiikawaDesktopPet.Wpf", "config.default.json");
+        if (File.Exists(path))
+        {
+            var result = ConfigLoader.Load(path);
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "ketawan2", "walkleft"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "ketawan2", "walkright"));
+            Assert.Equal(15, BehaviorPlanner.GetFps(result, "ketawan2", "dash"));
+            Assert.Equal(14, BehaviorPlanner.GetFps(result, "ketawan2", "bounce"));
+            Assert.Equal(14, BehaviorPlanner.GetFps(result, "ketawan2", "dance"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "ketawan2", "butt"));
+            Assert.Equal(10, BehaviorPlanner.GetFps(result, "ketawan2", "isolated"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "ketawan2", "shy"));
+            Assert.Equal(15, BehaviorPlanner.GetFps(result, "ketawan2", "hulahoop"));
+            Assert.Equal(14, BehaviorPlanner.GetFps(result, "ketawan2", "towel"));
+            Assert.Equal(16, BehaviorPlanner.GetFps(result, "ketawan2", "legcircle"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "ketawan2", "sillydance"));
+            Assert.Equal(14, BehaviorPlanner.GetFps(result, "ketawan2", "lookup"));
+            Assert.Equal(14, BehaviorPlanner.GetFps(result, "ketawan2", "music"));
+            Assert.Equal(8, BehaviorPlanner.GetFps(result, "ketawan2", "sleep"));
+        }
+    }
 }

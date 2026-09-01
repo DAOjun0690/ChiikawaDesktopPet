@@ -202,4 +202,34 @@ public class DefaultAnimationTests
             window.Close();
         });
     }
+
+    [Fact]
+    public void CharacterWindow_Ketawan2_InitializesAndDiscoversAllAnimations()
+    {
+        RunInSta(() =>
+        {
+            var window = new CharacterWindow("ketawan2");
+            var allAnimations = window.AllAnimationNames();
+            Assert.Contains("walkleft", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("walkright", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("bounce", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("dance", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("butt", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("isolated", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("shy", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("hulahoop", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("towel", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("legcircle", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("sillydance", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("lookup", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("dash", allAnimations, StringComparer.OrdinalIgnoreCase);
+
+            var inPlace = window.InPlaceAnimationNames();
+            Assert.Contains("bounce", inPlace, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("dance", inPlace, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("butt", inPlace, StringComparer.OrdinalIgnoreCase);
+
+            window.Close();
+        });
+    }
 }
