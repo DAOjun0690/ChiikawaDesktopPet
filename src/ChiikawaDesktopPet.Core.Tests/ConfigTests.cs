@@ -195,4 +195,27 @@ public class ConfigTests
             Assert.Equal(8, BehaviorPlanner.GetFps(result, "ketawan2", "sleep"));
         }
     }
+
+    [Fact]
+    public void ConfigLoader_Load_ShippedConfig_ContainsSkyRapperConfig()
+    {
+        string path = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "ChiikawaDesktopPet.Wpf", "config.default.json");
+        if (File.Exists(path))
+        {
+            var result = ConfigLoader.Load(path);
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "sky_rapper", "walkleft"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "sky_rapper", "walkright"));
+            Assert.Equal(14, BehaviorPlanner.GetFps(result, "sky_rapper", "bounce"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "sky_rapper", "iine"));
+            Assert.Equal(15, BehaviorPlanner.GetFps(result, "sky_rapper", "kusao"));
+            Assert.Equal(10, BehaviorPlanner.GetFps(result, "sky_rapper", "bro"));
+            Assert.Equal(10, BehaviorPlanner.GetFps(result, "sky_rapper", "smoke"));
+            Assert.Equal(14, BehaviorPlanner.GetFps(result, "sky_rapper", "explosion"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "sky_rapper", "money"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "sky_rapper", "beer"));
+            Assert.Equal(8, BehaviorPlanner.GetFps(result, "sky_rapper", "night"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "sky_rapper", "saikou"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "sky_rapper", "shirankedo"));
+        }
+    }
 }

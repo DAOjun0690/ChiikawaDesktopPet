@@ -22,7 +22,8 @@ public static class CharacterQuotes
         ["chesthair_monkey"] = "吱吱！吱吱吱！（翻譯蒟蒻：救命／想吃香蕉）",
         ["chesthair_goblin"] = "嘎嘎！咕嚕嚕！（哥布林喵喵怪正在警戒中）",
         ["armi"] = "爛成一坨了...不想努力了 (躺平)",
-        ["ketawan2"] = "汪！汪汪～！（興奮地搖著尾巴晃動）"
+        ["ketawan2"] = "汪！汪汪～！（興奮地搖著尾巴晃動）",
+        ["sky_rapper"] = "BRO...（從天空中比出大拇指凝視著你）"
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     public static string GetDefaultQuote(string characterName) =>

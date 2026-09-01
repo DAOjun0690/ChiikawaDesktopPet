@@ -190,6 +190,23 @@
       "sleep": { "fps": 8 }
     }
   },
+  "sky_rapper": {
+    "animations": {
+      "walkleft": { "fps": 12 },
+      "walkright": { "fps": 12 },
+      "bounce": { "fps": 14 },
+      "iine": { "fps": 12 },
+      "kusao": { "fps": 15 },
+      "bro": { "fps": 10 },
+      "smoke": { "fps": 10 },
+      "explosion": { "fps": 14 },
+      "money": { "fps": 12 },
+      "beer": { "fps": 12 },
+      "night": { "fps": 8 },
+      "saikou": { "fps": 12 },
+      "shirankedo": { "fps": 12 }
+    }
+  },
   "coanimations": {
     "animations": {
       "chiikawa_momonga": { "fps": 15 }

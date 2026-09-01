@@ -21,6 +21,7 @@ public class CharacterQuotesTests
     [InlineData("chesthair_goblin", "嘎嘎！咕嚕嚕！（哥布林喵喵怪正在警戒中）")]
     [InlineData("armi", "爛成一坨了...不想努力了 (躺平)")]
     [InlineData("ketawan2", "汪！汪汪～！（興奮地搖著尾巴晃動）")]
+    [InlineData("sky_rapper", "BRO...（從天空中比出大拇指凝視著你）")]
     public void GetDefaultQuote_KnownCharacters_ReturnsExpectedQuote(string characterName, string expectedQuote)
     {
         string quote = CharacterQuotes.GetDefaultQuote(characterName);

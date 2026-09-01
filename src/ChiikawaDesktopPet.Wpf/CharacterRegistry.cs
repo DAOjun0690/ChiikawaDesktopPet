@@ -27,7 +27,8 @@ internal static class CharacterRegistry
         ("chesthair_monkey", "胸毛公寓 猴子朋友", true),
         ("chesthair_goblin", "胸毛公寓 哥布林喵喵怪", true),
         ("armi", "廢貓阿米 - 左手畫的", true),
-        ("ketawan2", "けたわん (Ketawan2)", true)
+        ("ketawan2", "けたわん (Ketawan2)", true),
+        ("sky_rapper", "Sky Rapper (天空饒舌歌手)", true)
     ];
 
     public static readonly string[] AutoSpawnCandidates =
