@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Windows;
 using System.Windows.Forms;
+using System.Windows.Interop;
 using ChiikawaDesktopPet.Core;
 using Application = System.Windows.Application;
 using MenuItem = System.Windows.Forms.ToolStripMenuItem;
@@ -87,8 +88,14 @@ public partial class App : Application
     }
 
     public static bool EnableWindowsNotifications { get; set; } = false;
+    public static bool IsAllHidden { get; private set; } = false;
 
+    private const int HOTKEY_ID = 0xB055;
+    private HwndSource? _hotkeyHwndSource;
     private NotifyIcon? _trayIcon;
+    private ContextMenuStrip? _trayContextMenu;
+    private MenuItem? _unsealMenuItem;
+    private ToolStripSeparator? _unsealSeparator;
     private MenuItem? _aliveMenu;
     private MenuItem? _playAnimationMenu;
     private MenuItem? _stopResumeMenu;
@@ -100,7 +107,12 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        var contextMenu = new ContextMenuStrip();
+        _trayContextMenu = new ContextMenuStrip();
+
+        _unsealMenuItem = new MenuItem("與你訂下約定的我命令你，封印解除!");
+        _unsealMenuItem.Font = new System.Drawing.Font(_unsealMenuItem.Font, System.Drawing.FontStyle.Bold);
+        _unsealMenuItem.Click += (_, _) => UnhideAllCharacters();
+        _unsealSeparator = new ToolStripSeparator();
 
         var spawnMenu = new MenuItem("生成角色");
         var spawnAllItem = new MenuItem("生成所有角色");
@@ -115,23 +127,23 @@ public partial class App : Application
             item.Click += (_, _) => SpawnCharacter(k);
             spawnMenu.DropDownItems.Add(item);
         }
-        contextMenu.Items.Add(spawnMenu);
+        _trayContextMenu.Items.Add(spawnMenu);
 
         _aliveMenu = new MenuItem("現在存活的角色") { Enabled = false };
-        contextMenu.Items.Add(_aliveMenu);
+        _trayContextMenu.Items.Add(_aliveMenu);
 
         _playAnimationMenu = new MenuItem("播放動畫") { Enabled = false };
-        contextMenu.Items.Add(_playAnimationMenu);
+        _trayContextMenu.Items.Add(_playAnimationMenu);
 
         var sayHiItem = new MenuItem("打個招呼！");
         sayHiItem.Click += (_, _) => SayHi();
-        contextMenu.Items.Add(sayHiItem);
+        _trayContextMenu.Items.Add(sayHiItem);
 
         _stopResumeMenu = new MenuItem("停止/恢復隨機動畫...") { Enabled = false };
-        contextMenu.Items.Add(_stopResumeMenu);
+        _trayContextMenu.Items.Add(_stopResumeMenu);
 
         _jumpMenu = new MenuItem("停止/恢復隨機跳躍...") { Enabled = false };
-        contextMenu.Items.Add(_jumpMenu);
+        _trayContextMenu.Items.Add(_jumpMenu);
 
         var confineToMonitorItem = new MenuItem("限制角色只能在單一螢幕內移動")
         {
@@ -140,7 +152,7 @@ public partial class App : Application
         };
         confineToMonitorItem.Click += (_, _) =>
             CharacterWindow.ConfineToCurrentMonitor = confineToMonitorItem.Checked;
-        contextMenu.Items.Add(confineToMonitorItem);
+        _trayContextMenu.Items.Add(confineToMonitorItem);
 
         var notificationItem = new MenuItem("啟用 Windows 系統通知")
         {
@@ -149,23 +161,23 @@ public partial class App : Application
         };
         notificationItem.Click += (_, _) =>
             EnableWindowsNotifications = notificationItem.Checked;
-        contextMenu.Items.Add(notificationItem);
+        _trayContextMenu.Items.Add(notificationItem);
 
-        contextMenu.Items.Add(new ToolStripSeparator());
+        _trayContextMenu.Items.Add(new ToolStripSeparator());
 
         var exportItem = new MenuItem("匯出角色配置...");
         exportItem.Click += (_, _) => ExportProfile();
-        contextMenu.Items.Add(exportItem);
+        _trayContextMenu.Items.Add(exportItem);
 
         var importItem = new MenuItem("匯入角色配置...");
         importItem.Click += (_, _) => ImportProfile();
-        contextMenu.Items.Add(importItem);
+        _trayContextMenu.Items.Add(importItem);
 
-        contextMenu.Items.Add(new ToolStripSeparator());
+        _trayContextMenu.Items.Add(new ToolStripSeparator());
 
         var exitItem = new MenuItem("結束程式");
         exitItem.Click += (_, _) => Shutdown();
-        contextMenu.Items.Add(exitItem);
+        _trayContextMenu.Items.Add(exitItem);
 
         string icoPath = Path.Combine(AppContext.BaseDirectory, "assets", "app.ico");
         string pngPath = Path.Combine(AppContext.BaseDirectory, "assets", "app_icon.png");
@@ -198,13 +210,49 @@ public partial class App : Application
         {
             Icon = trayIcon,
             Visible = true,
-            ContextMenuStrip = contextMenu,
+            ContextMenuStrip = _trayContextMenu,
             Text = "ChiikawaDesktopPet"
         };
+        _trayIcon.DoubleClick += (_, _) =>
+        {
+            if (IsAllHidden)
+            {
+                UnhideAllCharacters();
+            }
+        };
+
+        try
+        {
+            var parameters = new HwndSourceParameters("ChiikawaPet_HotkeySink")
+            {
+                Width = 0,
+                Height = 0,
+                PositionX = 0,
+                PositionY = 0,
+                WindowStyle = 0
+            };
+            _hotkeyHwndSource = new HwndSource(parameters);
+            _hotkeyHwndSource.AddHook(HotkeyWndProc);
+            NativeMethods.RegisterHotKey(_hotkeyHwndSource.Handle, HOTKEY_ID, NativeMethods.MOD_WIN | NativeMethods.MOD_ALT | NativeMethods.MOD_NOREPEAT, (uint)Keys.H);
+        }
+        catch
+        {
+            // Gracefully ignore if hotkey registration fails
+        }
 
         // Automatically spawn a random regular character on startup (excluding lai)
         string initialCharacter = CharacterRegistry.AutoSpawnCandidates[Random.Shared.Next(CharacterRegistry.AutoSpawnCandidates.Length)];
         SpawnCharacter(initialCharacter);
+    }
+
+    private IntPtr HotkeyWndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == NativeMethods.WM_HOTKEY && wParam.ToInt32() == HOTKEY_ID)
+        {
+            HideAllCharacters();
+            handled = true;
+        }
+        return IntPtr.Zero;
     }
 
     private void SpawnAllCharacters()
@@ -222,6 +270,11 @@ public partial class App : Application
 
     private CharacterWindow SpawnCharacter(string name, double? initialX = null, CharacterProfileItem? profile = null)
     {
+        if (IsAllHidden)
+        {
+            UnhideAllCharacters();
+        }
+
         string key = name.ToLowerInvariant();
         int nextIndex = _characterCounters.TryGetValue(key, out int count) ? count + 1 : 1;
         _characterCounters[key] = nextIndex;
@@ -334,6 +387,10 @@ public partial class App : Application
             _playAnimationMenu!.Enabled = false;
             _stopResumeMenu!.Enabled = false;
             _jumpMenu!.Enabled = false;
+            if (IsAllHidden)
+            {
+                UnhideAllCharacters();
+            }
         }
     }
 
@@ -346,6 +403,46 @@ public partial class App : Application
         }
         _characterCounters.Clear();
     }
+
+    public void HideAllCharacters()
+    {
+        if (IsAllHidden) return;
+        IsAllHidden = true;
+
+        foreach (var instance in _instances.Values)
+        {
+            instance.Window.HidePet();
+        }
+
+        if (_trayContextMenu != null && _unsealMenuItem != null && _unsealSeparator != null)
+        {
+            if (!_trayContextMenu.Items.Contains(_unsealMenuItem))
+            {
+                _trayContextMenu.Items.Insert(0, _unsealMenuItem);
+                _trayContextMenu.Items.Insert(1, _unsealSeparator);
+            }
+        }
+    }
+
+    public void UnhideAllCharacters()
+    {
+        if (!IsAllHidden) return;
+        IsAllHidden = false;
+
+        if (_trayContextMenu != null && _unsealMenuItem != null && _unsealSeparator != null)
+        {
+            _trayContextMenu.Items.Remove(_unsealMenuItem);
+            _trayContextMenu.Items.Remove(_unsealSeparator);
+        }
+
+        foreach (var instance in _instances.Values)
+        {
+            instance.Window.ShowPet();
+        }
+    }
+
+    public static void HideAllCharactersStatic() => (Current as App)?.HideAllCharacters();
+    public static void UnhideAllCharactersStatic() => (Current as App)?.UnhideAllCharacters();
 
     private void ExportProfile()
     {
@@ -459,6 +556,11 @@ public partial class App : Application
             return;
         }
 
+        if (IsAllHidden)
+        {
+            UnhideAllCharacters();
+        }
+
         // Clear existing characters (replace mode)
         KickAllCharacters();
 
@@ -529,6 +631,21 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        if (_hotkeyHwndSource != null)
+        {
+            try
+            {
+                NativeMethods.UnregisterHotKey(_hotkeyHwndSource.Handle, HOTKEY_ID);
+                _hotkeyHwndSource.RemoveHook(HotkeyWndProc);
+                _hotkeyHwndSource.Dispose();
+            }
+            catch
+            {
+                // ignore
+            }
+            _hotkeyHwndSource = null;
+        }
+
         _trayIcon?.Dispose();
         base.OnExit(e);
     }

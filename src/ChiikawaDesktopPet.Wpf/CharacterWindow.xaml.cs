@@ -56,6 +56,7 @@ public partial class CharacterWindow : Window
 
     private bool _jumpEnabled = true;
     private bool _isShuttingDown;
+    public bool IsPetHidden { get; private set; }
 
     private System.Windows.Point _dragOffset;
     private readonly DispatcherTimer _holdTimer = new() { Interval = TimeSpan.FromMilliseconds(4500) };
@@ -105,7 +106,7 @@ public partial class CharacterWindow : Window
         {
             _holdTimer.Stop();
             _isShaking = true;
-            SetSprite(_sprites["shaken"]);
+            SetSprite(_sprites.TryGetValue("shaken", out var shakenSprite) ? shakenSprite : null);
         };
 
         SourceInitialized += (_, _) =>
@@ -201,7 +202,7 @@ public partial class CharacterWindow : Window
         }
     }
 
-    private static BitmapSource RandomFrom(Dictionary<string, BitmapSource> pool, string prefix)
+    private static BitmapSource? RandomFrom(Dictionary<string, BitmapSource> pool, string prefix)
     {
         var candidates = new List<BitmapSource>();
         foreach (var kvp in pool)
@@ -217,11 +218,13 @@ public partial class CharacterWindow : Window
                 candidates.Add(kvp.Value);
             }
         }
-        return candidates.Count > 0 ? candidates[Random.Shared.Next(candidates.Count)] : pool[prefix];
+        if (candidates.Count > 0) return candidates[Random.Shared.Next(candidates.Count)];
+        return pool.TryGetValue(prefix, out var sprite) ? sprite : null;
     }
 
-    private void SetSprite(BitmapSource sprite)
+    private void SetSprite(BitmapSource? sprite)
     {
+        if (sprite == null) return;
         double oldHeight = Height;
         double oldWidth = Width;
         SpriteImage.Source = sprite;
@@ -580,7 +583,7 @@ public partial class CharacterWindow : Window
                 _pendingOnComplete = null;
                 _frameTimer.Start();
 
-                if (_randomAnimationsEnabled && !_isShuttingDown && !_isDragging && !_isFalling && !_isInteracting)
+                if (_randomAnimationsEnabled && !_isShuttingDown && !_isDragging && !_isFalling && !_isInteracting && !IsPetHidden)
                 {
                     StartIdleTimer();
                 }
@@ -607,7 +610,7 @@ public partial class CharacterWindow : Window
             SetSprite(RandomFrom(_sprites, "spawn"));
         }
 
-        if (_randomAnimationsEnabled && !_isShuttingDown && !_isDragging && !_isFalling && !_isInteracting)
+        if (_randomAnimationsEnabled && !_isShuttingDown && !_isDragging && !_isFalling && !_isInteracting && !IsPetHidden)
         {
             StartIdleTimer();
         }
@@ -623,7 +626,7 @@ public partial class CharacterWindow : Window
     private void OnIdleTick()
     {
         _idleTimer.Stop();
-        if (_randomAnimationsEnabled && !_isShuttingDown && !_isAnimating && !_isDragging && !_isFalling && !_isInteracting)
+        if (_randomAnimationsEnabled && !_isShuttingDown && !_isAnimating && !_isDragging && !_isFalling && !_isInteracting && !IsPetHidden)
         {
             var action = BehaviorPlanner.ChooseAutonomousAction(_otherAnimationNames, SystemRandomSource.Shared, _jumpEnabled);
             switch (action.Kind)
@@ -636,17 +639,17 @@ public partial class CharacterWindow : Window
                     break;
                 case AutonomousActionKind.Talk:
                     if (HasCustomText) PlayTalkAction();
-                    if (_randomAnimationsEnabled && !_isShuttingDown) StartIdleTimer();
+                    if (_randomAnimationsEnabled && !_isShuttingDown && !IsPetHidden) StartIdleTimer();
                     break;
                 case AutonomousActionKind.PlayAnimation:
                     PlayNamedAnimation(action.AnimationName!);
                     break;
                 case AutonomousActionKind.NoOp:
-                    if (_randomAnimationsEnabled && !_isShuttingDown) StartIdleTimer();
+                    if (_randomAnimationsEnabled && !_isShuttingDown && !IsPetHidden) StartIdleTimer();
                     break;
             }
         }
-        else if (_randomAnimationsEnabled && !_isShuttingDown && !_isAnimating && !_isDragging && !_isFalling && !_isInteracting)
+        else if (_randomAnimationsEnabled && !_isShuttingDown && !_isAnimating && !_isDragging && !_isFalling && !_isInteracting && !IsPetHidden)
         {
             StartIdleTimer();
         }
@@ -739,6 +742,67 @@ public partial class CharacterWindow : Window
         var screen = System.Windows.Forms.Screen.FromPoint(screenPoint);
         Top = (screen.WorkingArea.Bottom * dipScale) - Height;
 
+        ClampToScreen();
+    }
+
+    public void HidePet()
+    {
+        if (IsPetHidden || _isShuttingDown) return;
+        IsPetHidden = true;
+
+        if (_isDragging)
+        {
+            ReleaseMouseCapture();
+            _isDragging = false;
+            _holdTimer.Stop();
+            _isShaking = false;
+            _grabbedSprite = null;
+        }
+
+        if (ContextMenu != null)
+        {
+            ContextMenu.IsOpen = false;
+        }
+
+        _idleTimer.Stop();
+        _frameTimer.Stop();
+        _windowTrackingTimer.Stop();
+        _holdTimer.Stop();
+        _bubbleTimer.Stop();
+        TalkActionTimer?.Stop();
+        TalkActionTimer = null;
+
+        BeginAnimation(LeftProperty, null);
+        BeginAnimation(TopProperty, null);
+
+        Hide();
+    }
+
+    public void ShowPet()
+    {
+        if (!IsPetHidden || _isShuttingDown) return;
+        IsPetHidden = false;
+
+        Show();
+
+        if (_attachedHwnd is { } hwnd)
+        {
+            if (NativeMethods.IsWindow(hwnd) && NativeMethods.IsWindowVisible(hwnd) && !NativeMethods.IsIconic(hwnd) && !NativeMethods.IsZoomed(hwnd))
+            {
+                _windowTrackingTimer.Start();
+            }
+            else
+            {
+                _attachedHwnd = null;
+            }
+        }
+
+        if (_alwaysShowBubble && HasCustomText)
+        {
+            ShowSpeechBubble();
+        }
+
+        EnterIdleState();
         ClampToScreen();
     }
 

@@ -10,6 +10,14 @@ public partial class CharacterWindow
     {
         var contextMenu = new ContextMenu();
 
+        var hideAllItem = new MenuItem
+        {
+            Header = "一鍵隱藏"
+        };
+        hideAllItem.Click += (_, _) => App.HideAllCharactersStatic();
+        contextMenu.Items.Add(hideAllItem);
+        contextMenu.Items.Add(new Separator());
+
         string displayName = InstanceDisplayName;
         var titleItem = new MenuItem
         {

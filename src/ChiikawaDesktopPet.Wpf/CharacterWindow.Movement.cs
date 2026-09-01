@@ -163,7 +163,7 @@ public partial class CharacterWindow
                 _isAnimating = false;
                 _isWalking = false;
                 _isJumping = false;
-                SetSprite(_sprites["fallingend"]);
+                SetSprite(_sprites.TryGetValue("fallingend", out var fallingEndSprite) ? fallingEndSprite : null);
                 if (_randomAnimationsEnabled && !_isShuttingDown && !_isDragging && !_isInteracting)
                 {
                     StartIdleTimer();
@@ -302,7 +302,7 @@ public partial class CharacterWindow
         {
             // Hachiware has no animated jump frames — use the single static sprite, matching
             // the original's fallback path.
-            SetSprite(_sprites[animationName]);
+            SetSprite(_sprites.TryGetValue(animationName, out var jumpSprite) ? jumpSprite : null);
         }
 
         riseAnimation.Completed += (_, _) =>
