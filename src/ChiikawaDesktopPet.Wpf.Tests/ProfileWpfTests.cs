@@ -52,6 +52,8 @@ public class ProfileWpfTests
             window.SetDefaultAnimation("cheer");
             window.SetRandomAnimationsEnabled(false);
             window.SetJumpEnabled(false);
+            window.SetOpacity(0.7, false);
+            window.SetClickThrough(true);
 
             var profileItem = window.ToProfileItem();
 
@@ -65,6 +67,9 @@ public class ProfileWpfTests
             Assert.Equal("cheer", profileItem.DefaultAnimation);
             Assert.False(profileItem.RandomAnimationsEnabled);
             Assert.False(profileItem.JumpEnabled);
+            Assert.Equal(0.7, profileItem.Opacity);
+            Assert.False(profileItem.SyncBubbleOpacity);
+            Assert.True(profileItem.ClickThrough);
 
             window.Close();
         });
@@ -86,7 +91,10 @@ public class ProfileWpfTests
                 ScaleRatio = 1.25,
                 DefaultAnimation = "dance",
                 RandomAnimationsEnabled = false,
-                JumpEnabled = false
+                JumpEnabled = false,
+                Opacity = 0.45,
+                SyncBubbleOpacity = true,
+                ClickThrough = true
             };
 
             window.ApplyProfile(item);
@@ -99,6 +107,9 @@ public class ProfileWpfTests
             Assert.Equal("dance", window.DefaultAnimation);
             Assert.False(window.RandomAnimationsEnabled);
             Assert.False(window.JumpEnabled);
+            Assert.Equal(0.45, window.PetOpacity);
+            Assert.True(window.SyncBubbleOpacity);
+            Assert.True(window.ClickThrough);
 
             window.Close();
         });

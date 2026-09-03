@@ -96,7 +96,8 @@ public partial class App : Application
         MenuItem playSubmenu,
         MenuItem kickItem,
         MenuItem stopResumeItem,
-        MenuItem jumpItem)
+        MenuItem jumpItem,
+        MenuItem clickThroughItem)
     {
         public string InstanceId { get; } = instanceId;
         public string CharacterKey { get; } = characterKey;
@@ -107,6 +108,7 @@ public partial class App : Application
         public MenuItem KickItem { get; } = kickItem;
         public MenuItem StopResumeItem { get; } = stopResumeItem;
         public MenuItem JumpItem { get; } = jumpItem;
+        public MenuItem ClickThroughItem { get; } = clickThroughItem;
     }
 
     public static bool EnableWindowsNotifications { get; set; } = false;
@@ -129,6 +131,7 @@ public partial class App : Application
     private MenuItem? _playAnimationMenu;
     private MenuItem? _stopResumeMenu;
     private MenuItem? _jumpMenu;
+    private MenuItem? _clickThroughMenu;
     private readonly Dictionary<string, int> _characterCounters = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, CharacterInstanceData> _instances = new(StringComparer.OrdinalIgnoreCase);
 
@@ -223,6 +226,9 @@ public partial class App : Application
 
         _jumpMenu = new MenuItem("停止/恢復隨機跳躍...") { Enabled = false };
         _trayContextMenu.Items.Add(_jumpMenu);
+
+        _clickThroughMenu = new MenuItem("開啟/關閉滑鼠穿透...") { Enabled = false };
+        _trayContextMenu.Items.Add(_clickThroughMenu);
 
         var confineToMonitorItem = new MenuItem("限制角色只能在單一螢幕內移動")
         {
@@ -425,6 +431,15 @@ public partial class App : Application
         _jumpMenu!.DropDownItems.Add(jumpItem);
         _jumpMenu.Enabled = true;
 
+        var clickThroughItem = new MenuItem(window.ClickThrough ? $"{displayName}（點擊以停用穿透）" : $"{displayName}（點擊以啟用穿透）");
+        clickThroughItem.Click += (_, _) => window.ToggleClickThrough();
+        window.ClickThroughChanged += enabled =>
+        {
+            clickThroughItem.Text = enabled ? $"{displayName}（點擊以停用穿透）" : $"{displayName}（點擊以啟用穿透）";
+        };
+        _clickThroughMenu!.DropDownItems.Add(clickThroughItem);
+        _clickThroughMenu.Enabled = true;
+
         var kickItem = new MenuItem(displayName);
         kickItem.Click += (_, _) => KickCharacter(instanceId);
         _aliveMenu!.DropDownItems.Add(kickItem);
@@ -439,7 +454,8 @@ public partial class App : Application
             playSubmenu,
             kickItem,
             stopResumeItem,
-            jumpItem);
+            jumpItem,
+            clickThroughItem);
 
         _instances[instanceId] = instanceData;
 
@@ -458,6 +474,7 @@ public partial class App : Application
             _aliveMenu!.DropDownItems.Remove(data.KickItem);
             _stopResumeMenu!.DropDownItems.Remove(data.StopResumeItem);
             _jumpMenu!.DropDownItems.Remove(data.JumpItem);
+            _clickThroughMenu!.DropDownItems.Remove(data.ClickThroughItem);
         }
 
         if (_instances.Count == 0)
@@ -466,6 +483,7 @@ public partial class App : Application
             _playAnimationMenu!.Enabled = false;
             _stopResumeMenu!.Enabled = false;
             _jumpMenu!.Enabled = false;
+            _clickThroughMenu!.Enabled = false;
             if (IsAllHidden)
             {
                 UnhideAllCharacters();

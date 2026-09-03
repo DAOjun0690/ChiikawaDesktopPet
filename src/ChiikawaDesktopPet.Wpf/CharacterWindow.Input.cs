@@ -16,6 +16,7 @@ public partial class CharacterWindow
 
     private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        if (_clickThrough) return;
         _hasDragged = false;
         _mouseDownScreenPos = PointToScreen(e.GetPosition(this));
         _dragOffset = e.GetPosition(this);
@@ -24,6 +25,7 @@ public partial class CharacterWindow
 
     private void OnMouseMove(object sender, MouseEventArgs e)
     {
+        if (_clickThrough) return;
         if (!IsMouseCaptured) return;
 
         if (!_hasDragged)
@@ -94,6 +96,7 @@ public partial class CharacterWindow
 
     private void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
+        if (_clickThrough) return;
         ReleaseMouseCapture();
         _holdTimer.Stop();
 
@@ -183,6 +186,7 @@ public partial class CharacterWindow
 
     private void OnMouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
+        _isRightButtonDown = false;
         if (_isShuttingDown) return;
         e.Handled = true;
 

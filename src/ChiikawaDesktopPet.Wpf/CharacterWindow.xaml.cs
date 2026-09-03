@@ -88,9 +88,16 @@ public partial class CharacterWindow : Window
         _physicalCharacterHeight = (int)(System.Windows.Forms.Screen.PrimaryScreen!.Bounds.Height / 10);
 
         _config = ConfigLoader.Load(Path.Combine(AppContext.BaseDirectory, "config.json"));
-        if (_config.TryGetValue(CharacterName, out var charConfig) && charConfig.Scale > 0)
+        if (_config.TryGetValue(CharacterName, out var charConfig))
         {
-            ScaleRatio = Math.Clamp(charConfig.Scale, 0.2, 4.0);
+            if (charConfig.Scale > 0)
+            {
+                ScaleRatio = Math.Clamp(charConfig.Scale, 0.2, 4.0);
+            }
+            if (charConfig.Opacity > 0)
+            {
+                PetOpacity = Math.Clamp(charConfig.Opacity, 0.1, 1.0);
+            }
         }
 
         DiscoverOtherAnimations();
@@ -114,7 +121,14 @@ public partial class CharacterWindow : Window
         SourceInitialized += (_, _) =>
         {
             var hwnd = new WindowInteropHelper(this).Handle;
+            Handle = hwnd;
             NativeMethods.MakeToolWindow(hwnd);
+
+            if (_clickThrough)
+            {
+                NativeMethods.SetWindowClickThrough(hwnd, true);
+                ClickThroughManager.Instance.Register(this);
+            }
 
             int typeId = InteractionCoordinator.GetCharacterTypeId(CharacterName);
             NativeMethods.SetProp(hwnd, "ChiikawaDesktopPet_PetType", (IntPtr)typeId);
@@ -127,8 +141,39 @@ public partial class CharacterWindow : Window
         };
     }
 
+    public IntPtr Handle { get; private set; } = IntPtr.Zero;
+
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        if (_clickThrough)
+        {
+            if (msg == NativeMethods.WM_RBUTTONDOWN)
+            {
+                _isRightButtonDown = true;
+            }
+            else if (msg == NativeMethods.WM_RBUTTONUP || msg == NativeMethods.WM_CONTEXTMENU)
+            {
+                _isRightButtonDown = false;
+            }
+
+            if (msg == NativeMethods.WM_NCHITTEST)
+            {
+                bool isRButtonDown = _isRightButtonDown ||
+                                     (NativeMethods.GetKeyState(NativeMethods.VK_RBUTTON) & 0x8000) != 0 ||
+                                     (NativeMethods.GetAsyncKeyState(NativeMethods.VK_RBUTTON) & 0x8000) != 0;
+                if (isRButtonDown)
+                {
+                    handled = true;
+                    return (IntPtr)NativeMethods.HTCLIENT;
+                }
+                else
+                {
+                    handled = true;
+                    return (IntPtr)NativeMethods.HTTRANSPARENT;
+                }
+            }
+        }
+
         if ((uint)msg == InteractionCoordinator.Instance.MessageId)
         {
             int cmd = (int)wParam;
@@ -165,6 +210,7 @@ public partial class CharacterWindow : Window
     {
         LoadStaticSprites();
         DiscoverOtherAnimations();
+        ApplyOpacity();
 
         double startX = initialX ?? (SystemParameters.PrimaryScreenWidth / 2);
         Left = startX;
@@ -190,6 +236,88 @@ public partial class CharacterWindow : Window
         {
             SetSprite(currentSprite);
         }
+    }
+
+    public double PetOpacity { get; private set; } = 1.0;
+    public bool SyncBubbleOpacity { get; private set; } = true;
+    public event Action<double, bool>? OpacityChanged;
+
+    public void SetOpacity(double opacity, bool syncBubble = true)
+    {
+        double clamped = Math.Clamp(opacity, 0.1, 1.0);
+        PetOpacity = clamped;
+        SyncBubbleOpacity = syncBubble;
+        ApplyOpacity();
+        OpacityChanged?.Invoke(PetOpacity, SyncBubbleOpacity);
+    }
+
+    public void ApplyOpacity()
+    {
+        if (SyncBubbleOpacity)
+        {
+            Opacity = PetOpacity;
+            if (SpriteImage != null) SpriteImage.Opacity = 1.0;
+            if (BubbleContainer != null) BubbleContainer.Opacity = 1.0;
+        }
+        else
+        {
+            Opacity = 1.0;
+            if (SpriteImage != null) SpriteImage.Opacity = PetOpacity;
+            if (BubbleContainer != null) BubbleContainer.Opacity = 1.0;
+        }
+    }
+
+    private bool _clickThrough;
+    public bool ClickThrough => _clickThrough;
+    public event Action<bool>? ClickThroughChanged;
+    private bool _isRightButtonDown;
+
+    public void SetClickThrough(bool enabled)
+    {
+        if (_clickThrough == enabled) return;
+        _clickThrough = enabled;
+        _isRightButtonDown = false;
+
+        IntPtr hwnd = Handle != IntPtr.Zero ? Handle : (IsLoaded ? new WindowInteropHelper(this).Handle : IntPtr.Zero);
+        if (hwnd != IntPtr.Zero)
+        {
+            NativeMethods.SetWindowClickThrough(hwnd, enabled);
+        }
+
+        if (enabled)
+        {
+            ClickThroughManager.Instance.Register(this);
+        }
+        else
+        {
+            ClickThroughManager.Instance.Unregister(this);
+        }
+
+        ClickThroughChanged?.Invoke(_clickThrough);
+    }
+
+    public void ToggleClickThrough() => SetClickThrough(!_clickThrough);
+
+    public void TriggerContextMenuFromHook()
+    {
+        if (_isShuttingDown || IsPetHidden) return;
+
+        TalkActionTimer?.Stop();
+        TalkActionTimer = null;
+
+        _idleTimer.Stop();
+        _frameTimer.Stop();
+        double currentTop = Top;
+        double currentLeft = Left;
+        BeginAnimation(TopProperty, null);
+        BeginAnimation(LeftProperty, null);
+        Top = currentTop;
+        Left = currentLeft;
+        _isAnimating = false;
+        _isFalling = false;
+        _loopCurrentAnimation = false;
+
+        ShowContextMenu();
     }
 
     private void LoadStaticSprites()
@@ -492,7 +620,10 @@ public partial class CharacterWindow : Window
             ScaleRatio = ScaleRatio,
             DefaultAnimation = _defaultAnimation,
             RandomAnimationsEnabled = _randomAnimationsEnabled,
-            JumpEnabled = _jumpEnabled
+            JumpEnabled = _jumpEnabled,
+            Opacity = PetOpacity,
+            SyncBubbleOpacity = SyncBubbleOpacity,
+            ClickThrough = _clickThrough
         };
     }
 
@@ -524,6 +655,12 @@ public partial class CharacterWindow : Window
         SetDefaultAnimation(profile.DefaultAnimation);
         SetRandomAnimationsEnabled(profile.RandomAnimationsEnabled);
         SetJumpEnabled(profile.JumpEnabled);
+
+        if (profile.Opacity > 0)
+        {
+            SetOpacity(profile.Opacity, profile.SyncBubbleOpacity);
+        }
+        SetClickThrough(profile.ClickThrough);
     }
 
     // Screen.Bounds/WorkingArea/VirtualScreen are physical pixels, but Window.Top/Left (and
@@ -811,10 +948,15 @@ public partial class CharacterWindow : Window
     public void Shutdown()
     {
         _isShuttingDown = true;
+        ClickThroughManager.Instance.Unregister(this);
         InteractionCoordinator.Instance.UnregisterPet(this);
         var hwnd = new WindowInteropHelper(this).Handle;
         if (hwnd != IntPtr.Zero)
         {
+            if (_clickThrough)
+            {
+                NativeMethods.SetWindowClickThrough(hwnd, false);
+            }
             NativeMethods.RemoveProp(hwnd, "ChiikawaDesktopPet_PetType");
             NativeMethods.RemoveProp(hwnd, "ChiikawaDesktopPet_IsReady");
             NativeMethods.RemoveProp(hwnd, "ChiikawaDesktopPet_TargetX");

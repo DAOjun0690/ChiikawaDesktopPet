@@ -14,6 +14,9 @@ public class CharacterProfileItem
     public string? DefaultAnimation { get; set; }
     public bool RandomAnimationsEnabled { get; set; } = true;
     public bool JumpEnabled { get; set; } = true;
+    public double Opacity { get; set; } = 1.0;
+    public bool SyncBubbleOpacity { get; set; } = true;
+    public bool ClickThrough { get; set; } = false;
 }
 
 public class PetProfile

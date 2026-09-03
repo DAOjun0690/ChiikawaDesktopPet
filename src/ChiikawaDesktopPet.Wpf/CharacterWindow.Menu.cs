@@ -110,6 +110,15 @@ public partial class CharacterWindow
         alwaysShowBubbleItem.Click += (_, _) => SetAlwaysShowBubble(alwaysShowBubbleItem.IsChecked);
         contextMenu.Items.Add(alwaysShowBubbleItem);
 
+        var clickThroughItem = new MenuItem
+        {
+            Header = "滑鼠左鍵穿透",
+            IsCheckable = true,
+            IsChecked = _clickThrough
+        };
+        clickThroughItem.Click += (_, _) => SetClickThrough(clickThroughItem.IsChecked);
+        contextMenu.Items.Add(clickThroughItem);
+
         var setQuoteItem = new MenuItem { Header = "設定對話文字..." };
         setQuoteItem.Click += (_, _) =>
         {
@@ -160,6 +169,55 @@ public partial class CharacterWindow
         scaleMenu.Items.Add(customScaleItem);
         contextMenu.Items.Add(scaleMenu);
 
+        var opacityMenu = new MenuItem { Header = "調整角色透明度" };
+        var presetOpacities = new (string Label, double Opacity)[]
+        {
+            ("100%（預設）", 1.00),
+            ("80%", 0.80),
+            ("60%", 0.60),
+            ("40%", 0.40),
+            ("20%", 0.20)
+        };
+
+        foreach (var (label, op) in presetOpacities)
+        {
+            var item = new MenuItem
+            {
+                Header = label,
+                IsCheckable = true,
+                IsChecked = Math.Abs(PetOpacity - op) < 0.01
+            };
+            double opCopy = op;
+            item.Click += (_, _) => SetOpacity(opCopy, SyncBubbleOpacity);
+            opacityMenu.Items.Add(item);
+        }
+
+        opacityMenu.Items.Add(new Separator());
+
+        var customOpacityItem = new MenuItem { Header = "自訂透明度..." };
+        customOpacityItem.Click += (_, _) =>
+        {
+            double originalOpacity = PetOpacity;
+            bool originalSync = SyncBubbleOpacity;
+
+            var dialog = new OpacityInputDialog(CharacterName, PetOpacity, SyncBubbleOpacity);
+            dialog.PreviewChanged += (previewOp, previewSync) =>
+            {
+                SetOpacity(previewOp, previewSync);
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                SetOpacity(dialog.ResultOpacity, dialog.ResultSyncBubble);
+            }
+            else
+            {
+                SetOpacity(originalOpacity, originalSync);
+            }
+        };
+        opacityMenu.Items.Add(customOpacityItem);
+        contextMenu.Items.Add(opacityMenu);
+
         contextMenu.Items.Add(new Separator());
 
         var sayHiItem = new MenuItem { Header = "打個招呼！" };
@@ -172,6 +230,7 @@ public partial class CharacterWindow
 
         contextMenu.Closed += (_, _) =>
         {
+            _isRightButtonDown = false;
             if (!_isShuttingDown && !_isAnimating && !_isDragging)
             {
                 EnterIdleState();
@@ -179,6 +238,7 @@ public partial class CharacterWindow
         };
 
         ContextMenu = contextMenu;
+        contextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
         contextMenu.IsOpen = true;
     }
 }

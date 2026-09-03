@@ -26,7 +26,10 @@ public class ProfileManagerTests
                     ScaleRatio = 1.25,
                     DefaultAnimation = "dance",
                     RandomAnimationsEnabled = false,
-                    JumpEnabled = true
+                    JumpEnabled = true,
+                    Opacity = 0.6,
+                    SyncBubbleOpacity = false,
+                    ClickThrough = true
                 },
                 new CharacterProfileItem
                 {
@@ -38,7 +41,10 @@ public class ProfileManagerTests
                     ScaleRatio = 0.8,
                     DefaultAnimation = null,
                     RandomAnimationsEnabled = true,
-                    JumpEnabled = false
+                    JumpEnabled = false,
+                    Opacity = 1.0,
+                    SyncBubbleOpacity = true,
+                    ClickThrough = false
                 }
             ]
         };
@@ -63,6 +69,9 @@ public class ProfileManagerTests
         Assert.Equal("dance", c1.DefaultAnimation);
         Assert.False(c1.RandomAnimationsEnabled);
         Assert.True(c1.JumpEnabled);
+        Assert.Equal(0.6, c1.Opacity);
+        Assert.False(c1.SyncBubbleOpacity);
+        Assert.True(c1.ClickThrough);
 
         var c2 = restored.Characters[1];
         Assert.Equal("usagi", c2.CharacterName);
@@ -74,6 +83,9 @@ public class ProfileManagerTests
         Assert.Null(c2.DefaultAnimation);
         Assert.True(c2.RandomAnimationsEnabled);
         Assert.False(c2.JumpEnabled);
+        Assert.Equal(1.0, c2.Opacity);
+        Assert.True(c2.SyncBubbleOpacity);
+        Assert.False(c2.ClickThrough);
     }
 
     [Fact]

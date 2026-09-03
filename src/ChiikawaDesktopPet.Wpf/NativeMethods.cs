@@ -10,6 +10,22 @@ internal static partial class NativeMethods
     private const int GWL_EXSTYLE = -20;
     private const nint WS_EX_TOOLWINDOW = 0x00000080;
     private const nint WS_EX_APPWINDOW = 0x00040000;
+    public const nint WS_EX_TRANSPARENT = 0x00000020;
+
+    public static void SetWindowClickThrough(IntPtr hwnd, bool clickThrough)
+    {
+        if (hwnd == IntPtr.Zero) return;
+        nint exStyle = GetWindowLongPtr(hwnd, GWL_EXSTYLE);
+        if (clickThrough)
+        {
+            exStyle |= WS_EX_TRANSPARENT;
+        }
+        else
+        {
+            exStyle &= ~WS_EX_TRANSPARENT;
+        }
+        SetWindowLongPtr(hwnd, GWL_EXSTYLE, exStyle);
+    }
 
     public const uint GA_ROOT = 2;
     public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
@@ -227,4 +243,45 @@ internal static partial class NativeMethods
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+    public const int WM_NCHITTEST = 0x0084;
+    public const int WM_RBUTTONDOWN = 0x0204;
+    public const int WM_RBUTTONUP = 0x0205;
+    public const int WM_CONTEXTMENU = 0x007B;
+    public const nint HTTRANSPARENT = -1;
+    public const nint HTCLIENT = 1;
+    public const int VK_RBUTTON = 0x02;
+
+    [DllImport("user32.dll")]
+    public static extern short GetKeyState(int nVirtKey);
+
+    [DllImport("user32.dll")]
+    public static extern short GetAsyncKeyState(int nVirtKey);
+
+    public const int WH_MOUSE_LL = 14;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MSLLHOOKSTRUCT
+    {
+        public POINT pt;
+        public uint mouseData;
+        public uint flags;
+        public uint time;
+        public nuint dwExtraInfo;
+    }
+
+    public delegate nint HookProc(int nCode, nint wParam, nint lParam);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr SetWindowsHookEx(int idHook, HookProc lpfn, IntPtr hMod, uint dwThreadId);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool UnhookWindowsHookEx(IntPtr hhk);
+
+    [DllImport("user32.dll")]
+    public static extern nint CallNextHookEx(IntPtr hhk, int nCode, nint wParam, nint lParam);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    public static extern IntPtr GetModuleHandle(string? lpModuleName);
 }
