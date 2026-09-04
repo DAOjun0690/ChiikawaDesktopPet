@@ -23,6 +23,7 @@ public class CharacterQuotesTests
     [InlineData("ketawan2", "汪！汪汪～！（興奮地搖著尾巴晃動）")]
     [InlineData("sky_rapper", "BRO...（從天空中比出大拇指凝視著你）")]
     [InlineData("shisa", "うれシーサー！（好開心獅薩！）")]
+    [InlineData("linedog", "汪汪！今天也要開開心心！（搖尾巴）")]
     public void GetDefaultQuote_KnownCharacters_ReturnsExpectedQuote(string characterName, string expectedQuote)
     {
         string quote = CharacterQuotes.GetDefaultQuote(characterName);

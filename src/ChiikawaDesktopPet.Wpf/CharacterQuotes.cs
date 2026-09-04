@@ -24,7 +24,8 @@ public static class CharacterQuotes
         ["armi"] = "爛成一坨了...不想努力了 (躺平)",
         ["ketawan2"] = "汪！汪汪～！（興奮地搖著尾巴晃動）",
         ["sky_rapper"] = "BRO...（從天空中比出大拇指凝視著你）",
-        ["shisa"] = "うれシーサー！（好開心獅薩！）"
+        ["shisa"] = "うれシーサー！（好開心獅薩！）",
+        ["linedog"] = "汪汪！今天也要開開心心！（搖尾巴）"
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     public static string GetDefaultQuote(string characterName) =>

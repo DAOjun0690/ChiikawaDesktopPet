@@ -220,6 +220,29 @@
       "ramen": { "fps": 12 }
     }
   },
+  "linedog": {
+    "animations": {
+      "walkleft": { "fps": 12 },
+      "walkright": { "fps": 12 },
+      "bounce": { "fps": 12 },
+      "cheer": { "fps": 12 },
+      "peek": { "fps": 10 },
+      "sleep": { "fps": 8 },
+      "freeze": { "fps": 12 },
+      "storm": { "fps": 12 },
+      "cry": { "fps": 12 },
+      "heart": { "fps": 12 },
+      "fever": { "fps": 10 },
+      "stone": { "fps": 10 },
+      "clap": { "fps": 12 },
+      "party": { "fps": 12 },
+      "sunglasses": { "fps": 12 },
+      "angry": { "fps": 10 },
+      "think": { "fps": 10 },
+      "sparkle": { "fps": 12 },
+      "cuddle": { "fps": 12 }
+    }
+  },
   "coanimations": {
     "animations": {
       "chiikawa_momonga": { "fps": 15 }
