@@ -14,10 +14,11 @@ internal static class CharacterRegistry
 {
     public static readonly (string Key, string DisplayName, bool AutoSpawn)[] All =
     [
-        ("hachiware", "Hachiware", true),
-        ("chiikawa", "Chiikawa", true),
-        ("usagi", "Usagi", true),
-        ("momonga", "Momonga", true),
+        ("hachiware", "Hachiware (小八貓)", true),
+        ("chiikawa", "Chiikawa (吉伊卡哇)", true),
+        ("usagi", "Usagi (兔兔烏薩奇)", true),
+        ("momonga", "Momonga (小桃)", true),
+        ("shisa", "Shisa (獅薩)", true),
         ("jokebear", "JokeBear", true),
         ("loverabbit", "LOVE RABBIT", true),
         ("lai", "總統-賴", false),

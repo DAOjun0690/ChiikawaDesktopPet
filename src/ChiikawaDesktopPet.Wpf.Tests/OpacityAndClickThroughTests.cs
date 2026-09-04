@@ -152,4 +152,72 @@ public class OpacityAndClickThroughTests
             dialog.Close();
         });
     }
+
+    [Theory]
+    [InlineData(false, "全部角色啟用穿透")]
+    [InlineData(true, "全部角色停用穿透")]
+    public void GetToggleAllClickThroughDisplayName_ReturnsExpectedText(bool allEnabled, string expected)
+    {
+        Assert.Equal(expected, App.GetToggleAllClickThroughDisplayName(allEnabled));
+    }
+
+    [Fact]
+    public void BatchClickThrough_StateConsistencyAndEvents_WorkCorrectly()
+    {
+        RunInSta(() =>
+        {
+            var w1 = new CharacterWindow("usagi", 1);
+            var w2 = new CharacterWindow("hachiware", 1);
+
+            Assert.False(w1.ClickThrough);
+            Assert.False(w2.ClickThrough);
+
+            var windows = new[] { w1, w2 };
+            bool allEnabled = windows.All(w => w.ClickThrough);
+            Assert.False(allEnabled);
+            Assert.Equal("全部角色啟用穿透", App.GetToggleAllClickThroughDisplayName(allEnabled));
+
+            // Batch enable all
+            foreach (var w in windows) w.SetClickThrough(true);
+            allEnabled = windows.All(w => w.ClickThrough);
+            Assert.True(allEnabled);
+            Assert.Equal("全部角色停用穿透", App.GetToggleAllClickThroughDisplayName(allEnabled));
+
+            // Single window toggles off (mixed state)
+            w1.SetClickThrough(false);
+            allEnabled = windows.All(w => w.ClickThrough);
+            Assert.False(allEnabled);
+            Assert.Equal("全部角色啟用穿透", App.GetToggleAllClickThroughDisplayName(allEnabled));
+
+            // Batch disable all
+            foreach (var w in windows) w.SetClickThrough(false);
+            allEnabled = windows.All(w => w.ClickThrough);
+            Assert.False(allEnabled);
+            Assert.Equal("全部角色啟用穿透", App.GetToggleAllClickThroughDisplayName(allEnabled));
+
+            w1.Close();
+            w2.Close();
+        });
+    }
+
+    [Fact]
+    public void ContextMenu_ClickThroughAndBoundsLifecycle_WorksCorrectly()
+    {
+        RunInSta(() =>
+        {
+            var window = new CharacterWindow("usagi", 1);
+            Assert.False(window.HasOpenContextMenu);
+            Assert.False(window.IsPointInsideContextMenu(new NativeMethods.POINT { X = 100, Y = 100 }));
+
+            // Test setting click-through true
+            window.SetClickThrough(true);
+            Assert.True(window.ClickThrough);
+
+            // ContextMenu initial state
+            Assert.Null(window.ContextMenu);
+            Assert.False(window.HasOpenContextMenu);
+
+            window.Close();
+        });
+    }
 }

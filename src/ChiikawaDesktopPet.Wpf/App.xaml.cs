@@ -3,6 +3,7 @@ using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Windows;
 using System.Windows.Forms;
@@ -84,7 +85,10 @@ public partial class App : Application
         ["beer"] = "來喝一杯",
         ["night"] = "晚安星空",
         ["saikou"] = "太棒了最高",
-        ["shirankedo"] = "雖然我也不清楚啦"
+        ["shirankedo"] = "雖然我也不清楚啦",
+        ["study"] = "認真讀書考照",
+        ["ramen"] = "郎拉麵打工",
+        ["drink"] = "乾杯暢飲"
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     private sealed class CharacterInstanceData(
@@ -132,6 +136,8 @@ public partial class App : Application
     private MenuItem? _stopResumeMenu;
     private MenuItem? _jumpMenu;
     private MenuItem? _clickThroughMenu;
+    private MenuItem? _toggleAllClickThroughItem;
+    private ToolStripSeparator? _clickThroughSeparator;
     private readonly Dictionary<string, int> _characterCounters = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, CharacterInstanceData> _instances = new(StringComparer.OrdinalIgnoreCase);
 
@@ -228,6 +234,11 @@ public partial class App : Application
         _trayContextMenu.Items.Add(_jumpMenu);
 
         _clickThroughMenu = new MenuItem("開啟/關閉滑鼠穿透...") { Enabled = false };
+        _toggleAllClickThroughItem = new MenuItem(GetToggleAllClickThroughDisplayName(false));
+        _toggleAllClickThroughItem.Click += (_, _) => ToggleAllClickThrough();
+        _clickThroughSeparator = new ToolStripSeparator();
+        _clickThroughMenu.DropDownItems.Add(_toggleAllClickThroughItem);
+        _clickThroughMenu.DropDownItems.Add(_clickThroughSeparator);
         _trayContextMenu.Items.Add(_clickThroughMenu);
 
         var confineToMonitorItem = new MenuItem("限制角色只能在單一螢幕內移動")
@@ -436,9 +447,11 @@ public partial class App : Application
         window.ClickThroughChanged += enabled =>
         {
             clickThroughItem.Text = enabled ? $"{displayName}（點擊以停用穿透）" : $"{displayName}（點擊以啟用穿透）";
+            UpdateToggleAllClickThroughText();
         };
         _clickThroughMenu!.DropDownItems.Add(clickThroughItem);
         _clickThroughMenu.Enabled = true;
+        UpdateToggleAllClickThroughText();
 
         var kickItem = new MenuItem(displayName);
         kickItem.Click += (_, _) => KickCharacter(instanceId);
@@ -475,6 +488,7 @@ public partial class App : Application
             _stopResumeMenu!.DropDownItems.Remove(data.StopResumeItem);
             _jumpMenu!.DropDownItems.Remove(data.JumpItem);
             _clickThroughMenu!.DropDownItems.Remove(data.ClickThroughItem);
+            UpdateToggleAllClickThroughText();
         }
 
         if (_instances.Count == 0)
@@ -499,6 +513,28 @@ public partial class App : Application
             KickCharacter(id);
         }
         _characterCounters.Clear();
+    }
+
+    internal static string GetToggleAllClickThroughDisplayName(bool allEnabled) =>
+        allEnabled ? "全部角色停用穿透" : "全部角色啟用穿透";
+
+    public void ToggleAllClickThrough()
+    {
+        if (_instances.Count == 0) return;
+        bool allEnabled = _instances.Values.All(i => i.Window.ClickThrough);
+        bool targetState = !allEnabled;
+        foreach (var instance in _instances.Values)
+        {
+            instance.Window.SetClickThrough(targetState);
+        }
+        UpdateToggleAllClickThroughText();
+    }
+
+    private void UpdateToggleAllClickThroughText()
+    {
+        if (_toggleAllClickThroughItem == null) return;
+        bool allEnabled = _instances.Count > 0 && _instances.Values.All(i => i.Window.ClickThrough);
+        _toggleAllClickThroughItem.Text = GetToggleAllClickThroughDisplayName(allEnabled);
     }
 
     public void HideAllCharacters()

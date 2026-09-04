@@ -244,9 +244,18 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetForegroundWindow(IntPtr hWnd);
+
     public const int WM_NCHITTEST = 0x0084;
+    public const int WM_LBUTTONDOWN = 0x0201;
     public const int WM_RBUTTONDOWN = 0x0204;
     public const int WM_RBUTTONUP = 0x0205;
+    public const int WM_MBUTTONDOWN = 0x0207;
+    public const int WM_NCLBUTTONDOWN = 0x00A1;
+    public const int WM_NCRBUTTONDOWN = 0x00A4;
+    public const int WM_NCMBUTTONDOWN = 0x00A7;
     public const int WM_CONTEXTMENU = 0x007B;
     public const nint HTTRANSPARENT = -1;
     public const nint HTCLIENT = 1;

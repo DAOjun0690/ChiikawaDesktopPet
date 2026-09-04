@@ -207,6 +207,19 @@
       "shirankedo": { "fps": 12 }
     }
   },
+  "shisa": {
+    "animations": {
+      "walkleft": { "fps": 12 },
+      "walkright": { "fps": 12 },
+      "cheer": { "fps": 12 },
+      "study": { "fps": 10 },
+      "eat": { "fps": 12 },
+      "drink": { "fps": 10 },
+      "sleep": { "fps": 8 },
+      "roar": { "fps": 10 },
+      "ramen": { "fps": 12 }
+    }
+  },
   "coanimations": {
     "animations": {
       "chiikawa_momonga": { "fps": 15 }

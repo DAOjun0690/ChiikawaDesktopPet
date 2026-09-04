@@ -1,6 +1,8 @@
 // src/ChiikawaDesktopPet.Wpf/CharacterWindow.Menu.cs
 using System;
+using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Interop;
 
 namespace ChiikawaDesktopPet.Wpf;
 
@@ -228,18 +230,62 @@ public partial class CharacterWindow
         kickItem.Click += (_, _) => KickRequested?.Invoke();
         contextMenu.Items.Add(kickItem);
 
+        ContextMenu = contextMenu;
+        contextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
+
+        IntPtr hwnd = Handle != IntPtr.Zero ? Handle : new WindowInteropHelper(this).Handle;
+        if (hwnd != IntPtr.Zero)
+        {
+            if (ClickThrough)
+            {
+                NativeMethods.SetWindowClickThrough(hwnd, false);
+            }
+            NativeMethods.SetForegroundWindow(hwnd);
+        }
+
+        contextMenu.Opened += (_, _) =>
+        {
+            HasOpenContextMenu = true;
+            var source = (HwndSource?)PresentationSource.FromVisual(contextMenu);
+            ContextMenuHwnd = source?.Handle ?? IntPtr.Zero;
+        };
+
         contextMenu.Closed += (_, _) =>
         {
+            HasOpenContextMenu = false;
+            ContextMenuHwnd = IntPtr.Zero;
             _isRightButtonDown = false;
+            if (ClickThrough)
+            {
+                IntPtr h = Handle != IntPtr.Zero ? Handle : new WindowInteropHelper(this).Handle;
+                if (h != IntPtr.Zero)
+                {
+                    NativeMethods.SetWindowClickThrough(h, true);
+                }
+            }
             if (!_isShuttingDown && !_isAnimating && !_isDragging)
             {
                 EnterIdleState();
             }
         };
 
-        ContextMenu = contextMenu;
-        contextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
+        HasOpenContextMenu = true;
         contextMenu.IsOpen = true;
+    }
+
+    public bool HasOpenContextMenu { get; private set; }
+    public IntPtr ContextMenuHwnd { get; private set; }
+
+    internal bool IsPointInsideContextMenu(NativeMethods.POINT pt)
+    {
+        if (!HasOpenContextMenu) return false;
+
+        if (ContextMenuHwnd != IntPtr.Zero && NativeMethods.GetWindowRect(ContextMenuHwnd, out var rect))
+        {
+            return pt.X >= rect.Left && pt.X <= rect.Right && pt.Y >= rect.Top && pt.Y <= rect.Bottom;
+        }
+
+        return false;
     }
 }
 

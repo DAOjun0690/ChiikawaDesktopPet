@@ -218,4 +218,23 @@ public class ConfigTests
             Assert.Equal(12, BehaviorPlanner.GetFps(result, "sky_rapper", "shirankedo"));
         }
     }
+
+    [Fact]
+    public void ConfigLoader_Load_ShippedConfig_ContainsShisaConfig()
+    {
+        string path = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "ChiikawaDesktopPet.Wpf", "config.default.json");
+        if (File.Exists(path))
+        {
+            var result = ConfigLoader.Load(path);
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "shisa", "walkleft"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "shisa", "walkright"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "shisa", "cheer"));
+            Assert.Equal(10, BehaviorPlanner.GetFps(result, "shisa", "study"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "shisa", "eat"));
+            Assert.Equal(10, BehaviorPlanner.GetFps(result, "shisa", "drink"));
+            Assert.Equal(8, BehaviorPlanner.GetFps(result, "shisa", "sleep"));
+            Assert.Equal(10, BehaviorPlanner.GetFps(result, "shisa", "roar"));
+            Assert.Equal(12, BehaviorPlanner.GetFps(result, "shisa", "ramen"));
+        }
+    }
 }

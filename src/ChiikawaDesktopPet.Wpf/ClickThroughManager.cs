@@ -71,10 +71,39 @@ public sealed class ClickThroughManager
         if (nCode >= 0)
         {
             int msg = (int)wParam;
+            var hookStruct = Marshal.PtrToStructure<NativeMethods.MSLLHOOKSTRUCT>(lParam);
+            var pt = hookStruct.pt;
+
+            // 1. If any registered window has an open context menu and user clicks outside it, dismiss the menu
+            bool isMouseDown = msg is NativeMethods.WM_LBUTTONDOWN or NativeMethods.WM_RBUTTONDOWN or NativeMethods.WM_MBUTTONDOWN
+                or NativeMethods.WM_NCLBUTTONDOWN or NativeMethods.WM_NCRBUTTONDOWN or NativeMethods.WM_NCMBUTTONDOWN;
+
+            if (isMouseDown)
+            {
+                CharacterWindow[] registered;
+                lock (_lock)
+                {
+                    registered = _registeredWindows.ToArray();
+                }
+
+                foreach (var window in registered)
+                {
+                    if (window.HasOpenContextMenu && !window.IsPointInsideContextMenu(pt))
+                    {
+                        window.Dispatcher.BeginInvoke(() =>
+                        {
+                            if (window.ContextMenu != null)
+                            {
+                                window.ContextMenu.IsOpen = false;
+                            }
+                        });
+                    }
+                }
+            }
+
+            // 2. Handle right click to open context menu on a transparent pet window
             if (msg == NativeMethods.WM_RBUTTONDOWN || msg == NativeMethods.WM_RBUTTONUP)
             {
-                var hookStruct = Marshal.PtrToStructure<NativeMethods.MSLLHOOKSTRUCT>(lParam);
-                var pt = hookStruct.pt;
                 var hitWindow = FindHitWindow(pt);
 
                 if (hitWindow != null)

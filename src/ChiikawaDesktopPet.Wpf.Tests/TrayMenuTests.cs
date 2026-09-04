@@ -8,10 +8,11 @@ namespace ChiikawaDesktopPet.Wpf.Tests;
 public class TrayMenuTests
 {
     [Theory]
-    [InlineData("chiikawa", "Chiikawa")]
-    [InlineData("hachiware", "Hachiware")]
-    [InlineData("usagi", "Usagi")]
-    [InlineData("momonga", "Momonga")]
+    [InlineData("chiikawa", "Chiikawa (吉伊卡哇)")]
+    [InlineData("hachiware", "Hachiware (小八貓)")]
+    [InlineData("usagi", "Usagi (兔兔烏薩奇)")]
+    [InlineData("momonga", "Momonga (小桃)")]
+    [InlineData("shisa", "Shisa (獅薩)")]
     [InlineData("jokebear", "JokeBear")]
     [InlineData("loverabbit", "LOVE RABBIT")]
     [InlineData("lai", "總統-賴")]
@@ -91,6 +92,9 @@ public class TrayMenuTests
     [InlineData("night", "晚安星空")]
     [InlineData("saikou", "太棒了最高")]
     [InlineData("shirankedo", "雖然我也不清楚啦")]
+    [InlineData("study", "認真讀書考照")]
+    [InlineData("ramen", "郎拉麵打工")]
+    [InlineData("drink", "乾杯暢飲")]
     public void GetAnimationDisplayName_KnownAnimation_ReturnsExpectedDisplayName(string key, string expectedDisplayName)
     {
         string displayName = App.GetAnimationDisplayName(key);
@@ -105,8 +109,8 @@ public class TrayMenuTests
     }
 
     [Theory]
-    [InlineData("chiikawa", 1, "Chiikawa 1")]
-    [InlineData("chiikawa", 2, "Chiikawa 2")]
+    [InlineData("chiikawa", 1, "Chiikawa (吉伊卡哇) 1")]
+    [InlineData("chiikawa", 2, "Chiikawa (吉伊卡哇) 2")]
     [InlineData("lai", 3, "總統-賴 3")]
     [InlineData("capoo", 10, "貓貓蟲咖波 (Capoo) 10")]
     [InlineData("custom_pet", 5, "custom_pet 5")]
@@ -124,7 +128,7 @@ public class TrayMenuTests
             var window = new CharacterWindow("chiikawa", 3);
             Assert.Equal("chiikawa", window.CharacterName);
             Assert.Equal(3, window.InstanceIndex);
-            Assert.Equal("Chiikawa 3", window.InstanceDisplayName);
+            Assert.Equal("Chiikawa (吉伊卡哇) 3", window.InstanceDisplayName);
             Assert.Equal("chiikawa_3", window.InstanceId);
             window.Close();
         });
