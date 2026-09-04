@@ -19,72 +19,8 @@
       <Link>assets\app_icon.png</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="..\..\assets\optimized\hachiware\**\*.*">
-      <Link>assets\hachiware\%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\..\assets\optimized\chiikawa\**\*.*">
-      <Link>assets\chiikawa\%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\..\assets\optimized\usagi\**\*.*">
-      <Link>assets\usagi\%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\..\assets\optimized\momonga\**\*.*">
-      <Link>assets\momonga\%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\..\assets\optimized\jokebear\**\*.*">
-      <Link>assets\jokebear\%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\..\assets\optimized\loverabbit\**\*.*">
-      <Link>assets\loverabbit\%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\..\assets\optimized\lai\**\*.*">
-      <Link>assets\lai\%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\..\assets\optimized\poro\**\*.*">
-      <Link>assets\poro\%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\..\assets\optimized\pochita\**\*.*">
-      <Link>assets\pochita\%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\..\assets\optimized\capoo\**\*.*">
-      <Link>assets\capoo\%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\..\assets\optimized\chesthair_monkey\**\*.*">
-      <Link>assets\chesthair_monkey\%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\..\assets\optimized\chesthair_goblin\**\*.*">
-      <Link>assets\chesthair_goblin\%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\..\assets\optimized\armi\**\*.*">
-      <Link>assets\armi\%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\..\assets\optimized\ketawan2\**\*.*">
-      <Link>assets\ketawan2\%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\..\assets\optimized\sky_rapper\**\*.*">
-      <Link>assets\sky_rapper\%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\..\assets\optimized\shisa\**\*.*">
-      <Link>assets\shisa\%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\..\assets\coanimations\**\*.*">
-      <Link>assets\coanimations\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    <Content Include="..\..\assets\packs\*.zip">
+      <Link>assets\%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="config.default.json">

@@ -9,6 +9,10 @@
 
   <ItemGroup>
     <PackageReference Include="System.Drawing.Common" Version="10.0.11" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="4.1.1" />
   </ItemGroup>
+
+  <!-- Skip SixLabors commercial license task for MIT open source project -->
+  <Target Name="SixLabors_ValidateLicense" BeforeTargets="CoreCompile" />
 
 </Project>

@@ -21,6 +21,23 @@ public static class SpriteLoader
         bitmap.EndInit();
         bitmap.Freeze();
 
+        return ScaleIfNeeded(bitmap, maxWidth, maxHeight);
+    }
+
+    public static BitmapSource LoadSingle(Stream stream, int maxWidth, int maxHeight)
+    {
+        var bitmap = new BitmapImage();
+        bitmap.BeginInit();
+        bitmap.CacheOption = BitmapCacheOption.OnLoad;
+        bitmap.StreamSource = stream;
+        bitmap.EndInit();
+        bitmap.Freeze();
+
+        return ScaleIfNeeded(bitmap, maxWidth, maxHeight);
+    }
+
+    private static BitmapSource ScaleIfNeeded(BitmapSource bitmap, int maxWidth, int maxHeight)
+    {
         double scale = Math.Min((double)maxWidth / bitmap.PixelWidth, (double)maxHeight / bitmap.PixelHeight);
         if (scale >= 1.0) return bitmap;
 
@@ -51,7 +68,7 @@ public static class SpriteLoader
         return mirrored;
     }
 
-    private static int GetLeadingNumber(string filePath)
+    internal static int GetLeadingNumber(string filePath)
     {
         ReadOnlySpan<char> fileName = Path.GetFileNameWithoutExtension(filePath.AsSpan());
         int dashIndex = fileName.IndexOf('-');

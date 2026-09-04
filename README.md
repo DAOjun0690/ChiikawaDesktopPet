@@ -75,8 +75,9 @@
 
 日後發布 Release 時，將提供以下兩種版本：
 
-* **輕量單檔版**：需本機已安裝 [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)，檔案體積小（約 2 MB，另加約 110 MB 圖檔）。
-* **自包含獨立版**：免安裝 .NET Runtime，開箱即用，總體積約 180 MB。
+* **輕量單檔版**：需本機已安裝 [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)，總體積僅約 **50 MB**（已包含全部 16 位角色與連動動畫之高度壓縮封裝包，相較原本 160MB+ 體積縮減近 70%）。
+* **自包含獨立版**：免安裝 .NET Runtime，開箱即用，總體積約 **110 MB**（原本約 180 MB）。
+* **零磁碟碎檔**：全域 3,000+ 張圖檔已封裝為各角色獨立 `.zip`，WPF 執行時期使用記憶體串流直讀，不殘留磁碟暫存檔，啟動秒開。
 
 ---
 
@@ -160,11 +161,23 @@ flowchart TD
 
 ---
 
-## 🎨 素材優化工具 (Asset Pipeline)
+## 🎨 素材優化與打包工具 (Asset Pipeline)
 
-若需加入新動作或新角色素材，可透過內建的 AssetPipeline 工具進行尺寸縮放與幀率最佳化：
+內建專屬的素材處理管線工具，支援圖檔縮放、跳幀抽樣、8-bit 色盤量化與分角色 Zip 封裝：
+
+### 1. 一鍵全域量化與封裝打包 (--pack)
+將 `assets/optimized/` 中的所有角色與連動動畫自動進行 8-bit RGBA 色盤量化（pngquant / ImageSharp 雙模）並封裝成各角色獨立的 `.zip` 壓縮包（存放於 `assets/packs/`）：
 ```powershell
-dotnet run --project src/ChiikawaDesktopPet.AssetPipeline -- assets/<character> assets/optimized/<character> --max-dimension 320 --frame-stride 2
+dotnet run --project src/ChiikawaDesktopPet.AssetPipeline -- --pack
+```
+> [!NOTE]
+> **雙軌載入機制**：
+> 主程式具備智慧雙軌載入能力——若目錄中存在散檔（如 `assets/chiikawa/`），則優先讀取本地資料夾方便即時改圖與開發除錯；若無散檔則自動載入 `assets/{character}.zip`，達成開發靈活、發布極致輕量的雙重優勢。
+
+### 2. 單一角色素材重取樣與尺寸縮放
+若有外部高解析度序列幀需加入專案，可透過下方指令限制最大長邊並抽幀：
+```powershell
+dotnet run --project src/ChiikawaDesktopPet.AssetPipeline -- <來源路徑> assets/optimized/<角色名稱> --max-dimension 320 --frame-stride 2
 ```
 
 ---

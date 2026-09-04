@@ -19,29 +19,13 @@ public partial class CharacterWindow
 
     private void DiscoverOtherAnimations()
     {
-        string animationsDir = Path.Combine(_assetRoot, "animations");
-        if (!Directory.Exists(animationsDir))
-        {
-            _otherAnimationNames = [];
-            return;
-        }
-
-        var list = new List<string>();
-        foreach (var dir in Directory.EnumerateDirectories(animationsDir))
-        {
-            string name = Path.GetFileName(dir);
-            if (!string.IsNullOrEmpty(name) && !ExcludedAnimationFolders.Contains(name))
-            {
-                list.Add(name);
-            }
-        }
-        _otherAnimationNames = list;
+        _otherAnimationNames = _assetPackage.DiscoverAnimationNames(ExcludedAnimationFolders).ToList();
     }
 
     public IReadOnlyList<string> InPlaceAnimationNames()
     {
         var names = new List<string>(_otherAnimationNames.Count + 1);
-        if (Directory.Exists(Path.Combine(_assetRoot, "animations", "bounce")))
+        if (_assetPackage.HasAnimation("bounce"))
         {
             names.Add("bounce");
         }
@@ -52,7 +36,7 @@ public partial class CharacterWindow
     public IReadOnlyList<string> AllAnimationNames()
     {
         var names = new List<string>(_otherAnimationNames.Count + 4);
-        if (Directory.Exists(Path.Combine(_assetRoot, "animations", "bounce")))
+        if (_assetPackage.HasAnimation("bounce"))
         {
             names.Add("bounce");
         }
@@ -68,18 +52,9 @@ public partial class CharacterWindow
         return names;
     }
 
-    // True if this character can actually play both directions of a left/right pair --
-    // either direction's animation FOLDER existing is enough (GetOrLoadFrames mirrors the
-    // missing side), but a static SPRITE fallback (PlayJump's else-branch, which has no
-    // mirroring) needs BOTH sprites, or the missing direction would throw
-    // KeyNotFoundException the first time it's rolled.
     private bool HasDirectionalCapability(string leftName, string rightName)
     {
-        bool hasEitherFolder = Directory.Exists(Path.Combine(_assetRoot, "animations", leftName)) ||
-                               Directory.Exists(Path.Combine(_assetRoot, "animations", rightName));
-        bool hasBothSprites = File.Exists(Path.Combine(_assetRoot, "sprites", $"{leftName}.png")) &&
-                              File.Exists(Path.Combine(_assetRoot, "sprites", $"{rightName}.png"));
-        return hasEitherFolder || hasBothSprites;
+        return _assetPackage.HasDirectionalCapability(leftName, rightName);
     }
 
     public void PlayAnimationByName(string animationName)
@@ -135,7 +110,7 @@ public partial class CharacterWindow
         }
 
         // Bounce
-        if (Directory.Exists(Path.Combine(_assetRoot, "animations", "bounce")))
+        if (_assetPackage.HasAnimation("bounce"))
         {
             candidateActions.Add(() => PlayAnimationByName("bounce"));
         }
@@ -190,27 +165,25 @@ public partial class CharacterWindow
 
         bool isMirrorable = TryGetMirroredAnimationName(animationName, out string mirroredName);
 
-        // If this direction's own folder is missing, check the OPPOSITE direction before
-        // giving up -- e.g. Chiikawa only has animations/jumpright, no jumpleft.
-        string ownFolder = Path.Combine(_assetRoot, "animations", animationName);
-        bool ownExists = Directory.Exists(ownFolder);
-        string? sourceFolder = ownExists ? ownFolder
-            : isMirrorable ? Path.Combine(_assetRoot, "animations", mirroredName)
-            : null;
+        bool ownExists = _assetPackage.HasAnimation(animationName);
+        bool mirrorExists = isMirrorable && _assetPackage.HasAnimation(mirroredName);
 
-        if (sourceFolder is null || !Directory.Exists(sourceFolder))
+        if (!ownExists && !mirrorExists)
         {
             _frames[animationName] = [];
             return _frames[animationName];
         }
 
-        var sourceFrames = SpriteLoader.LoadFrames(sourceFolder, _physicalCharacterWidth * 4, _physicalCharacterHeight * 4);
+        string sourceAnim = ownExists ? animationName : mirroredName;
+        var sourceFrames = _assetPackage.LoadAnimationFrames(sourceAnim, _physicalCharacterWidth * 4, _physicalCharacterHeight * 4);
         var result = ownExists ? sourceFrames : sourceFrames.ConvertAll(SpriteLoader.Mirror);
         _frames[animationName] = result;
 
-        // Populating both directions from a single decode if mirrored folder doesn't exist on disk
-        if (isMirrorable && !Directory.Exists(Path.Combine(_assetRoot, "animations", mirroredName)))
+        // Populating both directions from a single decode if mirrored animation does not exist
+        if (isMirrorable && !mirrorExists)
+        {
             _frames[mirroredName] = ownExists ? sourceFrames.ConvertAll(SpriteLoader.Mirror) : sourceFrames;
+        }
 
         return result;
     }

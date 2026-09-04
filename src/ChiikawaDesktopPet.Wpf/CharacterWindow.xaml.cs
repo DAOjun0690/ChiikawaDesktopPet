@@ -27,7 +27,7 @@ public partial class CharacterWindow : Window
     private bool _isFalling = true;
     private readonly Dictionary<string, List<BitmapSource>> _frames = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, BitmapSource> _sprites = new(StringComparer.OrdinalIgnoreCase);
-    private readonly string _assetRoot;
+    private readonly CharacterAssetPackage _assetPackage;
 
     private readonly DispatcherTimer _idleTimer = new();
     private readonly DispatcherTimer _frameTimer = new();
@@ -80,7 +80,7 @@ public partial class CharacterWindow : Window
         InstanceIndex = instanceIndex;
         InstanceDisplayName = instanceDisplayName ?? $"{App.GetCharacterDisplayName(CharacterName)} {instanceIndex}";
         InstanceId = $"{CharacterName}_{InstanceIndex}";
-        _assetRoot = Path.Combine(AppContext.BaseDirectory, "assets", CharacterName);
+        _assetPackage = CharacterAssetPackage.Open(CharacterName);
 
         _characterWidth = (int)(SystemParameters.PrimaryScreenWidth / 10);
         _characterHeight = (int)(SystemParameters.PrimaryScreenHeight / 10);
@@ -322,13 +322,10 @@ public partial class CharacterWindow : Window
 
     private void LoadStaticSprites()
     {
-        string spritesDir = Path.Combine(_assetRoot, "sprites");
-        if (!Directory.Exists(spritesDir)) return;
-
-        foreach (var file in Directory.EnumerateFiles(spritesDir, "*.png"))
+        var loaded = _assetPackage.LoadStaticSprites(_physicalCharacterWidth * 4, _physicalCharacterHeight * 4);
+        foreach (var (name, sprite) in loaded)
         {
-            string name = Path.GetFileNameWithoutExtension(file);
-            _sprites[name] = SpriteLoader.LoadSingle(file, _physicalCharacterWidth * 4, _physicalCharacterHeight * 4);
+            _sprites[name] = sprite;
         }
     }
 
@@ -976,5 +973,11 @@ public partial class CharacterWindow : Window
         _bubbleTimer.Stop();
         TalkActionTimer?.Stop();
         Close();
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        _assetPackage.Dispose();
+        base.OnClosed(e);
     }
 }

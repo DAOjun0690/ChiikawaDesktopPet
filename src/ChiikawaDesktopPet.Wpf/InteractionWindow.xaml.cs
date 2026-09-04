@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Windows;
 using System.Windows.Interop;
@@ -46,6 +47,9 @@ public partial class InteractionWindow : Window
             {
                 var list = new List<BitmapSource>();
                 string folder = Path.Combine(AppContext.BaseDirectory, "assets", "coanimations", "chiikawa_momonga");
+                string zipPath = Path.Combine(AppContext.BaseDirectory, "assets", "coanimations.zip");
+                string packsZipPath = Path.Combine(AppContext.BaseDirectory, "assets", "packs", "coanimations.zip");
+
                 if (Directory.Exists(folder))
                 {
                     var files = Directory.EnumerateFiles(folder, "*.png")
@@ -58,13 +62,30 @@ public partial class InteractionWindow : Window
 
                     foreach (var file in files)
                     {
-                        var bmp = new BitmapImage();
-                        bmp.BeginInit();
-                        bmp.UriSource = new Uri(file, UriKind.Absolute);
-                        bmp.CacheOption = BitmapCacheOption.OnLoad;
-                        bmp.EndInit();
-                        bmp.Freeze();
-                        list.Add(bmp);
+                        list.Add(SpriteLoader.LoadSingle(file, int.MaxValue, int.MaxValue));
+                    }
+                }
+                else
+                {
+                    string targetZip = File.Exists(zipPath) ? zipPath : File.Exists(packsZipPath) ? packsZipPath : "";
+                    if (!string.IsNullOrEmpty(targetZip))
+                    {
+                        using var fs = new FileStream(targetZip, FileMode.Open, FileAccess.Read, FileShare.Read);
+                        using var archive = new ZipArchive(fs, ZipArchiveMode.Read);
+                        var entries = archive.Entries
+                            .Where(e => e.FullName.Replace('\\', '/').StartsWith("chiikawa_momonga/", StringComparison.OrdinalIgnoreCase) &&
+                                        e.FullName.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                            .OrderBy(e => SpriteLoader.GetLeadingNumber(e.Name))
+                            .ToList();
+
+                        foreach (var entry in entries)
+                        {
+                            using var s = entry.Open();
+                            using var ms = new MemoryStream();
+                            s.CopyTo(ms);
+                            ms.Position = 0;
+                            list.Add(SpriteLoader.LoadSingle(ms, int.MaxValue, int.MaxValue));
+                        }
                     }
                 }
                 _cachedFrames = list;
