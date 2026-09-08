@@ -97,4 +97,50 @@ public class BossKeyHideTests
         bool received = mainEvent.WaitOne(1000);
         Assert.True(received);
     }
+
+    [Fact]
+    public void CharacterWindow_WhenHidden_EnterIdleStateDoesNotStartFrameTimer()
+    {
+        var thread = new Thread(() =>
+        {
+            var window = new CharacterWindow("chiikawa", 1);
+            window.HidePet();
+            Assert.True(window.IsPetHidden);
+
+            var enterIdleMethod = typeof(CharacterWindow).GetMethod("EnterIdleState", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.NotNull(enterIdleMethod);
+            enterIdleMethod.Invoke(window, null);
+
+            var frameTimerField = typeof(CharacterWindow).GetField("_frameTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.NotNull(frameTimerField);
+            var frameTimer = frameTimerField.GetValue(window) as System.Windows.Threading.DispatcherTimer;
+            Assert.NotNull(frameTimer);
+            Assert.False(frameTimer.IsEnabled);
+
+            window.Shutdown();
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+    }
+
+    [Fact]
+    public void CharacterWindow_HidePet_StopsTimedAnimationTimer()
+    {
+        var thread = new Thread(() =>
+        {
+            var window = new CharacterWindow("chiikawa", 1);
+            window.PlayAnimationByName("bounce");
+            Assert.NotNull(window.TimedAnimationTimer);
+            Assert.True(window.TimedAnimationTimer.IsEnabled);
+
+            window.HidePet();
+            Assert.Null(window.TimedAnimationTimer);
+
+            window.Shutdown();
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+    }
 }

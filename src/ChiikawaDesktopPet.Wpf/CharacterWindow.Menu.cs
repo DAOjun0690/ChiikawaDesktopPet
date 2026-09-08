@@ -263,7 +263,7 @@ public partial class CharacterWindow
                     NativeMethods.SetWindowClickThrough(h, true);
                 }
             }
-            if (!_isShuttingDown && !_isAnimating && !_isDragging)
+            if (!_isShuttingDown && !_isAnimating && !_isDragging && !IsPetHidden)
             {
                 EnterIdleState();
             }

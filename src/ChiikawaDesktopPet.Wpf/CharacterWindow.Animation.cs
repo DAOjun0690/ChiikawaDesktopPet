@@ -126,8 +126,13 @@ public partial class CharacterWindow
         }
     }
 
+    internal DispatcherTimer? TimedAnimationTimer { get; private set; }
+
     private void PlayTimedAnimation(string animationName, int durationMs)
     {
+        TimedAnimationTimer?.Stop();
+        TimedAnimationTimer = null;
+
         _isAnimating = true;
         _loopCurrentAnimation = true;
         PlayFrameSequence(animationName, onComplete: static () => { });
@@ -136,8 +141,16 @@ public partial class CharacterWindow
         timer.Tick += (_, _) =>
         {
             timer.Stop();
-            EnterIdleState();
+            if (TimedAnimationTimer == timer)
+            {
+                TimedAnimationTimer = null;
+            }
+            if (!IsPetHidden && !_isShuttingDown)
+            {
+                EnterIdleState();
+            }
         };
+        TimedAnimationTimer = timer;
         timer.Start();
     }
 

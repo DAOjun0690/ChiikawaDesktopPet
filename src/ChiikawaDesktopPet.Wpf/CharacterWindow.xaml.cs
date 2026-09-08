@@ -84,8 +84,9 @@ public partial class CharacterWindow : Window
 
         _characterWidth = (int)(SystemParameters.PrimaryScreenWidth / 10);
         _characterHeight = (int)(SystemParameters.PrimaryScreenHeight / 10);
-        _physicalCharacterWidth = (int)(System.Windows.Forms.Screen.PrimaryScreen!.Bounds.Width / 10);
-        _physicalCharacterHeight = (int)(System.Windows.Forms.Screen.PrimaryScreen!.Bounds.Height / 10);
+        var primaryScreen = System.Windows.Forms.Screen.PrimaryScreen;
+        _physicalCharacterWidth = (int)((primaryScreen?.Bounds.Width ?? (int)SystemParameters.PrimaryScreenWidth) / 10);
+        _physicalCharacterHeight = (int)((primaryScreen?.Bounds.Height ?? (int)SystemParameters.PrimaryScreenHeight) / 10);
 
         _config = ConfigLoader.Load(Path.Combine(AppContext.BaseDirectory, "config.json"));
         if (_config.TryGetValue(CharacterName, out var charConfig))
@@ -145,64 +146,72 @@ public partial class CharacterWindow : Window
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (_clickThrough)
+        try
         {
-            if (msg == NativeMethods.WM_RBUTTONDOWN)
+            if (_clickThrough)
             {
-                _isRightButtonDown = true;
-            }
-            else if (msg == NativeMethods.WM_RBUTTONUP || msg == NativeMethods.WM_CONTEXTMENU)
-            {
-                _isRightButtonDown = false;
+                if (msg == NativeMethods.WM_RBUTTONDOWN)
+                {
+                    _isRightButtonDown = true;
+                }
+                else if (msg == NativeMethods.WM_RBUTTONUP || msg == NativeMethods.WM_CONTEXTMENU)
+                {
+                    _isRightButtonDown = false;
+                }
+
+                if (msg == NativeMethods.WM_NCHITTEST)
+                {
+                    bool isRButtonDown = _isRightButtonDown ||
+                                         (NativeMethods.GetKeyState(NativeMethods.VK_RBUTTON) & 0x8000) != 0 ||
+                                         (NativeMethods.GetAsyncKeyState(NativeMethods.VK_RBUTTON) & 0x8000) != 0;
+                    if (isRButtonDown)
+                    {
+                        handled = true;
+                        return (IntPtr)NativeMethods.HTCLIENT;
+                    }
+                    else
+                    {
+                        handled = true;
+                        return (IntPtr)NativeMethods.HTTRANSPARENT;
+                    }
+                }
             }
 
-            if (msg == NativeMethods.WM_NCHITTEST)
+            if ((uint)msg == InteractionCoordinator.Instance.MessageId)
             {
-                bool isRButtonDown = _isRightButtonDown ||
-                                     (NativeMethods.GetKeyState(NativeMethods.VK_RBUTTON) & 0x8000) != 0 ||
-                                     (NativeMethods.GetAsyncKeyState(NativeMethods.VK_RBUTTON) & 0x8000) != 0;
-                if (isRButtonDown)
+                int cmd = (int)wParam;
+                switch (cmd)
                 {
-                    handled = true;
-                    return (IntPtr)NativeMethods.HTCLIENT;
-                }
-                else
-                {
-                    handled = true;
-                    return (IntPtr)NativeMethods.HTTRANSPARENT;
+                    case InteractionCoordinator.CMD_QUERY:
+                        handled = true;
+                        return (IntPtr)InteractionCoordinator.GetCharacterTypeId(CharacterName);
+
+                    case InteractionCoordinator.CMD_ENTER_INTERACTION:
+                        handled = true;
+                        EnterInteractionState();
+                        return (IntPtr)1;
+
+                    case InteractionCoordinator.CMD_EXIT_INTERACTION:
+                        handled = true;
+                        int targetX = (int)NativeMethods.GetProp(hwnd, "ChiikawaDesktopPet_TargetX");
+                        int targetY = (int)NativeMethods.GetProp(hwnd, "ChiikawaDesktopPet_TargetY");
+                        ExitInteractionState(new PetPoint(targetX, targetY));
+                        return (IntPtr)1;
+
+                    case InteractionCoordinator.CMD_MOVE_TO:
+                        handled = true;
+                        int moveX = (int)NativeMethods.GetProp(hwnd, "ChiikawaDesktopPet_TargetX");
+                        int moveY = (int)NativeMethods.GetProp(hwnd, "ChiikawaDesktopPet_TargetY");
+                        SmoothMoveTo(new PetPoint(moveX, moveY), null);
+                        return (IntPtr)1;
                 }
             }
         }
-
-        if ((uint)msg == InteractionCoordinator.Instance.MessageId)
+        catch (Exception ex)
         {
-            int cmd = (int)wParam;
-            switch (cmd)
-            {
-                case InteractionCoordinator.CMD_QUERY:
-                    handled = true;
-                    return (IntPtr)InteractionCoordinator.GetCharacterTypeId(CharacterName);
-
-                case InteractionCoordinator.CMD_ENTER_INTERACTION:
-                    handled = true;
-                    EnterInteractionState();
-                    return (IntPtr)1;
-
-                case InteractionCoordinator.CMD_EXIT_INTERACTION:
-                    handled = true;
-                    int targetX = (int)NativeMethods.GetProp(hwnd, "ChiikawaDesktopPet_TargetX");
-                    int targetY = (int)NativeMethods.GetProp(hwnd, "ChiikawaDesktopPet_TargetY");
-                    ExitInteractionState(new PetPoint(targetX, targetY));
-                    return (IntPtr)1;
-
-                case InteractionCoordinator.CMD_MOVE_TO:
-                    handled = true;
-                    int moveX = (int)NativeMethods.GetProp(hwnd, "ChiikawaDesktopPet_TargetX");
-                    int moveY = (int)NativeMethods.GetProp(hwnd, "ChiikawaDesktopPet_TargetY");
-                    SmoothMoveTo(new PetPoint(moveX, moveY), null);
-                    return (IntPtr)1;
-            }
+            CrashLogger.Log(ex, "CharacterWindow.WndProc");
         }
+
         return IntPtr.Zero;
     }
 
@@ -464,11 +473,14 @@ public partial class CharacterWindow : Window
 
     private void ClampToScreen()
     {
+        if (IsPetHidden || _isShuttingDown) return;
         if (IsLoaded && !_isFalling && !_isDragging)
         {
             double dipScale = GetDipScale();
             var screenPoint = new System.Drawing.Point((int)(Left / dipScale), (int)(Top / dipScale));
-            var workingArea = System.Windows.Forms.Screen.FromPoint(screenPoint).WorkingArea;
+            var primary = System.Windows.Forms.Screen.PrimaryScreen;
+            var screen = (primary != null) ? System.Windows.Forms.Screen.FromPoint(screenPoint) : null;
+            var workingArea = screen?.WorkingArea ?? new System.Drawing.Rectangle(0, 0, (int)SystemParameters.PrimaryScreenWidth, (int)SystemParameters.PrimaryScreenHeight);
             var bounds = new PetBounds(
                 (int)(workingArea.Left * dipScale),
                 (int)(workingArea.Top * dipScale),
@@ -662,8 +674,12 @@ public partial class CharacterWindow : Window
 
     // Screen.Bounds/WorkingArea/VirtualScreen are physical pixels, but Window.Top/Left (and
     // everything BehaviorPlanner computes) are WPF DIPs. Convert using the primary screen's ratio.
-    private static double GetDipScale() =>
-        SystemParameters.PrimaryScreenWidth / System.Windows.Forms.Screen.PrimaryScreen!.Bounds.Width;
+    private static double GetDipScale()
+    {
+        var primary = System.Windows.Forms.Screen.PrimaryScreen;
+        if (primary == null || primary.Bounds.Width <= 0) return 1.0;
+        return SystemParameters.PrimaryScreenWidth / primary.Bounds.Width;
+    }
 
     // The full multi-monitor virtual desktop's horizontal extent, in DIPs.
     private static (int MinX, int MaxX) GetVirtualDesktopXBoundsInDips()
@@ -687,12 +703,16 @@ public partial class CharacterWindow : Window
         if (!ConfineToCurrentMonitor) return GetVirtualDesktopXBoundsInDips();
 
         var screenPoint = new System.Drawing.Point((int)(Left / scale), (int)(Top / scale));
-        var bounds = System.Windows.Forms.Screen.FromPoint(screenPoint).Bounds;
+        var primary = System.Windows.Forms.Screen.PrimaryScreen;
+        var screen = (primary != null) ? System.Windows.Forms.Screen.FromPoint(screenPoint) : null;
+        var bounds = screen?.Bounds ?? new System.Drawing.Rectangle(0, 0, (int)SystemParameters.PrimaryScreenWidth, (int)SystemParameters.PrimaryScreenHeight);
         return ((int)(bounds.Left * scale), (int)(bounds.Right * scale));
     }
 
     private void EnterIdleState()
     {
+        if (IsPetHidden || _isShuttingDown) return;
+
         TalkActionTimer?.Stop();
         TalkActionTimer = null;
         _isAnimating = false;
@@ -875,8 +895,10 @@ public partial class CharacterWindow : Window
 
         double dipScale = GetDipScale();
         var screenPoint = new System.Drawing.Point((int)(reappearPos.X / dipScale), (int)(reappearPos.Y / dipScale));
-        var screen = System.Windows.Forms.Screen.FromPoint(screenPoint);
-        Top = (screen.WorkingArea.Bottom * dipScale) - Height;
+        var primary = System.Windows.Forms.Screen.PrimaryScreen;
+        var screen = (primary != null) ? System.Windows.Forms.Screen.FromPoint(screenPoint) : null;
+        var bottom = screen?.WorkingArea.Bottom ?? (int)SystemParameters.PrimaryScreenHeight;
+        Top = (bottom * dipScale) - Height;
 
         ClampToScreen();
     }
@@ -907,6 +929,14 @@ public partial class CharacterWindow : Window
         _bubbleTimer.Stop();
         TalkActionTimer?.Stop();
         TalkActionTimer = null;
+        TimedAnimationTimer?.Stop();
+        TimedAnimationTimer = null;
+
+        _isAnimating = false;
+        _isWalking = false;
+        _isJumping = false;
+        _isFalling = false;
+        _loopCurrentAnimation = false;
 
         BeginAnimation(LeftProperty, null);
         BeginAnimation(TopProperty, null);

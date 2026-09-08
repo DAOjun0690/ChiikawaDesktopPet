@@ -71,7 +71,9 @@ public partial class CharacterWindow
         // whichever monitor is under the candidate point instead, so dragging onto a
         // second monitor doesn't get pulled back onto the primary one.
         var screenPoint = new System.Drawing.Point((int)(candidate.X / dipScale), (int)(candidate.Y / dipScale));
-        var workingArea = System.Windows.Forms.Screen.FromPoint(screenPoint).WorkingArea;
+        var primary = System.Windows.Forms.Screen.PrimaryScreen;
+        var screen = (primary != null) ? System.Windows.Forms.Screen.FromPoint(screenPoint) : null;
+        var workingArea = screen?.WorkingArea ?? new System.Drawing.Rectangle(0, 0, (int)SystemParameters.PrimaryScreenWidth, (int)SystemParameters.PrimaryScreenHeight);
 
         // Same DIP/physical-pixel mismatch as FallTo -- see GetDipScale's comment for why.
         var bounds = new PetBounds(

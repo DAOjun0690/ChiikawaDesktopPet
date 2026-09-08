@@ -1,5 +1,6 @@
 // src/ChiikawaDesktopPet.Wpf/CharacterWindow.Movement.cs
 using System;
+using System.Windows;
 using System.Windows.Media.Animation;
 using ChiikawaDesktopPet.Core;
 
@@ -142,10 +143,11 @@ public partial class CharacterWindow
         // or a landing point off that monitor.
         double dipScale = GetDipScale();
         var screenPoint = new System.Drawing.Point((int)(Left / dipScale), (int)(Top / dipScale));
-        var screen = System.Windows.Forms.Screen.FromPoint(screenPoint);
+        var primary = System.Windows.Forms.Screen.PrimaryScreen;
+        var screen = (primary != null) ? System.Windows.Forms.Screen.FromPoint(screenPoint) : null;
 
-        int screenHeight = (int)(screen.Bounds.Bottom * dipScale);
-        int landingY = (int)(screen.WorkingArea.Bottom * dipScale);
+        int screenHeight = (int)((screen?.Bounds.Bottom ?? (int)SystemParameters.PrimaryScreenHeight) * dipScale);
+        int landingY = (int)((screen?.WorkingArea.Bottom ?? (int)SystemParameters.PrimaryScreenHeight) * dipScale);
 
         var outcome = BehaviorPlanner.PlanFall(
             currentPos,
@@ -253,8 +255,9 @@ public partial class CharacterWindow
         var (minX, maxX) = GetWalkJumpXBoundsInDips();
         double dipScale = GetDipScale();
         var screenPoint = new System.Drawing.Point((int)(Left / dipScale), (int)(Top / dipScale));
-        var screen = System.Windows.Forms.Screen.FromPoint(screenPoint);
-        int landingY = (int)(screen.WorkingArea.Bottom * dipScale);
+        var primary = System.Windows.Forms.Screen.PrimaryScreen;
+        var screen = (primary != null) ? System.Windows.Forms.Screen.FromPoint(screenPoint) : null;
+        int landingY = (int)((screen?.WorkingArea.Bottom ?? (int)SystemParameters.PrimaryScreenHeight) * dipScale);
 
         int planMinX = minX;
         int planMaxX = maxX;

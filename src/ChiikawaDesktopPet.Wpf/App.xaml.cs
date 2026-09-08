@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Interop;
@@ -144,6 +145,7 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        SetupGlobalExceptionHandling();
 
         bool isFirstInstance;
         Mutex? mutex = null;
@@ -341,12 +343,49 @@ public partial class App : Application
         SpawnCharacter(initialCharacter);
     }
 
+    private void SetupGlobalExceptionHandling()
+    {
+        DispatcherUnhandledException += (s, args) =>
+        {
+            CrashLogger.Log(args.Exception, "App.DispatcherUnhandledException");
+            // If this is a PresentationCore render thread / D3D device lost OutOfMemoryException (e.g. during screen lock or sleep), mark handled to avoid process crash
+            if (args.Exception is OutOfMemoryException && string.Equals(args.Exception.Source, "PresentationCore", StringComparison.OrdinalIgnoreCase))
+            {
+                args.Handled = true;
+                return;
+            }
+            // General UI exceptions: keep the app alive if possible
+            args.Handled = true;
+        };
+
+        AppDomain.CurrentDomain.UnhandledException += (s, args) =>
+        {
+            if (args.ExceptionObject is Exception ex)
+            {
+                CrashLogger.Log(ex, "AppDomain.UnhandledException");
+            }
+        };
+
+        TaskScheduler.UnobservedTaskException += (s, args) =>
+        {
+            CrashLogger.Log(args.Exception, "TaskScheduler.UnobservedTaskException");
+            args.SetObserved();
+        };
+    }
+
     private IntPtr HotkeyWndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg == NativeMethods.WM_HOTKEY && wParam.ToInt32() == HOTKEY_ID)
+        try
         {
-            HideAllCharacters();
-            handled = true;
+            if (msg == NativeMethods.WM_HOTKEY && wParam.ToInt32() == HOTKEY_ID)
+            {
+                HideAllCharacters();
+                handled = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            CrashLogger.Log(ex, "App.HotkeyWndProc");
         }
         return IntPtr.Zero;
     }
@@ -542,6 +581,9 @@ public partial class App : Application
         if (IsAllHidden) return;
         IsAllHidden = true;
 
+        InteractionCoordinator.Instance.PauseScanning();
+        ClickThroughManager.Instance.PauseHook();
+
         foreach (var instance in _instances.Values)
         {
             instance.Window.HidePet();
@@ -572,6 +614,9 @@ public partial class App : Application
         {
             instance.Window.ShowPet();
         }
+
+        ClickThroughManager.Instance.ResumeHook();
+        InteractionCoordinator.Instance.ResumeScanning();
     }
 
     public static void HideAllCharactersStatic() => (Current as App)?.HideAllCharacters();

@@ -25,6 +25,21 @@ public sealed class InteractionCoordinator
     private DateTime _lastTriggerTime = DateTime.MinValue;
     private bool _isInteractionPlaying;
 
+    public bool IsScanningActive => _scanTimer.IsEnabled;
+
+    public void PauseScanning()
+    {
+        _scanTimer.Stop();
+    }
+
+    public void ResumeScanning()
+    {
+        if (!_scanTimer.IsEnabled)
+        {
+            _scanTimer.Start();
+        }
+    }
+
     public InteractionCoordinator()
     {
         MessageId = NativeMethods.RegisterWindowMessage("ChiikawaDesktopPet_InterProcessCoordination");
@@ -68,10 +83,10 @@ public sealed class InteractionCoordinator
         var result = new List<PetCandidate>();
         var localHwnds = new HashSet<IntPtr>();
 
-        // 1. Add all local pets
+        // 1. Add all local pets (ignoring hidden or unloaded ones)
         foreach (var pet in _localPets)
         {
-            if (!pet.IsLoaded) continue;
+            if (!pet.IsLoaded || pet.IsPetHidden) continue;
             var hwnd = new WindowInteropHelper(pet).Handle;
             if (hwnd != IntPtr.Zero)
             {
@@ -94,38 +109,49 @@ public sealed class InteractionCoordinator
         // 2. Discover remote pets in other processes via EnumWindows
         NativeMethods.EnumWindows((hWnd, _) =>
         {
-            if (localHwnds.Contains(hWnd)) return true;
-            if (!NativeMethods.IsWindow(hWnd) || !NativeMethods.IsWindowVisible(hWnd)) return true;
-
-            IntPtr typeProp = NativeMethods.GetProp(hWnd, "ChiikawaDesktopPet_PetType");
-            int typeId = (int)typeProp;
-            if (typeId <= 0) return true;
-
-            string? charName = GetCharacterNameFromTypeId(typeId);
-            if (string.IsNullOrEmpty(charName)) return true;
-
-            if (NativeMethods.TryGetWindowBounds(hWnd, out var rect))
+            try
             {
-                double dipScale = SystemParameters.PrimaryScreenWidth / System.Windows.Forms.Screen.PrimaryScreen!.Bounds.Width;
-                int leftDip = (int)(rect.Left * dipScale);
-                int topDip = (int)(rect.Top * dipScale);
-                int widthDip = (int)(rect.Width * dipScale);
-                int heightDip = (int)(rect.Height * dipScale);
+                if (localHwnds.Contains(hWnd)) return true;
+                if (!NativeMethods.IsWindow(hWnd) || !NativeMethods.IsWindowVisible(hWnd)) return true;
 
-                IntPtr readyProp = NativeMethods.GetProp(hWnd, "ChiikawaDesktopPet_IsReady");
-                bool isReady = readyProp == (IntPtr)1;
+                IntPtr typeProp = NativeMethods.GetProp(hWnd, "ChiikawaDesktopPet_PetType");
+                int typeId = (int)typeProp;
+                if (typeId <= 0) return true;
 
-                result.Add(new PetCandidate
+                string? charName = GetCharacterNameFromTypeId(typeId);
+                if (string.IsNullOrEmpty(charName)) return true;
+
+                if (NativeMethods.TryGetWindowBounds(hWnd, out var rect))
                 {
-                    Hwnd = hWnd,
-                    CharacterName = charName,
-                    IsLocal = false,
-                    LocalWindow = null,
-                    Position = new PetPoint(leftDip, topDip),
-                    Width = widthDip,
-                    Height = heightDip,
-                    IsReady = isReady
-                });
+                    var primaryScreen = System.Windows.Forms.Screen.PrimaryScreen;
+                    double dipScale = (primaryScreen != null && primaryScreen.Bounds.Width > 0)
+                        ? SystemParameters.PrimaryScreenWidth / primaryScreen.Bounds.Width
+                        : 1.0;
+
+                    int leftDip = (int)(rect.Left * dipScale);
+                    int topDip = (int)(rect.Top * dipScale);
+                    int widthDip = (int)(rect.Width * dipScale);
+                    int heightDip = (int)(rect.Height * dipScale);
+
+                    IntPtr readyProp = NativeMethods.GetProp(hWnd, "ChiikawaDesktopPet_IsReady");
+                    bool isReady = readyProp == (IntPtr)1;
+
+                    result.Add(new PetCandidate
+                    {
+                        Hwnd = hWnd,
+                        CharacterName = charName,
+                        IsLocal = false,
+                        LocalWindow = null,
+                        Position = new PetPoint(leftDip, topDip),
+                        Width = widthDip,
+                        Height = heightDip,
+                        IsReady = isReady
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                CrashLogger.Log(ex, "InteractionCoordinator.EnumWindows");
             }
 
             return true;
@@ -144,6 +170,7 @@ public sealed class InteractionCoordinator
 
     private void OnScanTimerTick(object? sender, EventArgs e)
     {
+        if (App.IsAllHidden) return;
         if (_isInteractionPlaying) return;
         if (InteractionPlanner.IsCooldownActive(_lastTriggerTime, DateTime.UtcNow, InteractionPlanner.DefaultCooldown)) return;
 
@@ -262,10 +289,15 @@ public sealed class InteractionCoordinator
             SendRemoteEnterInteraction(momonga.Hwnd);
         }
 
-        // Calculate screen bounds
-        double dipScale = SystemParameters.PrimaryScreenWidth / System.Windows.Forms.Screen.PrimaryScreen!.Bounds.Width;
+        // Calculate screen bounds safely
+        var primary = System.Windows.Forms.Screen.PrimaryScreen;
+        double dipScale = (primary != null && primary.Bounds.Width > 0)
+            ? SystemParameters.PrimaryScreenWidth / primary.Bounds.Width
+            : 1.0;
         var screenPoint = new System.Drawing.Point((int)(chiikawa.Position.X / dipScale), (int)(chiikawa.Position.Y / dipScale));
-        var workingArea = System.Windows.Forms.Screen.FromPoint(screenPoint).WorkingArea;
+        var workingArea = (primary != null)
+            ? System.Windows.Forms.Screen.FromPoint(screenPoint).WorkingArea
+            : new System.Drawing.Rectangle(0, 0, (int)SystemParameters.PrimaryScreenWidth, (int)SystemParameters.PrimaryScreenHeight);
         var bounds = new PetBounds(
             (int)(workingArea.Left * dipScale),
             (int)(workingArea.Top * dipScale),

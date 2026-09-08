@@ -22,12 +22,36 @@ public sealed class ClickThroughManager
     {
     }
 
+    private bool _isPaused;
+    public bool IsHookActive => _hookHandle != IntPtr.Zero;
+
+    public void PauseHook()
+    {
+        lock (_lock)
+        {
+            _isPaused = true;
+            UninstallHook();
+        }
+    }
+
+    public void ResumeHook()
+    {
+        lock (_lock)
+        {
+            _isPaused = false;
+            if (_registeredWindows.Count > 0 && _hookHandle == IntPtr.Zero)
+            {
+                InstallHook();
+            }
+        }
+    }
+
     public void Register(CharacterWindow window)
     {
         lock (_lock)
         {
             _registeredWindows.Add(window);
-            if (_hookHandle == IntPtr.Zero)
+            if (!_isPaused && _hookHandle == IntPtr.Zero)
             {
                 InstallHook();
             }
@@ -68,57 +92,64 @@ public sealed class ClickThroughManager
 
     private nint MouseHookCallback(int nCode, nint wParam, nint lParam)
     {
-        if (nCode >= 0)
+        if (nCode >= 0 && lParam != IntPtr.Zero)
         {
-            int msg = (int)wParam;
-            var hookStruct = Marshal.PtrToStructure<NativeMethods.MSLLHOOKSTRUCT>(lParam);
-            var pt = hookStruct.pt;
-
-            // 1. If any registered window has an open context menu and user clicks outside it, dismiss the menu
-            bool isMouseDown = msg is NativeMethods.WM_LBUTTONDOWN or NativeMethods.WM_RBUTTONDOWN or NativeMethods.WM_MBUTTONDOWN
-                or NativeMethods.WM_NCLBUTTONDOWN or NativeMethods.WM_NCRBUTTONDOWN or NativeMethods.WM_NCMBUTTONDOWN;
-
-            if (isMouseDown)
+            try
             {
-                CharacterWindow[] registered;
-                lock (_lock)
+                int msg = (int)wParam;
+                var hookStruct = Marshal.PtrToStructure<NativeMethods.MSLLHOOKSTRUCT>(lParam);
+                var pt = hookStruct.pt;
+
+                // 1. If any registered window has an open context menu and user clicks outside it, dismiss the menu
+                bool isMouseDown = msg is NativeMethods.WM_LBUTTONDOWN or NativeMethods.WM_RBUTTONDOWN or NativeMethods.WM_MBUTTONDOWN
+                    or NativeMethods.WM_NCLBUTTONDOWN or NativeMethods.WM_NCRBUTTONDOWN or NativeMethods.WM_NCMBUTTONDOWN;
+
+                if (isMouseDown)
                 {
-                    registered = _registeredWindows.ToArray();
+                    CharacterWindow[] registered;
+                    lock (_lock)
+                    {
+                        registered = _registeredWindows.ToArray();
+                    }
+
+                    foreach (var window in registered)
+                    {
+                        if (window.HasOpenContextMenu && !window.IsPointInsideContextMenu(pt))
+                        {
+                            window.Dispatcher.BeginInvoke(() =>
+                            {
+                                if (window.ContextMenu != null)
+                                {
+                                    window.ContextMenu.IsOpen = false;
+                                }
+                            });
+                        }
+                    }
                 }
 
-                foreach (var window in registered)
+                // 2. Handle right click to open context menu on a transparent pet window
+                if (msg == NativeMethods.WM_RBUTTONDOWN || msg == NativeMethods.WM_RBUTTONUP)
                 {
-                    if (window.HasOpenContextMenu && !window.IsPointInsideContextMenu(pt))
+                    var hitWindow = FindHitWindow(pt);
+
+                    if (hitWindow != null)
                     {
-                        window.Dispatcher.BeginInvoke(() =>
+                        if (msg == NativeMethods.WM_RBUTTONUP)
                         {
-                            if (window.ContextMenu != null)
+                            hitWindow.Dispatcher.BeginInvoke(() =>
                             {
-                                window.ContextMenu.IsOpen = false;
-                            }
-                        });
+                                hitWindow.TriggerContextMenuFromHook();
+                            });
+                        }
+
+                        // Block the right-click from reaching underlying windows
+                        return 1;
                     }
                 }
             }
-
-            // 2. Handle right click to open context menu on a transparent pet window
-            if (msg == NativeMethods.WM_RBUTTONDOWN || msg == NativeMethods.WM_RBUTTONUP)
+            catch (Exception ex)
             {
-                var hitWindow = FindHitWindow(pt);
-
-                if (hitWindow != null)
-                {
-                    if (msg == NativeMethods.WM_RBUTTONUP)
-                    {
-                        hitWindow.Dispatcher.BeginInvoke(() =>
-                        {
-                            hitWindow.TriggerContextMenuFromHook();
-                        });
-                    }
-
-                    // Block the right-click from reaching underlying windows
-                    return 1;
-                }
+                CrashLogger.Log(ex, "ClickThroughManager.MouseHookCallback");
             }
         }
 
