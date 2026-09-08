@@ -67,6 +67,27 @@ public partial class CharacterWindow
             (int)(cursor.X * dipScale - _dragOffset.X),
             (int)(cursor.Y * dipScale - _dragOffset.Y));
 
+        if (BubbleContainer.Visibility == Visibility.Visible && HasCustomText)
+        {
+            double bubbleH = BubbleContainer.ActualHeight > 0 ? BubbleContainer.ActualHeight : BubbleContainer.DesiredSize.Height;
+            if (bubbleH <= 0)
+            {
+                BubbleContainer.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                bubbleH = BubbleContainer.DesiredSize.Height;
+            }
+
+            double candidateCharHeadTop = (CurrentBubblePlacement == SpeechBubblePlacement.Top)
+                ? (candidate.Y + bubbleH)
+                : candidate.Y;
+
+            double deltaY = UpdateBubblePlacement(bubbleH, candidateCharHeadTop);
+            if (deltaY != 0)
+            {
+                _dragOffset.Y -= deltaY;
+                candidate = new PetPoint(candidate.X, candidate.Y + (int)deltaY);
+            }
+        }
+
         // SystemParameters.WorkArea always reflects the PRIMARY monitor. Clamp against
         // whichever monitor is under the candidate point instead, so dragging onto a
         // second monitor doesn't get pulled back onto the primary one.

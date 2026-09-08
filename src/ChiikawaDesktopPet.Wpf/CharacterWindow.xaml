@@ -19,7 +19,7 @@
               Grid.Row="0"
               HorizontalAlignment="Center"
               Visibility="Collapsed"
-              Margin="10,8,10,8">
+              Margin="10,12,10,8">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -46,17 +46,22 @@
                     BorderThickness="1.8"
                     CornerRadius="10"
                     Padding="12,7"
-                    MaxWidth="320">
+                    MaxWidth="360">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="6" ShadowDepth="2" Opacity="0.3" Direction="270" />
                 </Border.Effect>
-                <TextBlock x:Name="BubbleText"
-                           TextWrapping="Wrap"
-                           FontSize="12.5"
-                           FontFamily="Microsoft JhengHei, Segoe UI, sans-serif"
-                           FontWeight="Bold"
-                           Foreground="#2B2B2B"
-                           TextAlignment="Center" />
+                <ScrollViewer x:Name="BubbleScrollViewer"
+                              MaxHeight="450"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <TextBlock x:Name="BubbleText"
+                               TextWrapping="Wrap"
+                               FontSize="12.5"
+                               FontFamily="Microsoft JhengHei, Segoe UI, sans-serif"
+                               FontWeight="Normal"
+                               Foreground="#2B2B2B"
+                               TextAlignment="Center" />
+                </ScrollViewer>
             </Border>
 
             <!-- Pointer Triangle pointing down to the character (when bubble is placed above character) -->

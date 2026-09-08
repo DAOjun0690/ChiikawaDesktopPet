@@ -3,127 +3,319 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="設定對話文字"
-        Width="410"
-        SizeToContent="Height"
+        Width="820"
+        Height="580"
+        MinWidth="740"
+        MinHeight="500"
         WindowStartupLocation="CenterScreen"
-        ResizeMode="NoResize"
-        ShowInTaskbar="False"
+        ResizeMode="CanResizeWithGrip"
+        ShowInTaskbar="True"
         Background="#FAFAFA"
         FontFamily="Microsoft JhengHei, Segoe UI, sans-serif"
         WindowStyle="SingleBorderWindow">
     <Window.Resources>
         <Style TargetType="Button">
-            <Setter Property="Padding" Value="12,5" />
-            <Setter Property="Margin" Value="4,0" />
+            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="Margin" Value="2,0" />
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
+        <Style x:Key="ToolbarButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="6,3" />
+            <Setter Property="Margin" Value="2,1" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Background" Value="#F2F3F5" />
+            <Setter Property="BorderBrush" Value="#D0D4DC" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
         <Style TargetType="RadioButton">
-            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontSize" Value="12" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
     </Window.Resources>
-    <Grid Margin="18">
+
+    <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
+        <!-- Top Prompt -->
         <TextBlock x:Name="PromptLabel"
                    Grid.Row="0"
-                   Text="請輸入角色頭頂對話框要顯示的文字："
+                   Text="請輸入角色頭頂對話框要顯示的文字（支援 Markdown 與圖片語法）："
                    FontSize="13"
                    FontWeight="SemiBold"
-                   Foreground="#333333" />
+                   Foreground="#333333"
+                   Margin="0,0,0,10" />
 
-        <TextBox x:Name="InputTextBox"
-                 Grid.Row="1"
-                 Margin="0,10,0,8"
-                 Padding="8,8"
-                 FontSize="{Binding Value, ElementName=FontSizeSlider}"
-                 MinHeight="90"
-                 MaxHeight="180"
-                 MaxLength="300"
-                 AcceptsReturn="True"
-                 TextWrapping="Wrap"
-                 VerticalScrollBarVisibility="Auto"
-                 VerticalContentAlignment="Top"
-                 BorderBrush="#CCCCCC"
-                 BorderThickness="1"
-                 PreviewKeyDown="OnInputTextBoxPreviewKeyDown" />
+        <!-- Center 2-Column Split: Left Editor, Right Live Preview -->
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.15*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="1*" />
+            </Grid.ColumnDefinitions>
 
-        <!-- Alignment Selector & Hint -->
-        <DockPanel Grid.Row="2" Margin="0,0,0,10" LastChildFill="False">
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
-                <TextBlock Text="文字對齊："
-                           FontSize="12.5"
-                           FontWeight="SemiBold"
-                           Foreground="#555555"
-                           VerticalAlignment="Center"
-                           Margin="0,0,6,0" />
-                <RadioButton x:Name="AlignLeftRadio"
-                             Content="靠左"
-                             GroupName="TextAlignmentGroup"
-                             Margin="0,0,10,0" />
-                <RadioButton x:Name="AlignCenterRadio"
-                             Content="置中"
-                             GroupName="TextAlignmentGroup"
-                             IsChecked="True"
-                             Margin="0,0,10,0" />
-                <RadioButton x:Name="AlignRightRadio"
-                             Content="靠右"
-                             GroupName="TextAlignmentGroup" />
-            </StackPanel>
+            <!-- Left: Edit Panel -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
 
-            <TextBlock DockPanel.Dock="Right"
-                       Text="(Ctrl+Enter 送出)"
-                       FontSize="11"
-                       Foreground="#888888"
-                       VerticalAlignment="Center" />
-        </DockPanel>
+                <!-- Formatting Toolbar -->
+                <WrapPanel Grid.Row="0" Margin="0,0,0,6">
+                    <Button Style="{StaticResource ToolbarButtonStyle}" Content="B 粗體" FontWeight="Bold" Click="OnBoldClicked" ToolTip="粗體 (**文字**)" />
+                    <Button Style="{StaticResource ToolbarButtonStyle}" Content="I 斜體" FontStyle="Italic" Click="OnItalicClicked" ToolTip="斜體 (*文字*)" />
+                    <Button Style="{StaticResource ToolbarButtonStyle}" Content="S 刪除線" Click="OnStrikethroughClicked" ToolTip="刪除線 (~~文字~~)" />
+                    <Button Style="{StaticResource ToolbarButtonStyle}" Content="H 標題" Click="OnHeadingClicked" ToolTip="三級標題 (### 標題)" />
+                    <Button Style="{StaticResource ToolbarButtonStyle}" Content="• 清單" Click="OnListClicked" ToolTip="項目清單 (- 項目)" />
+                    <Button x:Name="TaskListButton" Style="{StaticResource ToolbarButtonStyle}" Content="☑ 待辦" Click="OnTaskListClicked" ToolTip="待辦清單 (- [ ] 項目)" />
+                    <Button Style="{StaticResource ToolbarButtonStyle}" Content="” 引用" Click="OnQuoteClicked" ToolTip="引用區塊 (> 引用)" />
+                    <Button Style="{StaticResource ToolbarButtonStyle}" Content="` 代碼" Click="OnCodeClicked" ToolTip="行內代碼 (`代碼`)" />
+                    <Button Style="{StaticResource ToolbarButtonStyle}" Content="🔗 連結" Click="OnInsertLinkClicked" ToolTip="超連結 [文字](https://...)" />
+                    <Button Style="{StaticResource ToolbarButtonStyle}" Content="🖼️ 本機圖片" Click="OnInsertLocalImageClicked" ToolTip="瀏覽選取本機圖片" />
+                    <Button Style="{StaticResource ToolbarButtonStyle}" Content="🌐 圖片網址" Click="OnInsertWebImageClicked" ToolTip="插入網路圖片網址 ![說明](https://...)" />
+                </WrapPanel>
 
-        <!-- Font Size Slider -->
-        <DockPanel Grid.Row="3" Margin="0,0,0,16" LastChildFill="True">
-            <TextBlock Text="字體大小："
-                       FontSize="12.5"
-                       FontWeight="SemiBold"
-                       Foreground="#555555"
-                       VerticalAlignment="Center"
-                       DockPanel.Dock="Left"
-                       Margin="0,0,6,0" />
-            <TextBlock x:Name="FontSizeValueLabel"
-                       Text="{Binding Value, ElementName=FontSizeSlider, StringFormat={}{0:F0} px}"
-                       FontSize="12.5"
-                       FontWeight="SemiBold"
-                       Foreground="#333333"
-                       VerticalAlignment="Center"
-                       DockPanel.Dock="Right"
-                       MinWidth="42"
-                       TextAlignment="Right"
-                       Margin="8,0,0,0" />
-            <Slider x:Name="FontSizeSlider"
-                    Minimum="9"
-                    Maximum="36"
-                    Value="13"
-                    SmallChange="1"
-                    LargeChange="2"
-                    TickFrequency="1"
-                    IsSnapToTickEnabled="True"
-                    VerticalAlignment="Center"
-                    Cursor="Hand" />
-        </DockPanel>
+                <!-- Markdown Input Box -->
+                <TextBox x:Name="InputTextBox"
+                         Grid.Row="1"
+                         Padding="8,8"
+                         FontSize="{Binding Value, ElementName=FontSizeSlider}"
+                         MaxLength="2000"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto"
+                         VerticalContentAlignment="Top"
+                         BorderBrush="#CCCCCC"
+                         BorderThickness="1"
+                         TextChanged="OnInputTextBoxTextChanged"
+                         PreviewKeyDown="OnInputTextBoxPreviewKeyDown" />
 
-        <!-- Actions -->
-        <DockPanel Grid.Row="4" LastChildFill="False">
+                <!-- Left Settings (Alignment, Font Size, Image Max Size) -->
+                <StackPanel Grid.Row="2" Margin="0,8,0,0">
+                    <!-- Text Alignment -->
+                    <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                        <TextBlock Text="文字對齊："
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="#555555"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,6,0" />
+                        <RadioButton x:Name="AlignLeftRadio"
+                                     Content="靠左"
+                                     GroupName="TextAlignmentGroup"
+                                     Checked="OnAlignmentChanged"
+                                     Margin="0,0,10,0" />
+                        <RadioButton x:Name="AlignCenterRadio"
+                                     Content="置中"
+                                     GroupName="TextAlignmentGroup"
+                                     IsChecked="True"
+                                     Checked="OnAlignmentChanged"
+                                     Margin="0,0,10,0" />
+                        <RadioButton x:Name="AlignRightRadio"
+                                     Content="靠右"
+                                     GroupName="TextAlignmentGroup"
+                                     Checked="OnAlignmentChanged" />
+                    </DockPanel>
+
+                    <!-- Font Size Slider -->
+                    <DockPanel Margin="0,0,0,6" LastChildFill="True">
+                        <TextBlock Text="字體大小："
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="#555555"
+                                   VerticalAlignment="Center"
+                                   DockPanel.Dock="Left"
+                                   Margin="0,0,6,0" />
+                        <TextBlock x:Name="FontSizeValueLabel"
+                                   Text="{Binding Value, ElementName=FontSizeSlider, StringFormat={}{0:F0} px}"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="#333333"
+                                   VerticalAlignment="Center"
+                                   DockPanel.Dock="Right"
+                                   MinWidth="42"
+                                   TextAlignment="Right"
+                                   Margin="6,0,0,0" />
+                        <Slider x:Name="FontSizeSlider"
+                                Minimum="9"
+                                Maximum="36"
+                                Value="13"
+                                SmallChange="1"
+                                LargeChange="2"
+                                TickFrequency="1"
+                                IsSnapToTickEnabled="True"
+                                VerticalAlignment="Center"
+                                ValueChanged="OnFontSizeSliderValueChanged"
+                                Cursor="Hand" />
+                    </DockPanel>
+
+                    <!-- Image Max Width Slider -->
+                    <DockPanel Margin="0,0,0,6" LastChildFill="True">
+                        <TextBlock Text="圖片寬度："
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="#555555"
+                                   VerticalAlignment="Center"
+                                   DockPanel.Dock="Left"
+                                   Margin="0,0,6,0" />
+                        <TextBlock x:Name="ImageWidthValueLabel"
+                                   Text="{Binding Value, ElementName=ImageWidthSlider, StringFormat={}{0:F0} px}"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="#333333"
+                                   VerticalAlignment="Center"
+                                   DockPanel.Dock="Right"
+                                   MinWidth="42"
+                                   TextAlignment="Right"
+                                   Margin="6,0,0,0" />
+                        <Slider x:Name="ImageWidthSlider"
+                                Minimum="100"
+                                Maximum="360"
+                                Value="260"
+                                SmallChange="10"
+                                LargeChange="20"
+                                TickFrequency="10"
+                                IsSnapToTickEnabled="True"
+                                VerticalAlignment="Center"
+                                ValueChanged="OnImageDimensionsChanged"
+                                Cursor="Hand" />
+                    </DockPanel>
+
+                    <!-- Image Max Height Slider -->
+                    <DockPanel Margin="0,0,0,2" LastChildFill="True">
+                        <TextBlock Text="圖片高度："
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="#555555"
+                                   VerticalAlignment="Center"
+                                   DockPanel.Dock="Left"
+                                   Margin="0,0,6,0" />
+                        <TextBlock x:Name="ImageHeightValueLabel"
+                                   Text="{Binding Value, ElementName=ImageHeightSlider, StringFormat={}{0:F0} px}"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="#333333"
+                                   VerticalAlignment="Center"
+                                   DockPanel.Dock="Right"
+                                   MinWidth="42"
+                                   TextAlignment="Right"
+                                   Margin="6,0,0,0" />
+                        <Slider x:Name="ImageHeightSlider"
+                                Minimum="80"
+                                Maximum="300"
+                                Value="200"
+                                SmallChange="10"
+                                LargeChange="20"
+                                TickFrequency="10"
+                                IsSnapToTickEnabled="True"
+                                VerticalAlignment="Center"
+                                ValueChanged="OnImageDimensionsChanged"
+                                Cursor="Hand" />
+                    </DockPanel>
+                </StackPanel>
+            </Grid>
+
+            <!-- Column Splitter / Separator -->
+            <GridSplitter Grid.Column="1"
+                          Width="2"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Stretch"
+                          Background="#E0E0E0"
+                          Margin="10,0,10,0" />
+
+            <!-- Right: Live Bubble Preview Panel -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <DockPanel Grid.Row="0" Margin="0,0,0,6" LastChildFill="False">
+                    <TextBlock Text="氣泡框即時預覽："
+                               FontSize="12.5"
+                               FontWeight="SemiBold"
+                               Foreground="#555555"
+                               VerticalAlignment="Center"
+                               DockPanel.Dock="Left" />
+                    <TextBlock Text="(模擬頭頂氣泡)"
+                               FontSize="11"
+                               Foreground="#888888"
+                               VerticalAlignment="Center"
+                               DockPanel.Dock="Right" />
+                </DockPanel>
+
+                <Border Grid.Row="1"
+                        Background="#EEF1F5"
+                        BorderBrush="#D0D5DD"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="12">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="8">
+                            <!-- Simulated Speech Bubble Body -->
+                            <Border x:Name="PreviewBubbleBorder"
+                                    Background="White"
+                                    BorderBrush="#2B2B2B"
+                                    BorderThickness="1.8"
+                                    CornerRadius="10"
+                                    Padding="12,7"
+                                    MaxWidth="320"
+                                    HorizontalAlignment="Center">
+                                <Border.Effect>
+                                    <DropShadowEffect BlurRadius="6" ShadowDepth="2" Opacity="0.3" Direction="270" />
+                                </Border.Effect>
+                                <TextBlock x:Name="PreviewBubbleText"
+                                           TextWrapping="Wrap"
+                                           FontFamily="Microsoft JhengHei, Segoe UI, sans-serif"
+                                           FontSize="13"
+                                           Foreground="#2B2B2B"
+                                           TextAlignment="Center" />
+                            </Border>
+
+                            <!-- Pointer Triangle pointing down -->
+                            <Path x:Name="PreviewPointerDown"
+                                  Data="M 0,0 L 5,6 L 10,0 Z"
+                                  Fill="White"
+                                  Stroke="#2B2B2B"
+                                  StrokeThickness="1.8"
+                                  HorizontalAlignment="Center"
+                                  Margin="0,-1.8,0,0"
+                                  Panel.ZIndex="1" />
+
+                            <!-- Mini Character Icon/Text Reference -->
+                            <TextBlock Text="₍ᐢ•ﻌ•ᐢ₎ 桌面角色位置"
+                                       FontSize="11"
+                                       Foreground="#888888"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,8,0,0" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- Bottom Actions Bar -->
+        <DockPanel Grid.Row="2" LastChildFill="False">
             <Button x:Name="ResetButton"
                     DockPanel.Dock="Left"
                     Content="恢復預設台詞"
                     Background="#F0F0F0"
                     Click="OnResetClicked" />
+
+            <TextBlock DockPanel.Dock="Left"
+                       Text="(Ctrl+Enter 送出)"
+                       FontSize="11"
+                       Foreground="#888888"
+                       VerticalAlignment="Center"
+                       Margin="10,0,0,0" />
 
             <Button x:Name="CancelButton"
                     DockPanel.Dock="Right"
@@ -142,4 +334,3 @@
         </DockPanel>
     </Grid>
 </Window>
-

@@ -27,7 +27,13 @@ public partial class CharacterWindow
 
         if (BubbleContainer.Visibility == System.Windows.Visibility.Visible && HasCustomText)
         {
-            UpdateBubblePlacement(BubbleContainer.DesiredSize.Height);
+            double bubbleH = BubbleContainer.ActualHeight > 0 ? BubbleContainer.ActualHeight : BubbleContainer.DesiredSize.Height;
+            if (bubbleH <= 0)
+            {
+                BubbleContainer.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                bubbleH = BubbleContainer.DesiredSize.Height;
+            }
+            UpdateBubblePlacement(bubbleH);
         }
         Top = CurrentBubblePlacement == SpeechBubblePlacement.Top ? (winTop - Height) : (winTop - _currentSpriteHeight);
         _attachedRelativeX = Left - winLeft;
@@ -93,7 +99,13 @@ public partial class CharacterWindow
         {
             if (BubbleContainer.Visibility == System.Windows.Visibility.Visible && HasCustomText)
             {
-                UpdateBubblePlacement(BubbleContainer.DesiredSize.Height);
+                double bubbleH = BubbleContainer.ActualHeight > 0 ? BubbleContainer.ActualHeight : BubbleContainer.DesiredSize.Height;
+                if (bubbleH <= 0)
+                {
+                    BubbleContainer.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                    bubbleH = BubbleContainer.DesiredSize.Height;
+                }
+                UpdateBubblePlacement(bubbleH);
             }
             double attachedTop = CurrentBubblePlacement == SpeechBubblePlacement.Top ? (winTopDip - Height) : (winTopDip - _currentSpriteHeight);
 
@@ -133,8 +145,6 @@ public partial class CharacterWindow
         _isAnimating = true;
         _isFalling = true;
 
-        var currentPos = new PetPoint((int)Left, (int)Top);
-
         // SystemParameters.PrimaryScreenHeight/WorkArea always reflect the PRIMARY monitor.
         // Determine the monitor the window is actually on instead (same approach as the
         // drag clamp in OnMouseMove), so a fall computed after a drag-release onto a
@@ -148,6 +158,23 @@ public partial class CharacterWindow
 
         int screenHeight = (int)((screen?.Bounds.Bottom ?? (int)SystemParameters.PrimaryScreenHeight) * dipScale);
         int landingY = (int)((screen?.WorkingArea.Bottom ?? (int)SystemParameters.PrimaryScreenHeight) * dipScale);
+
+        if (BubbleContainer.Visibility == Visibility.Visible && HasCustomText)
+        {
+            if (CurrentBubblePlacement == SpeechBubblePlacement.Bottom)
+            {
+                double bubbleH = BubbleContainer.ActualHeight > 0 ? BubbleContainer.ActualHeight : BubbleContainer.DesiredSize.Height;
+                if (bubbleH <= 0)
+                {
+                    BubbleContainer.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                    bubbleH = BubbleContainer.DesiredSize.Height;
+                }
+                UpdateBubblePlacement(bubbleH, explicitCharHeadTop: landingY - _currentSpriteHeight);
+                Top -= bubbleH;
+            }
+        }
+
+        var currentPos = new PetPoint((int)Left, (int)Top);
 
         var outcome = BehaviorPlanner.PlanFall(
             currentPos,
@@ -272,12 +299,17 @@ public partial class CharacterWindow
         // edge (X), with no allowance for its own width -- unlike PlanWalk, which already
         // reserves characterWidth for its rightward endpoint. Reserving it here too keeps
         // the character's right edge from poking past maxX.
+        int charHeight = (int)_currentSpriteHeight;
+        int effectiveLandingY = CurrentBubblePlacement == SpeechBubblePlacement.Top
+            ? (landingY - (int)Height + charHeight)
+            : landingY;
+
         var plan = BehaviorPlanner.PlanJump(
             new PetPoint((int)Left, (int)Top),
-            (int)Height,
+            charHeight,
             planMinX,
             planMaxX - (int)Width,
-            landingY,
+            effectiveLandingY,
             SystemRandomSource.Shared,
             forcedDirection);
         _isAnimating = true;
@@ -287,11 +319,14 @@ public partial class CharacterWindow
         string animationName = plan.Direction == BehaviorPlanner.JumpDirection.Left ? "jumpleft" : "jumpright";
         var frames = GetOrLoadFrames(animationName);
 
-        var riseAnimation = new DoubleAnimation(Top, plan.RiseTarget.Y, TimeSpan.FromMilliseconds(plan.DurationMs))
+        double currentTop = double.IsNaN(Top) ? 0 : Top;
+        double currentLeft = double.IsNaN(Left) ? 0 : Left;
+
+        var riseAnimation = new DoubleAnimation(currentTop, plan.RiseTarget.Y, TimeSpan.FromMilliseconds(plan.DurationMs))
         {
             EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
         };
-        var riseAnimationX = new DoubleAnimation(Left, plan.RiseTarget.X, TimeSpan.FromMilliseconds(plan.DurationMs))
+        var riseAnimationX = new DoubleAnimation(currentLeft, plan.RiseTarget.X, TimeSpan.FromMilliseconds(plan.DurationMs))
         {
             EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
         };

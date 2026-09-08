@@ -98,4 +98,33 @@ public class DialogueAndNotificationTests
             dialog.Close();
         });
     }
+
+    [Fact]
+    public void UpdateBubblePlacement_BidirectionalFlipping_FlipsToBottomWhenNearTopAndFlipsBackToTopWhenLower()
+    {
+        RunInSta(() =>
+        {
+            var window = new CharacterWindow("poro");
+            window.SetCustomText("測試氣泡位置翻轉");
+            window.BubbleContainer.Visibility = Visibility.Visible;
+
+            double bubbleH = 150;
+            // When charHeadTop is 20 (near the top of the screen), spaceAbove is 20 < 160 and spaceBelow is large:
+            double deltaYDown = window.UpdateBubblePlacement(bubbleH, explicitCharHeadTop: 20);
+            Assert.Equal(CharacterWindow.SpeechBubblePlacement.Bottom, window.CurrentBubblePlacement);
+            Assert.Equal(bubbleH, deltaYDown);
+
+            // When charHeadTop is 600 (middle-lower screen), spaceAbove (600) >= 160:
+            double deltaYUp = window.UpdateBubblePlacement(bubbleH, explicitCharHeadTop: 600);
+            Assert.Equal(CharacterWindow.SpeechBubblePlacement.Top, window.CurrentBubblePlacement);
+            Assert.Equal(-bubbleH, deltaYUp);
+
+            // When charHeadTop is near taskbar (e.g. 950 on 1040 work area), spaceBelow < spaceAbove:
+            double deltaYTaskbar = window.UpdateBubblePlacement(bubbleH, explicitCharHeadTop: 950);
+            Assert.Equal(CharacterWindow.SpeechBubblePlacement.Top, window.CurrentBubblePlacement);
+            Assert.Equal(0, deltaYTaskbar);
+
+            window.Close();
+        });
+    }
 }

@@ -124,10 +124,13 @@ public partial class CharacterWindow
         var setQuoteItem = new MenuItem { Header = "設定對話文字..." };
         setQuoteItem.Click += (_, _) =>
         {
-            var dialog = new TextInputDialog(CharacterName, _customText, DialogueAlignment, DialogueFontSize);
+            var dialog = new TextInputDialog(CharacterName, _customText, DialogueAlignment, DialogueFontSize, DialogueImageMaxWidth, DialogueImageMaxHeight)
+            {
+                Owner = this
+            };
             if (dialog.ShowDialog() == true)
             {
-                SetCustomText(dialog.ResultText, dialog.ResultAlignment, dialog.ResultFontSize);
+                SetCustomText(dialog.ResultText, dialog.ResultAlignment, dialog.ResultFontSize, dialog.ResultImageMaxWidth, dialog.ResultImageMaxHeight);
             }
         };
         contextMenu.Items.Add(setQuoteItem);
@@ -162,7 +165,10 @@ public partial class CharacterWindow
         var customScaleItem = new MenuItem { Header = "自訂比例..." };
         customScaleItem.Click += (_, _) =>
         {
-            var dialog = new ScaleInputDialog(CharacterName, ScaleRatio);
+            var dialog = new ScaleInputDialog(CharacterName, ScaleRatio)
+            {
+                Owner = this
+            };
             if (dialog.ShowDialog() == true)
             {
                 SetScaleRatio(dialog.ResultScaleRatio);
@@ -202,7 +208,10 @@ public partial class CharacterWindow
             double originalOpacity = PetOpacity;
             bool originalSync = SyncBubbleOpacity;
 
-            var dialog = new OpacityInputDialog(CharacterName, PetOpacity, SyncBubbleOpacity);
+            var dialog = new OpacityInputDialog(CharacterName, PetOpacity, SyncBubbleOpacity)
+            {
+                Owner = this
+            };
             dialog.PreviewChanged += (previewOp, previewSync) =>
             {
                 SetOpacity(previewOp, previewSync);

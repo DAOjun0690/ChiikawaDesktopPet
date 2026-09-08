@@ -68,6 +68,8 @@ public partial class CharacterWindow : Window
     public string CurrentDialogueText => _customText;
     public TextAlignment DialogueAlignment { get; private set; } = TextAlignment.Center;
     public double DialogueFontSize { get; private set; } = 13.0;
+    public double DialogueImageMaxWidth { get; private set; } = 260.0;
+    public double DialogueImageMaxHeight { get; private set; } = 200.0;
     private bool _alwaysShowBubble;
     public bool AlwaysShowBubble => _alwaysShowBubble;
     private readonly DispatcherTimer _bubbleTimer = new();
@@ -107,6 +109,7 @@ public partial class CharacterWindow : Window
         _frameTimer.Tick += (_, _) => OnFrameTick();
         _bubbleTimer.Tick += (_, _) => OnBubbleTimerTick();
         _windowTrackingTimer.Tick += (_, _) => OnWindowTrackingTick();
+        BubbleContainer.SizeChanged += OnBubbleContainerSizeChanged;
 
         MouseLeftButtonDown += OnMouseLeftButtonDown;
         MouseMove += OnMouseMove;
@@ -224,9 +227,7 @@ public partial class CharacterWindow : Window
         double startX = initialX ?? (SystemParameters.PrimaryScreenWidth / 2);
         Left = startX;
         Top = 0;
-        BubbleText.Text = CurrentDialogueText;
-        BubbleText.TextAlignment = DialogueAlignment;
-        BubbleText.FontSize = DialogueFontSize;
+        UpdateBubbleContent();
         SetSprite(RandomFrom(_sprites, "spawn"));
         Show();
 
@@ -371,10 +372,10 @@ public partial class CharacterWindow : Window
         double dipWidth = sprite.PixelWidth * fitScale * dipScale * ScaleRatio;
         double dipHeight = sprite.PixelHeight * fitScale * dipScale * ScaleRatio;
 
-        SpriteImage.Width = dipWidth;
-        SpriteImage.Height = dipHeight;
         _currentSpriteWidth = (int)Math.Round(dipWidth);
         _currentSpriteHeight = (int)Math.Round(dipHeight);
+        SpriteImage.Width = _currentSpriteWidth;
+        SpriteImage.Height = _currentSpriteHeight;
 
         UpdateWindowSizeAndLayout(oldWidth, oldHeight);
     }
@@ -382,32 +383,49 @@ public partial class CharacterWindow : Window
     public enum SpeechBubblePlacement { Top, Bottom }
     public SpeechBubblePlacement CurrentBubblePlacement { get; private set; } = SpeechBubblePlacement.Top;
 
-    public void UpdateBubblePlacement(double bubbleH)
+    public double UpdateBubblePlacement(double bubbleH, double? explicitCharHeadTop = null)
     {
         bool shouldBeBottom = false;
 
         if (BubbleContainer.Visibility == Visibility.Visible && HasCustomText && bubbleH > 0)
         {
             double dipScale = GetDipScale();
-            var screenPoint = new System.Drawing.Point((int)(Left / dipScale), (int)(Top / dipScale));
-            var workingArea = System.Windows.Forms.Screen.FromPoint(screenPoint).WorkingArea;
-            double topBoundDip = workingArea.Top * dipScale;
-
             double charHeadTop;
-            if (_attachedHwnd != null && TryGetAttachedWindowBounds(out var rect))
+
+            if (explicitCharHeadTop.HasValue)
             {
-                charHeadTop = rect.Top * dipScale;
+                charHeadTop = explicitCharHeadTop.Value;
+            }
+            else if (_attachedHwnd != null && TryGetAttachedWindowBounds(out var rect))
+            {
+                charHeadTop = rect.Top * dipScale - _currentSpriteHeight;
             }
             else
             {
-                // If bubble was already rendered above the character, character head is at Top + bubbleH.
-                // Otherwise (e.g. bubble was collapsed or was below character), window Top is character head.
-                charHeadTop = (CurrentBubblePlacement == SpeechBubblePlacement.Top && BubbleContainer.IsVisible) ? (Top + bubbleH) : Top;
+                // When bubble is above character, character sits at the bottom of the window.
+                // Its head is at Top + (Height - _currentSpriteHeight).
+                charHeadTop = (CurrentBubblePlacement == SpeechBubblePlacement.Top && BubbleContainer.IsVisible && Height > _currentSpriteHeight)
+                    ? (Top + (Height - _currentSpriteHeight))
+                    : Top;
             }
 
-            shouldBeBottom = (charHeadTop - topBoundDip) < (bubbleH + 10);
+            var screenPoint = new System.Drawing.Point((int)(Left / dipScale), (int)(charHeadTop / dipScale));
+            var primary = System.Windows.Forms.Screen.PrimaryScreen;
+            var screen = (primary != null) ? System.Windows.Forms.Screen.FromPoint(screenPoint) : null;
+            var workingArea = screen?.WorkingArea ?? new System.Drawing.Rectangle(0, 0, (int)SystemParameters.PrimaryScreenWidth, (int)SystemParameters.PrimaryScreenHeight);
+
+            double topBoundDip = workingArea.Top * dipScale;
+            double bottomBoundDip = workingArea.Bottom * dipScale;
+
+            double spaceAbove = charHeadTop - topBoundDip;
+            double spaceBelow = bottomBoundDip - (charHeadTop + _currentSpriteHeight);
+
+            // If space above is tight for the bubble (+ 10px margin) AND there's more space below than above,
+            // place bubble below. Otherwise, prefer Top so character can stand on ground/taskbar cleanly.
+            shouldBeBottom = spaceAbove < (bubbleH + 10) && spaceBelow > spaceAbove;
         }
 
+        double deltaY = 0;
         if (shouldBeBottom && CurrentBubblePlacement != SpeechBubblePlacement.Bottom)
         {
             CurrentBubblePlacement = SpeechBubblePlacement.Bottom;
@@ -416,6 +434,7 @@ public partial class CharacterWindow : Window
             BubblePointerUp.Visibility = Visibility.Visible;
             BubblePointerDown.Visibility = Visibility.Collapsed;
             RootGrid.VerticalAlignment = VerticalAlignment.Top;
+            deltaY = bubbleH;
         }
         else if (!shouldBeBottom && CurrentBubblePlacement != SpeechBubblePlacement.Top)
         {
@@ -425,7 +444,10 @@ public partial class CharacterWindow : Window
             BubblePointerDown.Visibility = Visibility.Visible;
             BubblePointerUp.Visibility = Visibility.Collapsed;
             RootGrid.VerticalAlignment = VerticalAlignment.Bottom;
+            deltaY = -bubbleH;
         }
+
+        return deltaY;
     }
 
     private void UpdateWindowSizeAndLayout(double oldWidth = 0, double oldHeight = 0)
@@ -435,15 +457,17 @@ public partial class CharacterWindow : Window
 
         if (BubbleContainer.Visibility == Visibility.Visible && HasCustomText)
         {
-            BubbleContainer.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            bubbleW = BubbleContainer.DesiredSize.Width;
-            bubbleH = BubbleContainer.DesiredSize.Height;
+            double maxContainerWidth = Math.Max(BubbleBorder.MaxWidth + 20, _currentSpriteWidth);
+            BubbleContainer.Measure(new Size(maxContainerWidth, double.PositiveInfinity));
+            bubbleW = Math.Max(BubbleContainer.DesiredSize.Width, BubbleContainer.ActualWidth);
+            bubbleH = Math.Max(BubbleContainer.DesiredSize.Height, BubbleContainer.ActualHeight);
         }
 
+        var previousPlacement = CurrentBubblePlacement;
         UpdateBubblePlacement(bubbleH);
 
-        double newWidth = Math.Max(_currentSpriteWidth, bubbleW);
-        double newHeight = _currentSpriteHeight + bubbleH;
+        double newWidth = Math.Ceiling(Math.Max(_currentSpriteWidth, bubbleW));
+        double newHeight = Math.Ceiling(_currentSpriteHeight + bubbleH);
 
         Width = newWidth;
         Height = newHeight;
@@ -458,10 +482,19 @@ public partial class CharacterWindow : Window
         {
             if (!_isFalling && oldHeight > 0)
             {
-                if (CurrentBubblePlacement == SpeechBubblePlacement.Top)
+                if (previousPlacement == SpeechBubblePlacement.Top && CurrentBubblePlacement == SpeechBubblePlacement.Top)
                 {
                     Top += (oldHeight - newHeight);
                 }
+                else if (previousPlacement == SpeechBubblePlacement.Top && CurrentBubblePlacement == SpeechBubblePlacement.Bottom)
+                {
+                    Top += (oldHeight - _currentSpriteHeight);
+                }
+                else if (previousPlacement == SpeechBubblePlacement.Bottom && CurrentBubblePlacement == SpeechBubblePlacement.Top)
+                {
+                    Top -= bubbleH;
+                }
+                // If Bottom -> Bottom, Top remains unchanged
             }
             if (oldWidth > 0 && Math.Abs(oldWidth - newWidth) > 0.01)
             {
@@ -503,7 +536,7 @@ public partial class CharacterWindow : Window
         }
     }
 
-    public void ShowSpeechBubble(int durationMs = 3500)
+    public void ShowSpeechBubble(int durationMs = 3500, bool forceRefreshContent = false)
     {
         if (!HasCustomText)
         {
@@ -511,9 +544,25 @@ public partial class CharacterWindow : Window
             return;
         }
 
-        BubbleText.Text = CurrentDialogueText;
-        BubbleText.TextAlignment = DialogueAlignment;
-        BubbleText.FontSize = DialogueFontSize;
+        if (BubbleContainer.Visibility == Visibility.Visible && !forceRefreshContent)
+        {
+            // 對話框已在顯示中，只需刷新計時器，避免重複清空/解析 Markdown 導致高度塌陷與視窗震盪
+            if (!_alwaysShowBubble)
+            {
+                int effectiveDuration = durationMs;
+                if (durationMs == 3500 && MarkdownBubbleRenderer.ShouldExtendDisplayDuration(CurrentDialogueText))
+                {
+                    effectiveDuration = 6000;
+                }
+
+                _bubbleTimer.Stop();
+                _bubbleTimer.Interval = TimeSpan.FromMilliseconds(effectiveDuration);
+                _bubbleTimer.Start();
+            }
+            return;
+        }
+
+        UpdateBubbleContent();
         if (BubbleContainer.Visibility != Visibility.Visible)
         {
             double oldW = Width;
@@ -528,8 +577,14 @@ public partial class CharacterWindow : Window
 
         if (!_alwaysShowBubble)
         {
+            int effectiveDuration = durationMs;
+            if (durationMs == 3500 && MarkdownBubbleRenderer.ShouldExtendDisplayDuration(CurrentDialogueText))
+            {
+                effectiveDuration = 6000;
+            }
+
             _bubbleTimer.Stop();
-            _bubbleTimer.Interval = TimeSpan.FromMilliseconds(durationMs);
+            _bubbleTimer.Interval = TimeSpan.FromMilliseconds(effectiveDuration);
             _bubbleTimer.Start();
         }
     }
@@ -565,14 +620,19 @@ public partial class CharacterWindow : Window
 
     public void ToggleAlwaysShowBubble() => SetAlwaysShowBubble(!_alwaysShowBubble);
 
-    public void SetCustomText(string text, TextAlignment alignment = TextAlignment.Center, double fontSize = 13.0)
+    public void SetCustomText(
+        string text,
+        TextAlignment alignment = TextAlignment.Center,
+        double fontSize = 13.0,
+        double imageMaxWidth = 260.0,
+        double imageMaxHeight = 200.0)
     {
         _customText = text.Trim();
         DialogueAlignment = alignment;
         DialogueFontSize = fontSize;
-        BubbleText.Text = CurrentDialogueText;
-        BubbleText.TextAlignment = DialogueAlignment;
-        BubbleText.FontSize = DialogueFontSize;
+        DialogueImageMaxWidth = imageMaxWidth > 0 ? imageMaxWidth : 260.0;
+        DialogueImageMaxHeight = imageMaxHeight > 0 ? imageMaxHeight : 200.0;
+        UpdateBubbleContent();
         if (HasCustomText)
         {
             if (BubbleContainer.Visibility == Visibility.Visible)
@@ -592,14 +652,68 @@ public partial class CharacterWindow : Window
         _customText = CharacterQuotes.GetDefaultQuote(CharacterName);
         DialogueAlignment = TextAlignment.Center;
         DialogueFontSize = 13.0;
-        BubbleText.Text = CurrentDialogueText;
-        BubbleText.TextAlignment = DialogueAlignment;
-        BubbleText.FontSize = DialogueFontSize;
+        DialogueImageMaxWidth = 260.0;
+        DialogueImageMaxHeight = 200.0;
+        UpdateBubbleContent();
         if (BubbleContainer.Visibility == Visibility.Visible)
         {
             UpdateWindowSizeAndLayout(Width, Height);
         }
         ShowSpeechBubble(3500);
+    }
+
+    private void OnBubbleContainerSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (BubbleContainer.Visibility != Visibility.Visible || !HasCustomText) return;
+        if (!e.HeightChanged && !e.WidthChanged) return;
+
+        double currentBubbleH = Math.Max(BubbleContainer.ActualHeight, BubbleContainer.DesiredSize.Height);
+        double currentBubbleW = Math.Max(BubbleContainer.ActualWidth, BubbleContainer.DesiredSize.Width);
+
+        double expectedHeight = Math.Ceiling(_currentSpriteHeight + currentBubbleH);
+        double expectedWidth = Math.Ceiling(Math.Max(_currentSpriteWidth, currentBubbleW));
+
+        if (Math.Abs(Height - expectedHeight) > 0.5 || Math.Abs(Width - expectedWidth) > 0.5)
+        {
+            UpdateWindowSizeAndLayout(Width, Height);
+        }
+    }
+
+    private void UpdateBubbleContent()
+    {
+        BubbleBorder.MaxWidth = Math.Max(320, DialogueImageMaxWidth + 40);
+        BubbleScrollViewer?.ScrollToTop();
+        MarkdownBubbleRenderer.Render(
+            BubbleText,
+            CurrentDialogueText,
+            DialogueFontSize,
+            DialogueAlignment,
+            DialogueImageMaxWidth,
+            DialogueImageMaxHeight,
+            onImageLoaded: OnBubbleImageLoaded,
+            onCheckboxToggled: OnBubbleCheckboxToggled);
+    }
+
+    private void OnBubbleCheckboxToggled(int index)
+    {
+        string newText = MarkdownBubbleRenderer.ToggleCheckboxAt(_customText, index);
+        if (newText != _customText)
+        {
+            _customText = newText;
+            UpdateBubbleContent();
+        }
+    }
+
+    private void OnBubbleImageLoaded()
+    {
+        Dispatcher.InvokeAsync(() =>
+        {
+            if (BubbleContainer.Visibility == Visibility.Visible && HasCustomText)
+            {
+                UpdateWindowSizeAndLayout(Width, Height);
+                BubbleScrollViewer?.ScrollToTop();
+            }
+        });
     }
 
     private void OnBubbleTimerTick()
@@ -625,6 +739,8 @@ public partial class CharacterWindow : Window
             DialogueText = _customText,
             DialogueAlignment = DialogueAlignment.ToString(),
             DialogueFontSize = DialogueFontSize,
+            DialogueImageMaxWidth = DialogueImageMaxWidth,
+            DialogueImageMaxHeight = DialogueImageMaxHeight,
             AlwaysShowBubble = _alwaysShowBubble,
             ScaleRatio = ScaleRatio,
             DefaultAnimation = _defaultAnimation,
@@ -650,14 +766,16 @@ public partial class CharacterWindow : Window
         }
 
         double fontSize = profile.DialogueFontSize > 0 ? profile.DialogueFontSize : 13.0;
+        double imageMaxWidth = profile.DialogueImageMaxWidth > 0 ? profile.DialogueImageMaxWidth : 260.0;
+        double imageMaxHeight = profile.DialogueImageMaxHeight > 0 ? profile.DialogueImageMaxHeight : 200.0;
 
         if (!string.IsNullOrWhiteSpace(profile.DialogueText))
         {
-            SetCustomText(profile.DialogueText, alignment, fontSize);
+            SetCustomText(profile.DialogueText, alignment, fontSize, imageMaxWidth, imageMaxHeight);
         }
         else
         {
-            SetCustomText("", alignment, fontSize);
+            SetCustomText("", alignment, fontSize, imageMaxWidth, imageMaxHeight);
         }
 
         SetAlwaysShowBubble(profile.AlwaysShowBubble);
@@ -1007,6 +1125,8 @@ public partial class CharacterWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        ClickThroughManager.Instance.Unregister(this);
+        InteractionCoordinator.Instance.UnregisterPet(this);
         _assetPackage.Dispose();
         base.OnClosed(e);
     }

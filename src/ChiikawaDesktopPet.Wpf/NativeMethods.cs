@@ -77,6 +77,17 @@ internal static partial class NativeMethods
         SetWindowLongPtr(hwnd, GWL_EXSTYLE, exStyle);
     }
 
+    private const int GWL_STYLE = -16;
+    private const nint WS_MINIMIZEBOX = 0x00020000;
+
+    public static void DisableMinimizeButton(IntPtr hwnd)
+    {
+        if (hwnd == IntPtr.Zero) return;
+        nint style = GetWindowLongPtr(hwnd, GWL_STYLE);
+        style &= ~WS_MINIMIZEBOX;
+        SetWindowLongPtr(hwnd, GWL_STYLE, style);
+    }
+
     public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
     [DllImport("user32.dll")]

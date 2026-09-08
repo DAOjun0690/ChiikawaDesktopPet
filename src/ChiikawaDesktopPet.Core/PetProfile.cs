@@ -17,6 +17,8 @@ public class CharacterProfileItem
     public double Opacity { get; set; } = 1.0;
     public bool SyncBubbleOpacity { get; set; } = true;
     public bool ClickThrough { get; set; } = false;
+    public double DialogueImageMaxWidth { get; set; } = 260.0;
+    public double DialogueImageMaxHeight { get; set; } = 200.0;
 }
 
 public class PetProfile

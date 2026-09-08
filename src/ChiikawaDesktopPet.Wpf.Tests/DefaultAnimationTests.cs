@@ -164,6 +164,99 @@ public class DefaultAnimationTests
         });
     }
 
+    private static string CreateTempPng(int width = 100, int height = 80)
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"test_bubble_{Guid.NewGuid():N}.png");
+        var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(width, height, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtb));
+        using var fs = File.Create(path);
+        encoder.Save(fs);
+        return path;
+    }
+
+    [Fact]
+    public void CharacterWindow_ShowSpeechBubble_WhenAlreadyVisible_RefreshesTimerWithoutModifyingPositionOrRecreatingContent()
+    {
+        RunInSta(() =>
+        {
+            string localImg = CreateTempPng(120, 100);
+            try
+            {
+                var window = new CharacterWindow("chesthair_monkey");
+                window.Top = 400;
+                window.SetCustomText($"qq\n\n![test]({localImg})");
+                window.ShowSpeechBubble();
+
+                double topBefore = window.Top;
+                double heightBefore = window.Height;
+
+                // Repeated call while visible (e.g. left-clicking character)
+                window.ShowSpeechBubble();
+
+                Assert.Equal(topBefore, window.Top);
+                Assert.Equal(heightBefore, window.Height);
+
+                window.Close();
+            }
+            finally
+            {
+                if (File.Exists(localImg)) File.Delete(localImg);
+            }
+        });
+    }
+
+    [Fact]
+    public void DialogueImageControl_LocalImage_LoadsSynchronouslyInConstructor()
+    {
+        RunInSta(() =>
+        {
+            string localImg = CreateTempPng(120, 100);
+            try
+            {
+                var control = new DialogueImageControl(localImg, "alt");
+
+                Assert.True(control.IsImageLoaded);
+                var container = control.Child as System.Windows.Controls.Grid;
+                Assert.NotNull(container);
+                var img = container.Children.OfType<System.Windows.Controls.Image>().FirstOrDefault();
+                var status = container.Children.OfType<System.Windows.Controls.TextBlock>().FirstOrDefault();
+                Assert.NotNull(img);
+                Assert.NotNull(status);
+                Assert.Equal(System.Windows.Visibility.Visible, img.Visibility);
+                Assert.Equal(System.Windows.Visibility.Collapsed, status.Visibility);
+            }
+            finally
+            {
+                if (File.Exists(localImg)) File.Delete(localImg);
+            }
+        });
+    }
+
+    [Fact]
+    public void CharacterWindow_PlayJump_WithSpeechBubble_StartsJumpAnimation()
+    {
+        RunInSta(() =>
+        {
+            var window = new CharacterWindow("chesthair_monkey");
+            window.Left = 500;
+            window.Top = 400;
+            window.SetCustomText("Jump test");
+            window.ShowSpeechBubble();
+
+            var playJumpMethod = typeof(CharacterWindow).GetMethod("PlayJump", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.NotNull(playJumpMethod);
+
+            playJumpMethod.Invoke(window, new object?[] { null });
+
+            var isJumpingField = typeof(CharacterWindow).GetField("_isJumping", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.NotNull(isJumpingField);
+            Assert.True((bool)isJumpingField.GetValue(window)!);
+
+            window.Close();
+        });
+    }
+
     [Fact]
     public void CharacterWindow_EnterIdleState_CanAutoPlayBounceForCapoo()
     {
