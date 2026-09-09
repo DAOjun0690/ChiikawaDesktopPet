@@ -75,4 +75,22 @@ public static class CrashLogger
             // Never allow crash logger itself to throw secondary exception
         }
     }
+
+    public static void Info(string message, string context = "")
+    {
+        try
+        {
+            lock (LogLock)
+            {
+                string logFile = GetLogFilePath();
+                var sb = new StringBuilder();
+                sb.AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [INFO] {(string.IsNullOrEmpty(context) ? "" : $"[{context}] ")}{message}");
+                File.AppendAllText(logFile, sb.ToString(), Encoding.UTF8);
+            }
+        }
+        catch
+        {
+            // Never allow crash logger itself to throw secondary exception
+        }
+    }
 }

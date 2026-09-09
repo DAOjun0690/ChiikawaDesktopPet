@@ -3,6 +3,8 @@
 [Oo]bj/
 [Pp]ublish/
 publish-standalone/
+/v*-*/
+/*.zip
 
 # Visual Studio / VS Code / Editors
 .vs/
@@ -17,6 +19,7 @@ publish-standalone/
 config.json
 global.json
 *.ps1
+!scripts/*.ps1
 
 # OS and temporary files
 Thumbs.db

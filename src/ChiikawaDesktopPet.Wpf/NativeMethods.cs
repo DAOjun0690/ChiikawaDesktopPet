@@ -268,6 +268,8 @@ internal static partial class NativeMethods
     public const int WM_NCRBUTTONDOWN = 0x00A4;
     public const int WM_NCMBUTTONDOWN = 0x00A7;
     public const int WM_CONTEXTMENU = 0x007B;
+    public const int WM_DISPLAYCHANGE = 0x007E;
+    public const int WM_DWMCOMPOSITIONCHANGED = 0x031E;
     public const nint HTTRANSPARENT = -1;
     public const nint HTCLIENT = 1;
     public const int VK_RBUTTON = 0x02;

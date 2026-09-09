@@ -159,21 +159,6 @@ public partial class CharacterWindow
         int screenHeight = (int)((screen?.Bounds.Bottom ?? (int)SystemParameters.PrimaryScreenHeight) * dipScale);
         int landingY = (int)((screen?.WorkingArea.Bottom ?? (int)SystemParameters.PrimaryScreenHeight) * dipScale);
 
-        if (BubbleContainer.Visibility == Visibility.Visible && HasCustomText)
-        {
-            if (CurrentBubblePlacement == SpeechBubblePlacement.Bottom)
-            {
-                double bubbleH = BubbleContainer.ActualHeight > 0 ? BubbleContainer.ActualHeight : BubbleContainer.DesiredSize.Height;
-                if (bubbleH <= 0)
-                {
-                    BubbleContainer.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-                    bubbleH = BubbleContainer.DesiredSize.Height;
-                }
-                UpdateBubblePlacement(bubbleH, explicitCharHeadTop: landingY - _currentSpriteHeight);
-                Top -= bubbleH;
-            }
-        }
-
         var currentPos = new PetPoint((int)Left, (int)Top);
 
         var outcome = BehaviorPlanner.PlanFall(
@@ -281,28 +266,30 @@ public partial class CharacterWindow
     {
         var (minX, maxX) = GetWalkJumpXBoundsInDips();
         double dipScale = GetDipScale();
-        var screenPoint = new System.Drawing.Point((int)(Left / dipScale), (int)(Top / dipScale));
-        var primary = System.Windows.Forms.Screen.PrimaryScreen;
-        var screen = (primary != null) ? System.Windows.Forms.Screen.FromPoint(screenPoint) : null;
-        int landingY = (int)((screen?.WorkingArea.Bottom ?? (int)SystemParameters.PrimaryScreenHeight) * dipScale);
+        int charHeight = (int)_currentSpriteHeight;
+        double currentTop = double.IsNaN(Top) ? 0 : Top;
+        double currentLeft = double.IsNaN(Left) ? 0 : Left;
 
         int planMinX = minX;
         int planMaxX = maxX;
+        int effectiveLandingY;
+
         if (_attachedHwnd is { } hwnd && TryGetAttachedWindowBounds(out var rect))
         {
-            landingY = (int)(rect.Top * dipScale);
             planMinX = minX - (int)Width - 60;
             planMaxX = maxX + (int)Width + 60;
+            effectiveLandingY = CurrentBubblePlacement == SpeechBubblePlacement.Top
+                ? (int)(rect.Top * dipScale) - (int)Height + charHeight
+                : (int)(rect.Top * dipScale);
         }
-
-        // PlanJump's edge-avoidance treats maxX as the boundary for the character's LEFT
-        // edge (X), with no allowance for its own width -- unlike PlanWalk, which already
-        // reserves characterWidth for its rightward endpoint. Reserving it here too keeps
-        // the character's right edge from poking past maxX.
-        int charHeight = (int)_currentSpriteHeight;
-        int effectiveLandingY = CurrentBubblePlacement == SpeechBubblePlacement.Top
-            ? (landingY - (int)Height + charHeight)
-            : landingY;
+        else
+        {
+            // Ground anchor: the character's ground line is its starting feet position.
+            // Since PlanJump computes landTarget.Y = effectiveLandingY - characterHeight,
+            // setting effectiveLandingY = (int)Math.Round(currentTop) + charHeight guarantees
+            // landTarget.Y = (int)Math.Round(currentTop), exactly returning to the starting ground!
+            effectiveLandingY = (int)Math.Round(currentTop) + charHeight;
+        }
 
         var plan = BehaviorPlanner.PlanJump(
             new PetPoint((int)Left, (int)Top),
@@ -318,9 +305,6 @@ public partial class CharacterWindow
 
         string animationName = plan.Direction == BehaviorPlanner.JumpDirection.Left ? "jumpleft" : "jumpright";
         var frames = GetOrLoadFrames(animationName);
-
-        double currentTop = double.IsNaN(Top) ? 0 : Top;
-        double currentLeft = double.IsNaN(Left) ? 0 : Left;
 
         var riseAnimation = new DoubleAnimation(currentTop, plan.RiseTarget.Y, TimeSpan.FromMilliseconds(plan.DurationMs))
         {
@@ -345,11 +329,11 @@ public partial class CharacterWindow
 
         riseAnimation.Completed += (_, _) =>
         {
-            var landAnimation = new DoubleAnimation(Top, plan.LandTarget.Y, TimeSpan.FromMilliseconds(plan.DurationMs))
+            var landAnimation = new DoubleAnimation(plan.RiseTarget.Y, plan.LandTarget.Y, TimeSpan.FromMilliseconds(plan.DurationMs))
             {
                 EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
             };
-            var landAnimationX = new DoubleAnimation(Left, plan.LandTarget.X, TimeSpan.FromMilliseconds(plan.DurationMs))
+            var landAnimationX = new DoubleAnimation(plan.RiseTarget.X, plan.LandTarget.X, TimeSpan.FromMilliseconds(plan.DurationMs))
             {
                 EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
             };
@@ -360,6 +344,7 @@ public partial class CharacterWindow
                 Top = plan.LandTarget.Y;
                 Left = plan.LandTarget.X;
                 _loopCurrentAnimation = false;
+                _isFalling = false;
                 _isJumping = false;
                 _frameTimer.Stop();
 

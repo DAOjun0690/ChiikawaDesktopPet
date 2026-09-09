@@ -8,6 +8,7 @@ namespace ChiikawaDesktopPet.Core;
 [JsonSerializable(typeof(PetProfile))]
 [JsonSerializable(typeof(CharacterProfileItem))]
 [JsonSerializable(typeof(List<CharacterProfileItem>))]
+[JsonSerializable(typeof(AppSettings))]
 public sealed partial class ConfigJsonContext : JsonSerializerContext
 {
 }

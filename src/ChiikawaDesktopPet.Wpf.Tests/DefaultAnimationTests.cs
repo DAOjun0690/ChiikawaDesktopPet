@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Threading;
+using ChiikawaDesktopPet.Core;
 using ChiikawaDesktopPet.Wpf;
 using Xunit;
 
@@ -258,6 +259,101 @@ public class DefaultAnimationTests
     }
 
     [Fact]
+    public void CharacterWindow_SpeechBubble_StaysAtBottomWhenRestingOnTaskbar()
+    {
+        RunInSta(() =>
+        {
+            var window = new CharacterWindow("chesthair_monkey");
+            window.Left = 500;
+            window.Top = 20; // Near top of screen
+            window.SetCustomText("Testing bubble");
+            window.ShowSpeechBubble();
+
+            // Near top, bubble is placed at Bottom
+            Assert.Equal(CharacterWindow.SpeechBubblePlacement.Bottom, window.CurrentBubblePlacement);
+
+            double dipScale = CharacterWindow.GetDipScale();
+            var primary = System.Windows.Forms.Screen.PrimaryScreen;
+            double taskbarBottom = (primary?.WorkingArea.Bottom ?? 1040) * dipScale;
+            double bubbleH = window.BubbleContainer.ActualHeight > 0 ? window.BubbleContainer.ActualHeight : window.BubbleContainer.DesiredSize.Height;
+            var spriteHeightField = typeof(CharacterWindow).GetField("_currentSpriteHeight", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            spriteHeightField?.SetValue(window, 120);
+            window.SpriteImage.Height = 120;
+            double charH = 120;
+
+            // Simulate window positioned so the bubble rests on the taskbar:
+            // character head is at taskbarBottom - charH - bubbleH
+            double restingHeadTop = taskbarBottom - charH - bubbleH;
+            double deltaY = window.UpdateBubblePlacement(bubbleH, explicitCharHeadTop: restingHeadTop);
+
+            // It should remain at Bottom (character standing on bubble resting on taskbar)
+            Assert.Equal(CharacterWindow.SpeechBubblePlacement.Bottom, window.CurrentBubblePlacement);
+            Assert.Equal(0, deltaY);
+
+            // Now simulate user dragging character body further down towards taskbar (past resting bubble)
+            double draggedDownHeadTop = restingHeadTop + 30;
+            deltaY = window.UpdateBubblePlacement(bubbleH, explicitCharHeadTop: draggedDownHeadTop);
+
+            // It should flip to Top with deltaY = -bubbleH
+            Assert.Equal(CharacterWindow.SpeechBubblePlacement.Top, window.CurrentBubblePlacement);
+            Assert.Equal(-bubbleH, deltaY);
+
+            window.Close();
+        });
+    }
+
+    [Fact]
+    public void CharacterWindow_FallTo_WhenBubblePlacementIsBottom_LandsSmoothlyWithoutFlipping()
+    {
+        RunInSta(() =>
+        {
+            var window = new CharacterWindow("chesthair_monkey");
+            window.Left = 500;
+            window.Top = 50; // High up
+            window.SetCustomText("Fall test");
+            window.ShowSpeechBubble();
+
+            Assert.Equal(CharacterWindow.SpeechBubblePlacement.Bottom, window.CurrentBubblePlacement);
+
+            var fallToMethod = typeof(CharacterWindow).GetMethod("FallTo", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.NotNull(fallToMethod);
+            fallToMethod.Invoke(window, null);
+
+            var isFallingField = typeof(CharacterWindow).GetField("_isFalling", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.NotNull(isFallingField);
+            Assert.True((bool)isFallingField.GetValue(window)!);
+
+            // CurrentBubblePlacement must stay Bottom so the bubble lands on the taskbar cleanly
+            Assert.Equal(CharacterWindow.SpeechBubblePlacement.Bottom, window.CurrentBubblePlacement);
+
+            window.Close();
+        });
+    }
+
+    [Fact]
+    public void CharacterWindow_HideSpeechBubble_WhenPlacementIsBottom_TriggersFall()
+    {
+        RunInSta(() =>
+        {
+            var window = new CharacterWindow("chesthair_monkey");
+            window.Left = 500;
+            window.Top = 20; // High up
+            window.SetCustomText("Hide bubble test");
+            window.ShowSpeechBubble();
+
+            Assert.Equal(CharacterWindow.SpeechBubblePlacement.Bottom, window.CurrentBubblePlacement);
+
+            window.HideSpeechBubble();
+
+            var isFallingField = typeof(CharacterWindow).GetField("_isFalling", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.NotNull(isFallingField);
+            Assert.True((bool)isFallingField.GetValue(window)!);
+
+            window.Close();
+        });
+    }
+
+    [Fact]
     public void CharacterWindow_EnterIdleState_CanAutoPlayBounceForCapoo()
     {
         RunInSta(() =>
@@ -383,6 +479,38 @@ public class DefaultAnimationTests
             Assert.Contains("roar", inPlace, StringComparer.OrdinalIgnoreCase);
             Assert.Contains("ramen", inPlace, StringComparer.OrdinalIgnoreCase);
 
+            window.Close();
+        });
+    }
+
+    [Fact]
+    public void BehaviorPlanner_PlanJump_GroundAnchor_LandsExactlyAtStartingGround()
+    {
+        int startingTop = 735;
+        int characterHeight = 120;
+        int minX = 0;
+        int maxX = 1920;
+        int effectiveLandingY = startingTop + characterHeight;
+
+        var plan = BehaviorPlanner.PlanJump(
+            new PetPoint(500, startingTop),
+            characterHeight,
+            minX,
+            maxX,
+            effectiveLandingY,
+            SystemRandomSource.Shared);
+
+        Assert.Equal(startingTop, plan.LandTarget.Y);
+    }
+
+    [Fact]
+    public void CharacterWindow_RefreshVisualSurface_ExecutesWithoutException()
+    {
+        RunInSta(() =>
+        {
+            var window = new CharacterWindow("hachiware");
+            window.RefreshVisualSurface();
+            Assert.NotNull(window.SpriteImage);
             window.Close();
         });
     }

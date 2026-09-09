@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Interop;
+using System.Windows.Media;
 using ChiikawaDesktopPet.Core;
 using Application = System.Windows.Application;
 using MenuItem = System.Windows.Forms.ToolStripMenuItem;
@@ -142,10 +143,37 @@ public partial class App : Application
     private readonly Dictionary<string, int> _characterCounters = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, CharacterInstanceData> _instances = new(StringComparer.OrdinalIgnoreCase);
 
+    private static DateTime _startupTime;
+    private static AppSettings _settings = new();
+    private bool _isShuttingDown;
+    private bool _isRestoringProfile;
+    private bool _isAutoSaveDirty;
+    private System.Windows.Threading.DispatcherTimer? _autoSaveTimer;
+
     protected override void OnStartup(StartupEventArgs e)
     {
+        _startupTime = DateTime.Now;
         base.OnStartup(e);
         SetupGlobalExceptionHandling();
+        CrashLogger.Info($"App started. PID: {Environment.ProcessId}, OS: {Environment.OSVersion}, DotNet: {Environment.Version}, Args: {string.Join(" ", e.Args)}", "App.OnStartup");
+
+        _settings = SettingsManager.Load();
+        if (_settings.SoftwareRendering)
+        {
+            RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
+            CrashLogger.Info("Software rendering enabled on startup from settings.", "App.OnStartup");
+        }
+        CharacterWindow.ConfineToCurrentMonitor = _settings.ConfineToCurrentMonitor;
+        EnableWindowsNotifications = _settings.EnableWindowsNotifications;
+
+        try
+        {
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+        }
+        catch (Exception ex)
+        {
+            CrashLogger.Log(ex, "App.DisplaySettingsChanged_Subscribe");
+        }
 
         bool isFirstInstance;
         Mutex? mutex = null;
@@ -243,13 +271,32 @@ public partial class App : Application
         _clickThroughMenu.DropDownItems.Add(_clickThroughSeparator);
         _trayContextMenu.Items.Add(_clickThroughMenu);
 
+        var softwareRenderingItem = new MenuItem("防消失模式 (軟體渲染)")
+        {
+            CheckOnClick = true,
+            Checked = RenderOptions.ProcessRenderMode == RenderMode.SoftwareOnly
+        };
+        softwareRenderingItem.Click += (_, _) =>
+        {
+            RenderOptions.ProcessRenderMode = softwareRenderingItem.Checked ? RenderMode.SoftwareOnly : RenderMode.Default;
+            _settings.SoftwareRendering = softwareRenderingItem.Checked;
+            SettingsManager.Save(_settings);
+            RefreshAllVisualSurfaces();
+            CrashLogger.Info($"RenderMode changed to {RenderOptions.ProcessRenderMode}", "App.TrayMenu");
+        };
+        _trayContextMenu.Items.Add(softwareRenderingItem);
+
         var confineToMonitorItem = new MenuItem("限制角色只能在單一螢幕內移動")
         {
             CheckOnClick = true,
             Checked = CharacterWindow.ConfineToCurrentMonitor
         };
         confineToMonitorItem.Click += (_, _) =>
+        {
             CharacterWindow.ConfineToCurrentMonitor = confineToMonitorItem.Checked;
+            _settings.ConfineToCurrentMonitor = confineToMonitorItem.Checked;
+            SettingsManager.Save(_settings);
+        };
         _trayContextMenu.Items.Add(confineToMonitorItem);
 
         var notificationItem = new MenuItem("啟用 Windows 系統通知")
@@ -258,8 +305,28 @@ public partial class App : Application
             Checked = EnableWindowsNotifications
         };
         notificationItem.Click += (_, _) =>
+        {
             EnableWindowsNotifications = notificationItem.Checked;
+            _settings.EnableWindowsNotifications = notificationItem.Checked;
+            SettingsManager.Save(_settings);
+        };
         _trayContextMenu.Items.Add(notificationItem);
+
+        var autoSaveItem = new MenuItem("自動存檔角色狀態")
+        {
+            CheckOnClick = true,
+            Checked = _settings.AutoSaveProfile
+        };
+        autoSaveItem.Click += (_, _) =>
+        {
+            _settings.AutoSaveProfile = autoSaveItem.Checked;
+            SettingsManager.Save(_settings);
+            if (_settings.AutoSaveProfile)
+            {
+                SaveAutoSaveProfile();
+            }
+        };
+        _trayContextMenu.Items.Add(autoSaveItem);
 
         _trayContextMenu.Items.Add(new ToolStripSeparator());
 
@@ -270,6 +337,10 @@ public partial class App : Application
         var importItem = new MenuItem("匯入角色配置...");
         importItem.Click += (_, _) => ImportProfile();
         _trayContextMenu.Items.Add(importItem);
+
+        var restoreAutoSaveItem = new MenuItem("從自動存檔恢復...");
+        restoreAutoSaveItem.Click += (_, _) => RestoreAutoSaveProfile(isManual: true);
+        _trayContextMenu.Items.Add(restoreAutoSaveItem);
 
         _trayContextMenu.Items.Add(new ToolStripSeparator());
 
@@ -338,9 +409,20 @@ public partial class App : Application
             // Gracefully ignore if hotkey registration fails
         }
 
-        // Automatically spawn a random regular character on startup (excluding lai)
-        string initialCharacter = CharacterRegistry.AutoSpawnCandidates[Random.Shared.Next(CharacterRegistry.AutoSpawnCandidates.Length)];
-        SpawnCharacter(initialCharacter);
+        bool restored = false;
+        if (_settings.AutoSaveProfile)
+        {
+            restored = RestoreAutoSaveProfile(isManual: false);
+        }
+
+        if (!restored)
+        {
+            // Automatically spawn a random regular character on startup (excluding lai)
+            string initialCharacter = CharacterRegistry.AutoSpawnCandidates[Random.Shared.Next(CharacterRegistry.AutoSpawnCandidates.Length)];
+            SpawnCharacter(initialCharacter);
+        }
+
+        StartAutoSaveTimer();
     }
 
     private void SetupGlobalExceptionHandling()
@@ -348,6 +430,7 @@ public partial class App : Application
         DispatcherUnhandledException += (s, args) =>
         {
             CrashLogger.Log(args.Exception, "App.DispatcherUnhandledException");
+            EmergencyAutoSave();
             // If this is a PresentationCore render thread / D3D device lost OutOfMemoryException (e.g. during screen lock or sleep), mark handled to avoid process crash
             if (args.Exception is OutOfMemoryException && string.Equals(args.Exception.Source, "PresentationCore", StringComparison.OrdinalIgnoreCase))
             {
@@ -363,14 +446,31 @@ public partial class App : Application
             if (args.ExceptionObject is Exception ex)
             {
                 CrashLogger.Log(ex, "AppDomain.UnhandledException");
+                EmergencyAutoSave();
             }
         };
 
         TaskScheduler.UnobservedTaskException += (s, args) =>
         {
             CrashLogger.Log(args.Exception, "TaskScheduler.UnobservedTaskException");
+            EmergencyAutoSave();
             args.SetObserved();
         };
+    }
+
+    private void EmergencyAutoSave()
+    {
+        try
+        {
+            if (_settings.AutoSaveProfile && _instances.Count > 0)
+            {
+                SaveAutoSaveProfile(force: true);
+                CrashLogger.Info("Emergency auto-save completed upon unhandled exception.", "App.EmergencyAutoSave");
+            }
+        }
+        catch
+        {
+        }
     }
 
     private IntPtr HotkeyWndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -381,6 +481,10 @@ public partial class App : Application
             {
                 HideAllCharacters();
                 handled = true;
+            }
+            else if (msg == NativeMethods.WM_DISPLAYCHANGE || msg == NativeMethods.WM_DWMCOMPOSITIONCHANGED)
+            {
+                RefreshAllVisualSurfaces();
             }
         }
         catch (Exception ex)
@@ -514,6 +618,15 @@ public partial class App : Application
         window.KickRequested += () => KickCharacter(instanceId);
         window.SayHiRequested += () => SayHi(instanceId);
 
+        window.ProfileChanged += ScheduleAutoSave;
+        window.RandomAnimationsEnabledChanged += _ => ScheduleAutoSave();
+        window.JumpEnabledChanged += _ => ScheduleAutoSave();
+        window.OpacityChanged += (_, _) => ScheduleAutoSave();
+        window.ClickThroughChanged += _ => ScheduleAutoSave();
+        window.DefaultAnimationChanged += _ => ScheduleAutoSave();
+
+        ScheduleAutoSave();
+
         return window;
     }
 
@@ -542,6 +655,8 @@ public partial class App : Application
                 UnhideAllCharacters();
             }
         }
+
+        ScheduleAutoSave();
     }
 
     private void KickAllCharacters()
@@ -552,6 +667,7 @@ public partial class App : Application
             KickCharacter(id);
         }
         _characterCounters.Clear();
+        ScheduleAutoSave();
     }
 
     internal static string GetToggleAllClickThroughDisplayName(bool allEnabled) =>
@@ -739,18 +855,27 @@ public partial class App : Application
             UnhideAllCharacters();
         }
 
-        // Clear existing characters (replace mode)
-        KickAllCharacters();
-
-        double screenWidth = SystemParameters.PrimaryScreenWidth;
-        int minX = 50;
-        int maxX = Math.Max(minX, (int)screenWidth - 200);
-
-        foreach (var charItem in profile.Characters)
+        try
         {
-            if (string.IsNullOrWhiteSpace(charItem.CharacterName)) continue;
-            double randomX = Random.Shared.Next(minX, maxX);
-            SpawnCharacter(charItem.CharacterName, randomX, charItem);
+            _isRestoringProfile = true;
+            // Clear existing characters (replace mode)
+            KickAllCharacters();
+
+            double screenWidth = SystemParameters.PrimaryScreenWidth;
+            int minX = 50;
+            int maxX = Math.Max(minX, (int)screenWidth - 200);
+
+            foreach (var charItem in profile.Characters)
+            {
+                if (string.IsNullOrWhiteSpace(charItem.CharacterName)) continue;
+                double randomX = Random.Shared.Next(minX, maxX);
+                SpawnCharacter(charItem.CharacterName, randomX, charItem);
+            }
+        }
+        finally
+        {
+            _isRestoringProfile = false;
+            SaveAutoSaveProfile();
         }
 
         string msg = $"成功匯入 {profile.Characters.Count} 個角色！";
@@ -766,6 +891,160 @@ public partial class App : Application
                 System.Windows.MessageBoxButton.OK,
                 System.Windows.MessageBoxImage.Information);
         }
+    }
+
+    public void SaveAutoSaveProfile(bool force = false)
+    {
+        if (!_settings.AutoSaveProfile) return;
+        if (!_isAutoSaveDirty && !force) return;
+
+        try
+        {
+            var profile = new PetProfile
+            {
+                Version = 1,
+                Characters = new List<CharacterProfileItem>()
+            };
+
+            foreach (var instance in _instances.Values)
+            {
+                profile.Characters.Add(instance.Window.ToProfileItem());
+            }
+
+            string autoSavePath = SettingsManager.GetAutoSaveProfilePath();
+            ProfileManager.SaveToFile(autoSavePath, profile);
+            _isAutoSaveDirty = false;
+        }
+        catch (Exception ex)
+        {
+            CrashLogger.Log(ex, "App.SaveAutoSaveProfile");
+        }
+    }
+
+    public void ScheduleAutoSave()
+    {
+        if (_isRestoringProfile || !_settings.AutoSaveProfile) return;
+        _isAutoSaveDirty = true;
+        SaveAutoSaveProfile(force: true);
+    }
+
+    public bool RestoreAutoSaveProfile(bool isManual = false)
+    {
+        string autoSavePath = SettingsManager.GetAutoSaveProfilePath();
+        if (!File.Exists(autoSavePath))
+        {
+            if (isManual)
+            {
+                if (EnableWindowsNotifications)
+                {
+                    _trayIcon?.ShowBalloonTip(1500, "還原提示", "目前沒有任何自動存檔記錄！", ToolTipIcon.Info);
+                }
+                else
+                {
+                    System.Windows.MessageBox.Show(
+                        "目前沒有任何自動存檔記錄！",
+                        "還原提示",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Information);
+                }
+            }
+            return false;
+        }
+
+        PetProfile? profile;
+        try
+        {
+            profile = ProfileManager.LoadFromFile(autoSavePath);
+        }
+        catch (Exception ex)
+        {
+            CrashLogger.Log(ex, "App.RestoreAutoSaveProfile");
+            if (isManual)
+            {
+                System.Windows.MessageBox.Show(
+                    $"讀取自動存檔失敗：{ex.Message}",
+                    "錯誤",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error);
+            }
+            return false;
+        }
+
+        if (profile == null || profile.Characters == null || profile.Characters.Count == 0)
+        {
+            if (isManual)
+            {
+                System.Windows.MessageBox.Show(
+                    "自動存檔記錄為空或未包含任何角色！",
+                    "還原提示",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
+            }
+            return false;
+        }
+
+        if (IsAllHidden)
+        {
+            UnhideAllCharacters();
+        }
+
+        try
+        {
+            _isRestoringProfile = true;
+            KickAllCharacters();
+
+            double screenWidth = SystemParameters.PrimaryScreenWidth;
+            int minX = 50;
+            int maxX = Math.Max(minX, (int)screenWidth - 200);
+
+            foreach (var charItem in profile.Characters)
+            {
+                if (string.IsNullOrWhiteSpace(charItem.CharacterName)) continue;
+                double randomX = Random.Shared.Next(minX, maxX);
+                SpawnCharacter(charItem.CharacterName, randomX, charItem);
+            }
+        }
+        finally
+        {
+            _isRestoringProfile = false;
+            SaveAutoSaveProfile();
+        }
+
+        if (isManual)
+        {
+            string msg = $"成功從自動存檔恢復 {profile.Characters.Count} 個角色！";
+            if (EnableWindowsNotifications)
+            {
+                _trayIcon?.ShowBalloonTip(1500, "恢復成功", msg, ToolTipIcon.Info);
+            }
+            else
+            {
+                System.Windows.MessageBox.Show(
+                    msg,
+                    "恢復成功",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
+            }
+        }
+
+        return true;
+    }
+
+    private void StartAutoSaveTimer()
+    {
+        _autoSaveTimer?.Stop();
+        _autoSaveTimer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(60)
+        };
+        _autoSaveTimer.Tick += (_, _) =>
+        {
+            if (_settings.AutoSaveProfile && !_isShuttingDown && !IsAllHidden && _isAutoSaveDirty)
+            {
+                SaveAutoSaveProfile();
+            }
+        };
+        _autoSaveTimer.Start();
     }
 
     private void SayHi(string? specificInstanceId = null)
@@ -820,8 +1099,52 @@ public partial class App : Application
         });
     }
 
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e)
+    {
+        RefreshAllVisualSurfaces();
+    }
+
+    public void RefreshAllVisualSurfaces()
+    {
+        if (Dispatcher.CheckAccess())
+        {
+            foreach (var instance in _instances.Values)
+            {
+                instance.Window.RefreshVisualSurface();
+            }
+        }
+        else
+        {
+            Dispatcher.BeginInvoke(RefreshAllVisualSurfaces);
+        }
+    }
+
+    protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
+    {
+        base.OnSessionEnding(e);
+        CrashLogger.Info($"Session ending. Reason: {e.ReasonSessionEnding}", "App.OnSessionEnding");
+        SaveAutoSaveProfile(force: true);
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
+        _isShuttingDown = true;
+        _autoSaveTimer?.Stop();
+        _autoSaveTimer = null;
+        SaveAutoSaveProfile(force: true);
+
+        try
+        {
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+        }
+        catch
+        {
+            // ignore
+        }
+
+        var uptime = DateTime.Now - _startupTime;
+        CrashLogger.Info($"App exiting normally. ExitCode: {e.ApplicationExitCode}, Total Uptime: {uptime:d\\.hh\\:mm\\:ss}", "App.OnExit");
+
         if (_registeredWaitHandle != null)
         {
             try

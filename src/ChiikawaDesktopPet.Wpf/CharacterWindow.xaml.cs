@@ -53,6 +53,7 @@ public partial class CharacterWindow : Window
     public event Action<bool>? JumpEnabledChanged;
     public event Action? KickRequested;
     public event Action? SayHiRequested;
+    public event Action? ProfileChanged;
 
     private bool _jumpEnabled = true;
     private bool _isShuttingDown;
@@ -209,6 +210,11 @@ public partial class CharacterWindow : Window
                         return (IntPtr)1;
                 }
             }
+
+            if (msg == NativeMethods.WM_DISPLAYCHANGE || msg == NativeMethods.WM_DWMCOMPOSITIONCHANGED)
+            {
+                RefreshVisualSurface();
+            }
         }
         catch (Exception ex)
         {
@@ -246,6 +252,7 @@ public partial class CharacterWindow : Window
         {
             SetSprite(currentSprite);
         }
+        ProfileChanged?.Invoke();
     }
 
     public double PetOpacity { get; private set; } = 1.0;
@@ -380,6 +387,25 @@ public partial class CharacterWindow : Window
         UpdateWindowSizeAndLayout(oldWidth, oldHeight);
     }
 
+    public void RefreshVisualSurface()
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(RefreshVisualSurface);
+            return;
+        }
+
+        InvalidateVisual();
+        SpriteImage.InvalidateVisual();
+        UpdateLayout();
+
+        if (SpriteImage.Source is BitmapSource bs)
+        {
+            SpriteImage.Source = null;
+            SpriteImage.Source = bs;
+        }
+    }
+
     public enum SpeechBubblePlacement { Top, Bottom }
     public SpeechBubblePlacement CurrentBubblePlacement { get; private set; } = SpeechBubblePlacement.Top;
 
@@ -420,9 +446,39 @@ public partial class CharacterWindow : Window
             double spaceAbove = charHeadTop - topBoundDip;
             double spaceBelow = bottomBoundDip - (charHeadTop + _currentSpriteHeight);
 
-            // If space above is tight for the bubble (+ 10px margin) AND there's more space below than above,
-            // place bubble below. Otherwise, prefer Top so character can stand on ground/taskbar cleanly.
-            shouldBeBottom = spaceAbove < (bubbleH + 10) && spaceBelow > spaceAbove;
+            const double Margin = 10.0;
+            bool canFitAbove = spaceAbove >= (bubbleH + Margin);
+            bool canFitBelow = spaceBelow >= (bubbleH + Margin);
+
+            if (CurrentBubblePlacement == SpeechBubblePlacement.Top)
+            {
+                // Currently Top. Only flip to Bottom if bubble cannot fit above
+                // AND there is room below (or more room below than above).
+                shouldBeBottom = !canFitAbove && (canFitBelow || spaceBelow > spaceAbove);
+            }
+            else
+            {
+                // Currently Bottom.
+                // Maintain Bottom when the bubble is resting on the taskbar/ground (spaceBelow >= bubbleH - Margin).
+                // Only flip to Top if the user drags the character body itself down past the resting bubble
+                // (spaceBelow < bubbleH - Margin) AND there is sufficient space above (or more space above).
+                bool bubbleTouchingOrFitsBelow = spaceBelow >= (bubbleH - Margin);
+                if (bubbleTouchingOrFitsBelow)
+                {
+                    if (spaceBelow > (bubbleH + Margin) && spaceAbove > spaceBelow && canFitAbove)
+                    {
+                        shouldBeBottom = false; // flip back to Top in mid-air
+                    }
+                    else
+                    {
+                        shouldBeBottom = true; // stay Bottom
+                    }
+                }
+                else
+                {
+                    shouldBeBottom = !canFitAbove && spaceBelow > spaceAbove;
+                }
+            }
         }
 
         double deltaY = 0;
@@ -598,8 +654,14 @@ public partial class CharacterWindow : Window
         {
             double oldW = Width;
             double oldH = Height;
+            var oldPlacement = CurrentBubblePlacement;
             BubbleContainer.Visibility = Visibility.Collapsed;
             UpdateWindowSizeAndLayout(oldW, oldH);
+
+            if (oldPlacement == SpeechBubblePlacement.Bottom && _attachedHwnd == null && !_isFalling && !_isDragging)
+            {
+                FallTo();
+            }
         }
     }
 
@@ -616,6 +678,7 @@ public partial class CharacterWindow : Window
         {
             HideSpeechBubble();
         }
+        ProfileChanged?.Invoke();
     }
 
     public void ToggleAlwaysShowBubble() => SetAlwaysShowBubble(!_alwaysShowBubble);
@@ -645,6 +708,7 @@ public partial class CharacterWindow : Window
         {
             HideSpeechBubble();
         }
+        ProfileChanged?.Invoke();
     }
 
     public void ResetToDefaultQuote()
@@ -660,6 +724,7 @@ public partial class CharacterWindow : Window
             UpdateWindowSizeAndLayout(Width, Height);
         }
         ShowSpeechBubble(3500);
+        ProfileChanged?.Invoke();
     }
 
     private void OnBubbleContainerSizeChanged(object sender, SizeChangedEventArgs e)
@@ -792,7 +857,7 @@ public partial class CharacterWindow : Window
 
     // Screen.Bounds/WorkingArea/VirtualScreen are physical pixels, but Window.Top/Left (and
     // everything BehaviorPlanner computes) are WPF DIPs. Convert using the primary screen's ratio.
-    private static double GetDipScale()
+    internal static double GetDipScale()
     {
         var primary = System.Windows.Forms.Screen.PrimaryScreen;
         if (primary == null || primary.Bounds.Width <= 0) return 1.0;

@@ -138,4 +138,26 @@ public class ProfileWpfTests
             window.Close();
         });
     }
+
+    [Fact]
+    public void CharacterWindow_ProfileChanged_FiresOnStateChanges()
+    {
+        RunInSta(() =>
+        {
+            var window = new CharacterWindow("chiikawa", 1);
+            int eventCount = 0;
+            window.ProfileChanged += () => eventCount++;
+
+            window.SetScaleRatio(1.2);
+            Assert.Equal(1, eventCount);
+
+            window.SetCustomText("測試變更");
+            Assert.Equal(2, eventCount);
+
+            window.SetAlwaysShowBubble(true);
+            Assert.Equal(3, eventCount);
+
+            window.Close();
+        });
+    }
 }
