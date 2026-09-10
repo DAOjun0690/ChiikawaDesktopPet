@@ -514,4 +514,35 @@ public class DefaultAnimationTests
             window.Close();
         });
     }
+
+    [Fact]
+    public void CharacterWindow_ChestHairEmperor_InitializesAndDiscoversAllAnimations()
+    {
+        RunInSta(() =>
+        {
+            var window = new CharacterWindow("chesthair_emperor");
+            var allAnimations = window.AllAnimationNames();
+            Assert.Contains("walkleft", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("walkright", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("bounce", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("angry", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("panic", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("stamp", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("dismiss", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("lazy", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("suspicious", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("reward", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("read", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("inspect", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("worship", allAnimations, StringComparer.OrdinalIgnoreCase);
+
+            var inPlace = window.InPlaceAnimationNames();
+            Assert.Contains("bounce", inPlace, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("stamp", inPlace, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("angry", inPlace, StringComparer.OrdinalIgnoreCase);
+
+            Assert.NotNull(window.SpriteImage);
+            window.Close();
+        });
+    }
 }

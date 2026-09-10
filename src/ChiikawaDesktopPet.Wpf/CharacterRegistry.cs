@@ -30,7 +30,8 @@ internal static class CharacterRegistry
         ("armi", "廢貓阿米 - 左手畫的", true),
         ("ketawan2", "けたわん (Ketawan2)", true),
         ("sky_rapper", "Sky Rapper (天空饒舌歌手)", true),
-        ("linedog", "線條小狗 (Maltese Puppy)", true)
+        ("linedog", "線條小狗 (Maltese Puppy)", true),
+        ("chesthair_emperor", "LV.67 野生喵喵怪(屬性:皇上)", true)
     ];
 
     public static readonly string[] AutoSpawnCandidates =

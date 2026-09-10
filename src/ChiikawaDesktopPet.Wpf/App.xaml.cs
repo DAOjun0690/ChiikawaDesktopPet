@@ -90,7 +90,16 @@ public partial class App : Application
         ["shirankedo"] = "雖然我也不清楚啦",
         ["study"] = "認真讀書考照",
         ["ramen"] = "郎拉麵打工",
-        ["drink"] = "乾杯暢飲"
+        ["drink"] = "乾杯暢飲",
+        ["stamp"] = "朕已閱(玉璽)",
+        ["angry"] = "龍顏大怒",
+        ["panic"] = "來人護駕",
+        ["dismiss"] = "眾卿退朝",
+        ["lazy"] = "朕乏了",
+        ["suspicious"] = "總有小人害朕",
+        ["reward"] = "這個賞你",
+        ["read"] = "批閱奏摺",
+        ["inspect"] = "驚喜烤地瓜"
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     private sealed class CharacterInstanceData(

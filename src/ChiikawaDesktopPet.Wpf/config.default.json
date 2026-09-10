@@ -243,6 +243,23 @@
       "cuddle": { "fps": 12 }
     }
   },
+  "chesthair_emperor": {
+    "animations": {
+      "walkleft": { "fps": 12 },
+      "walkright": { "fps": 12 },
+      "bounce": { "fps": 12 },
+      "angry": { "fps": 15 },
+      "panic": { "fps": 14 },
+      "stamp": { "fps": 12 },
+      "dismiss": { "fps": 10 },
+      "lazy": { "fps": 8 },
+      "suspicious": { "fps": 10 },
+      "reward": { "fps": 10 },
+      "read": { "fps": 10 },
+      "inspect": { "fps": 10 },
+      "worship": { "fps": 10 }
+    }
+  },
   "coanimations": {
     "animations": {
       "chiikawa_momonga": { "fps": 15 }

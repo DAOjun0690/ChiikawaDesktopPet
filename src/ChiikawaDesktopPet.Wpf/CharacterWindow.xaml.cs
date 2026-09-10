@@ -18,6 +18,7 @@ public partial class CharacterWindow : Window
     public string InstanceDisplayName { get; }
     public string InstanceId { get; }
 
+    public const double BaseScaleMultiplier = 1.5;
     private readonly int _characterWidth;
     private readonly int _characterHeight;
     private readonly int _physicalCharacterWidth;
@@ -88,11 +89,11 @@ public partial class CharacterWindow : Window
         InstanceId = $"{CharacterName}_{InstanceIndex}";
         _assetPackage = CharacterAssetPackage.Open(CharacterName);
 
-        _characterWidth = (int)(SystemParameters.PrimaryScreenWidth / 10);
-        _characterHeight = (int)(SystemParameters.PrimaryScreenHeight / 10);
+        _characterWidth = (int)((SystemParameters.PrimaryScreenWidth / 10.0) * BaseScaleMultiplier);
+        _characterHeight = (int)((SystemParameters.PrimaryScreenHeight / 10.0) * BaseScaleMultiplier);
         var primaryScreen = System.Windows.Forms.Screen.PrimaryScreen;
-        _physicalCharacterWidth = (int)((primaryScreen?.Bounds.Width ?? (int)SystemParameters.PrimaryScreenWidth) / 10);
-        _physicalCharacterHeight = (int)((primaryScreen?.Bounds.Height ?? (int)SystemParameters.PrimaryScreenHeight) / 10);
+        _physicalCharacterWidth = (int)(((primaryScreen?.Bounds.Width ?? (int)SystemParameters.PrimaryScreenWidth) / 10.0) * BaseScaleMultiplier);
+        _physicalCharacterHeight = (int)(((primaryScreen?.Bounds.Height ?? (int)SystemParameters.PrimaryScreenHeight) / 10.0) * BaseScaleMultiplier);
 
         _config = ConfigLoader.Load(Path.Combine(AppContext.BaseDirectory, "config.json"));
         if (_config.TryGetValue(CharacterName, out var charConfig))
@@ -377,7 +378,7 @@ public partial class CharacterWindow : Window
         SpriteImage.Source = sprite;
 
         double baseScale = Math.Min((double)_physicalCharacterWidth / sprite.PixelWidth, (double)_physicalCharacterHeight / sprite.PixelHeight);
-        double fitScale = Math.Min(1.0, baseScale);
+        double fitScale = Math.Min(BaseScaleMultiplier, baseScale);
         double dipScale = GetDipScale();
         double dipWidth = sprite.PixelWidth * fitScale * dipScale * ScaleRatio;
         double dipHeight = sprite.PixelHeight * fitScale * dipScale * ScaleRatio;
