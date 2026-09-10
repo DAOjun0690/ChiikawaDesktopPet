@@ -127,4 +127,40 @@ public class DialogueAndNotificationTests
             window.Close();
         });
     }
+
+    [Fact]
+    public void CharacterWindow_SetCustomText_ConsecutiveCalls_Diagnostic()
+    {
+        RunInSta(() =>
+        {
+            var window = new CharacterWindow("poro");
+            window.Show();
+            window.Width = 128;
+            window.Height = 128;
+            window.SpriteImage.Width = 128;
+            window.SpriteImage.Height = 128;
+            window.GetType().GetField("_currentSpriteWidth", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.SetValue(window, 128);
+            window.GetType().GetField("_currentSpriteHeight", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.SetValue(window, 128);
+            window.GetType().GetField("_isFalling", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.SetValue(window, false);
+
+            window.Top = 500;
+            double feetInitial = window.Top + window.Height;
+
+            // Call 1: First quote
+            window.SetCustomText("Short text");
+            double top1 = window.Top;
+            double h1 = window.Height;
+            double feet1 = top1 + h1;
+
+            // Call 2: Second quote (longer)
+            window.SetCustomText("Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7\nLine 8");
+            double top2 = window.Top;
+            double h2 = window.Height;
+            double feet2 = top2 + h2;
+
+            Assert.True(Math.Abs(feet1 - feetInitial) < 1.0, $"Feet drifted on call 1! Initial={feetInitial}, feet1={feet1}");
+            Assert.True(Math.Abs(feet2 - feetInitial) < 1.0, $"Feet drifted on call 2! Initial={feetInitial}, feet2={feet2}");
+            window.Close();
+        });
+    }
 }

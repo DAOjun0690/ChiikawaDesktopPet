@@ -278,9 +278,11 @@ public partial class CharacterWindow
         {
             planMinX = minX - (int)Width - 60;
             planMaxX = maxX + (int)Width + 60;
-            effectiveLandingY = CurrentBubblePlacement == SpeechBubblePlacement.Top
-                ? (int)(rect.Top * dipScale) - (int)Height + charHeight
-                : (int)(rect.Top * dipScale);
+            _jumpStartingFeetY = rect.Top * dipScale;
+            bool isBubbleAbove = (CurrentBubblePlacement == SpeechBubblePlacement.Top && BubbleContainer.Visibility == Visibility.Visible && Height > charHeight);
+            effectiveLandingY = isBubbleAbove
+                ? (int)_jumpStartingFeetY - (int)Height + charHeight
+                : (int)_jumpStartingFeetY;
         }
         else
         {
@@ -288,6 +290,8 @@ public partial class CharacterWindow
             // Since PlanJump computes landTarget.Y = effectiveLandingY - characterHeight,
             // setting effectiveLandingY = (int)Math.Round(currentTop) + charHeight guarantees
             // landTarget.Y = (int)Math.Round(currentTop), exactly returning to the starting ground!
+            bool isBubbleAbove = (CurrentBubblePlacement == SpeechBubblePlacement.Top && BubbleContainer.Visibility == Visibility.Visible && Height > charHeight);
+            _jumpStartingFeetY = isBubbleAbove ? (currentTop + Height) : (currentTop + charHeight);
             effectiveLandingY = (int)Math.Round(currentTop) + charHeight;
         }
 
@@ -329,7 +333,21 @@ public partial class CharacterWindow
 
         riseAnimation.Completed += (_, _) =>
         {
-            var landAnimation = new DoubleAnimation(plan.RiseTarget.Y, plan.LandTarget.Y, TimeSpan.FromMilliseconds(plan.DurationMs))
+            double targetLandingTop;
+            if (_attachedHwnd is { } attachedHwnd && TryGetAttachedWindowBounds(out var currentRect))
+            {
+                double scale = GetDipScale();
+                double winTopDip = currentRect.Top * scale;
+                bool isBubbleAbove = (CurrentBubblePlacement == SpeechBubblePlacement.Top && BubbleContainer.Visibility == Visibility.Visible && Height > _currentSpriteHeight);
+                targetLandingTop = isBubbleAbove ? (winTopDip - Height) : (winTopDip - _currentSpriteHeight);
+            }
+            else
+            {
+                bool isBubbleAbove = (CurrentBubblePlacement == SpeechBubblePlacement.Top && BubbleContainer.Visibility == Visibility.Visible && Height > _currentSpriteHeight);
+                targetLandingTop = isBubbleAbove ? (_jumpStartingFeetY - Height) : (_jumpStartingFeetY - _currentSpriteHeight);
+            }
+
+            var landAnimation = new DoubleAnimation(plan.RiseTarget.Y, targetLandingTop, TimeSpan.FromMilliseconds(plan.DurationMs))
             {
                 EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
             };
@@ -339,35 +357,74 @@ public partial class CharacterWindow
             };
             landAnimation.Completed += (_, _) =>
             {
-                BeginAnimation(TopProperty, null);
-                BeginAnimation(LeftProperty, null);
-                Top = plan.LandTarget.Y;
-                Left = plan.LandTarget.X;
-                _loopCurrentAnimation = false;
-                _isFalling = false;
-                _isJumping = false;
-                _frameTimer.Stop();
-
-                if (_attachedHwnd is { } attachedHwnd && TryGetAttachedWindowBounds(out var currentRect))
-                {
-                    double scale = GetDipScale();
-                    double wLeft = currentRect.Left * scale;
-                    double wRight = currentRect.Right * scale;
-                    if (BehaviorPlanner.IsSteppedOffWindow((int)Left, (int)Width, (int)wLeft, (int)wRight))
-                    {
-                        DetachAndFall();
-                        return;
-                    }
-                    _attachedRelativeX = Left - wLeft;
-                }
-
-                EnterIdleState();
+                CompleteJumpLanding(plan.LandTarget.X);
             };
             BeginAnimation(TopProperty, landAnimation);
             BeginAnimation(LeftProperty, landAnimationX);
         };
         BeginAnimation(TopProperty, riseAnimation);
         BeginAnimation(LeftProperty, riseAnimationX);
+    }
+
+    internal void CompleteJumpLanding(int landTargetX)
+    {
+        BeginAnimation(TopProperty, null);
+        BeginAnimation(LeftProperty, null);
+
+        double finalLandingTop;
+        if (_attachedHwnd is { } attachedHwnd && TryGetAttachedWindowBounds(out var landingRect))
+        {
+            double scale = GetDipScale();
+            double winTopDip = landingRect.Top * scale;
+            bool isBubbleAbove = (CurrentBubblePlacement == SpeechBubblePlacement.Top && BubbleContainer.Visibility == Visibility.Visible && Height > _currentSpriteHeight);
+            finalLandingTop = isBubbleAbove ? (winTopDip - Height) : (winTopDip - _currentSpriteHeight);
+            Top = finalLandingTop;
+            Left = landTargetX;
+            _loopCurrentAnimation = false;
+            _isFalling = false;
+            _isJumping = false;
+            _frameTimer.Stop();
+
+            if (_pendingHideBubbleAfterJump)
+            {
+                _pendingHideBubbleAfterJump = false;
+                if (!_alwaysShowBubble)
+                {
+                    HideSpeechBubble();
+                }
+            }
+
+            double wLeft = landingRect.Left * scale;
+            double wRight = landingRect.Right * scale;
+            if (BehaviorPlanner.IsSteppedOffWindow((int)Left, (int)Width, (int)wLeft, (int)wRight))
+            {
+                DetachAndFall();
+                return;
+            }
+            _attachedRelativeX = Left - wLeft;
+        }
+        else
+        {
+            bool isBubbleAbove = (CurrentBubblePlacement == SpeechBubblePlacement.Top && BubbleContainer.Visibility == Visibility.Visible && Height > _currentSpriteHeight);
+            finalLandingTop = isBubbleAbove ? (_jumpStartingFeetY - Height) : (_jumpStartingFeetY - _currentSpriteHeight);
+            Top = finalLandingTop;
+            Left = landTargetX;
+            _loopCurrentAnimation = false;
+            _isFalling = false;
+            _isJumping = false;
+            _frameTimer.Stop();
+
+            if (_pendingHideBubbleAfterJump)
+            {
+                _pendingHideBubbleAfterJump = false;
+                if (!_alwaysShowBubble)
+                {
+                    HideSpeechBubble();
+                }
+            }
+        }
+
+        EnterIdleState();
     }
 
     public void SmoothMoveTo(PetPoint target, Action? onArrived)

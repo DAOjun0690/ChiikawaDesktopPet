@@ -46,6 +46,7 @@ public partial class CharacterWindow
                 _isAnimating = false;
                 _isWalking = false;
                 _isJumping = false;
+                _pendingHideBubbleAfterJump = false;
                 DetachFromWindow();
                 _isFalling = false;
                 _isShaking = false;

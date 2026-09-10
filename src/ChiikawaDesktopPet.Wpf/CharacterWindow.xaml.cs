@@ -25,6 +25,7 @@ public partial class CharacterWindow : Window
     private int _currentSpriteWidth;
     private int _currentSpriteHeight;
     private bool _isFalling = true;
+    private bool _isUpdatingLayout;
     private readonly Dictionary<string, List<BitmapSource>> _frames = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, BitmapSource> _sprites = new(StringComparer.OrdinalIgnoreCase);
     private readonly CharacterAssetPackage _assetPackage;
@@ -74,6 +75,8 @@ public partial class CharacterWindow : Window
     private bool _alwaysShowBubble;
     public bool AlwaysShowBubble => _alwaysShowBubble;
     private readonly DispatcherTimer _bubbleTimer = new();
+    private bool _pendingHideBubbleAfterJump;
+    private double _jumpStartingFeetY;
     internal DispatcherTimer? TalkActionTimer { get; set; }
 
     public CharacterWindow(string characterName, int instanceIndex = 1, string? instanceDisplayName = null)
@@ -428,6 +431,11 @@ public partial class CharacterWindow : Window
             }
             else
             {
+                if (double.IsNaN(Top))
+                {
+                    return 0;
+                }
+
                 // When bubble is above character, character sits at the bottom of the window.
                 // Its head is at Top + (Height - _currentSpriteHeight).
                 charHeadTop = (CurrentBubblePlacement == SpeechBubblePlacement.Top && BubbleContainer.IsVisible && Height > _currentSpriteHeight)
@@ -435,7 +443,13 @@ public partial class CharacterWindow : Window
                     : Top;
             }
 
-            var screenPoint = new System.Drawing.Point((int)(Left / dipScale), (int)(charHeadTop / dipScale));
+            if (double.IsNaN(charHeadTop))
+            {
+                return 0;
+            }
+
+            double currentLeft = double.IsNaN(Left) ? 0 : Left;
+            var screenPoint = new System.Drawing.Point((int)(currentLeft / dipScale), (int)(charHeadTop / dipScale));
             var primary = System.Windows.Forms.Screen.PrimaryScreen;
             var screen = (primary != null) ? System.Windows.Forms.Screen.FromPoint(screenPoint) : null;
             var workingArea = screen?.WorkingArea ?? new System.Drawing.Rectangle(0, 0, (int)SystemParameters.PrimaryScreenWidth, (int)SystemParameters.PrimaryScreenHeight);
@@ -508,61 +522,180 @@ public partial class CharacterWindow : Window
 
     private void UpdateWindowSizeAndLayout(double oldWidth = 0, double oldHeight = 0)
     {
-        double bubbleW = 0;
-        double bubbleH = 0;
-
-        if (BubbleContainer.Visibility == Visibility.Visible && HasCustomText)
+        if (_isUpdatingLayout) return;
+        _isUpdatingLayout = true;
+        try
         {
-            double maxContainerWidth = Math.Max(BubbleBorder.MaxWidth + 20, _currentSpriteWidth);
-            BubbleContainer.Measure(new Size(maxContainerWidth, double.PositiveInfinity));
-            bubbleW = Math.Max(BubbleContainer.DesiredSize.Width, BubbleContainer.ActualWidth);
-            bubbleH = Math.Max(BubbleContainer.DesiredSize.Height, BubbleContainer.ActualHeight);
-        }
+            double currentTop = double.IsNaN(Top) ? 0 : Top;
+            double currentLeft = double.IsNaN(Left) ? 0 : Left;
+            double currentHeight = (double.IsNaN(Height) || Height <= 0) ? _currentSpriteHeight : Height;
+            double currentWidth = (double.IsNaN(Width) || Width <= 0) ? _currentSpriteWidth : Width;
 
-        var previousPlacement = CurrentBubblePlacement;
-        UpdateBubblePlacement(bubbleH);
+            if (oldWidth <= 0 || double.IsNaN(oldWidth)) oldWidth = currentWidth;
+            if (oldHeight <= 0 || double.IsNaN(oldHeight)) oldHeight = currentHeight;
 
-        double newWidth = Math.Ceiling(Math.Max(_currentSpriteWidth, bubbleW));
-        double newHeight = Math.Ceiling(_currentSpriteHeight + bubbleH);
+            double bubbleW = 0;
+            double bubbleH = 0;
 
-        Width = newWidth;
-        Height = newHeight;
+            var previousPlacement = CurrentBubblePlacement;
+            double dipScale = GetDipScale();
+            double oldFeet;
+            double charHeadTop;
 
-        if (_attachedHwnd != null && TryGetAttachedWindowBounds(out var rect))
-        {
-            double scale = GetDipScale();
-            double winTopDip = rect.Top * scale;
-            Top = CurrentBubblePlacement == SpeechBubblePlacement.Top ? (winTopDip - newHeight) : (winTopDip - _currentSpriteHeight);
-        }
-        else
-        {
-            if (!_isFalling && oldHeight > 0)
+            if (_attachedHwnd != null && TryGetAttachedWindowBounds(out var attachedBounds))
             {
-                if (previousPlacement == SpeechBubblePlacement.Top && CurrentBubblePlacement == SpeechBubblePlacement.Top)
-                {
-                    Top += (oldHeight - newHeight);
-                }
-                else if (previousPlacement == SpeechBubblePlacement.Top && CurrentBubblePlacement == SpeechBubblePlacement.Bottom)
-                {
-                    Top += (oldHeight - _currentSpriteHeight);
-                }
-                else if (previousPlacement == SpeechBubblePlacement.Bottom && CurrentBubblePlacement == SpeechBubblePlacement.Top)
-                {
-                    Top -= bubbleH;
-                }
-                // If Bottom -> Bottom, Top remains unchanged
+                double winTopDip = attachedBounds.Top * dipScale;
+                oldFeet = winTopDip;
+                charHeadTop = winTopDip - _currentSpriteHeight;
             }
-            if (oldWidth > 0 && Math.Abs(oldWidth - newWidth) > 0.01)
+            else
             {
-                Left += (oldWidth - newWidth) / 2.0;
+                bool wasBubbleAbove = (previousPlacement == SpeechBubblePlacement.Top && oldHeight > _currentSpriteHeight + 1);
+                oldFeet = wasBubbleAbove ? (currentTop + oldHeight) : (currentTop + _currentSpriteHeight);
+                charHeadTop = double.IsNaN(Top) ? double.NaN : (oldFeet - _currentSpriteHeight);
             }
+
+            var screenPoint = new System.Drawing.Point((int)(currentLeft / dipScale), (int)((double.IsNaN(charHeadTop) ? 0 : charHeadTop) / dipScale));
+            var primary = System.Windows.Forms.Screen.PrimaryScreen;
+            var screen = (primary != null) ? System.Windows.Forms.Screen.FromPoint(screenPoint) : null;
+            var workingArea = screen?.WorkingArea ?? new System.Drawing.Rectangle(0, 0, (int)SystemParameters.PrimaryScreenWidth, (int)SystemParameters.PrimaryScreenHeight);
+
+            double topBoundDip = workingArea.Top * dipScale;
+            double bottomBoundDip = workingArea.Bottom * dipScale;
+            double spaceAbove = double.IsNaN(charHeadTop) ? 450.0 : Math.Max(0.0, charHeadTop - topBoundDip);
+            double spaceBelow = double.IsNaN(charHeadTop) ? 450.0 : Math.Max(0.0, bottomBoundDip - (charHeadTop + _currentSpriteHeight));
+
+            const double Margin = 10.0;
+            const double Overhead = 45.0; // Margin (20) + Border padding & stroke (~18) + Pointer (~7)
+
+            if (BubbleContainer.Visibility == Visibility.Visible && HasCustomText)
+            {
+                // Determine if bubble should be placed at the bottom or top
+                bool isBottom = double.IsNaN(Top)
+                    ? (previousPlacement == SpeechBubblePlacement.Bottom)
+                    : ((previousPlacement == SpeechBubblePlacement.Bottom)
+                        ? (spaceBelow >= (60.0 - Margin) && (spaceAbove <= spaceBelow || spaceAbove < (80.0 + Margin)))
+                        : (spaceAbove < 80.0 && spaceBelow > spaceAbove));
+
+                double availableSpace = isBottom ? spaceBelow : spaceAbove;
+                if (double.IsNaN(availableSpace) || double.IsInfinity(availableSpace) || availableSpace <= 0)
+                {
+                    availableSpace = 450.0;
+                }
+                double maxAllowedBubbleH = Math.Max(60.0, availableSpace - 15.0);
+                double maxViewerH = Math.Min(450.0, Math.Max(30.0, maxAllowedBubbleH - Overhead));
+                if (double.IsNaN(maxViewerH) || maxViewerH <= 0)
+                {
+                    maxViewerH = 450.0;
+                }
+
+                if (BubbleScrollViewer != null)
+                {
+                    BubbleScrollViewer.MaxHeight = maxViewerH;
+                }
+
+                double maxContainerWidth = Math.Max(BubbleBorder.MaxWidth + 20, _currentSpriteWidth);
+                BubbleContainer.Measure(new Size(maxContainerWidth, double.PositiveInfinity));
+                bubbleW = Math.Max(BubbleContainer.DesiredSize.Width, BubbleContainer.ActualWidth);
+                bubbleH = Math.Max(BubbleContainer.DesiredSize.Height, BubbleContainer.ActualHeight);
+
+                UpdateBubblePlacement(bubbleH, double.IsNaN(charHeadTop) ? null : charHeadTop);
+
+                // If placement flipped after measure, re-constrain to the actual placement
+                if (CurrentBubblePlacement != (isBottom ? SpeechBubblePlacement.Bottom : SpeechBubblePlacement.Top))
+                {
+                    availableSpace = CurrentBubblePlacement == SpeechBubblePlacement.Bottom ? spaceBelow : spaceAbove;
+                    if (double.IsNaN(availableSpace) || double.IsInfinity(availableSpace) || availableSpace <= 0)
+                    {
+                        availableSpace = 450.0;
+                    }
+                    maxAllowedBubbleH = Math.Max(60.0, availableSpace - 15.0);
+                    maxViewerH = Math.Min(450.0, Math.Max(30.0, maxAllowedBubbleH - Overhead));
+                    if (double.IsNaN(maxViewerH) || maxViewerH <= 0)
+                    {
+                        maxViewerH = 450.0;
+                    }
+                    if (BubbleScrollViewer != null)
+                    {
+                        BubbleScrollViewer.MaxHeight = maxViewerH;
+                    }
+                    BubbleContainer.Measure(new Size(maxContainerWidth, double.PositiveInfinity));
+                    bubbleW = Math.Max(BubbleContainer.DesiredSize.Width, BubbleContainer.ActualWidth);
+                    bubbleH = Math.Max(BubbleContainer.DesiredSize.Height, BubbleContainer.ActualHeight);
+                }
+            }
+            else
+            {
+                if (BubbleScrollViewer != null)
+                {
+                    BubbleScrollViewer.MaxHeight = 450.0;
+                }
+                UpdateBubblePlacement(0);
+            }
+
+            double newWidth = Math.Ceiling(Math.Max(_currentSpriteWidth, bubbleW));
+            double newHeight = Math.Ceiling(_currentSpriteHeight + bubbleH);
+
+            if (_attachedHwnd != null && TryGetAttachedWindowBounds(out var attachedRect))
+            {
+                double scale = GetDipScale();
+                double winTopDip = attachedRect.Top * scale;
+                Top = CurrentBubblePlacement == SpeechBubblePlacement.Top ? (winTopDip - newHeight) : (winTopDip - _currentSpriteHeight);
+            }
+            else
+            {
+                if (!double.IsNaN(Top) && !_isFalling && oldHeight > 0)
+                {
+                    if (CurrentBubblePlacement == SpeechBubblePlacement.Top)
+                    {
+                        double maxPossibleHeight = Math.Max(_currentSpriteHeight, oldFeet - topBoundDip);
+                        if (newHeight > maxPossibleHeight)
+                        {
+                            newHeight = maxPossibleHeight;
+                            bubbleH = Math.Max(0.0, newHeight - _currentSpriteHeight);
+                            if (BubbleScrollViewer != null)
+                            {
+                                BubbleScrollViewer.MaxHeight = Math.Max(30.0, bubbleH - Overhead);
+                            }
+                        }
+                        Top = oldFeet - newHeight;
+                    }
+                    else
+                    {
+                        double maxPossibleHeight = Math.Max(_currentSpriteHeight, bottomBoundDip - (oldFeet - _currentSpriteHeight));
+                        if (newHeight > maxPossibleHeight)
+                        {
+                            newHeight = maxPossibleHeight;
+                            bubbleH = Math.Max(0.0, newHeight - _currentSpriteHeight);
+                            if (BubbleScrollViewer != null)
+                            {
+                                BubbleScrollViewer.MaxHeight = Math.Max(30.0, bubbleH - Overhead);
+                            }
+                        }
+                        Top = oldFeet - _currentSpriteHeight;
+                    }
+                }
+
+                if (!double.IsNaN(Left) && oldWidth > 0 && Math.Abs(oldWidth - newWidth) > 0.01)
+                {
+                    Left += (oldWidth - newWidth) / 2.0;
+                }
+            }
+
+            Width = newWidth;
+            Height = newHeight;
             ClampToScreen();
+        }
+        finally
+        {
+            _isUpdatingLayout = false;
         }
     }
 
     private void ClampToScreen()
     {
         if (IsPetHidden || _isShuttingDown) return;
+        if (double.IsNaN(Left) || double.IsNaN(Top)) return;
         if (IsLoaded && !_isFalling && !_isDragging)
         {
             double dipScale = GetDipScale();
@@ -578,9 +711,15 @@ public partial class CharacterWindow : Window
 
             if (_attachedHwnd == null)
             {
-                var clamped = BehaviorPlanner.ClampToBounds(new PetPoint((int)Left, (int)Top), bounds, (int)Width, (int)Height);
-                Left = clamped.X;
-                Top = clamped.Y;
+                var clamped = BehaviorPlanner.ClampToBounds(new PetPoint((int)Math.Round(Left), (int)Math.Round(Top)), bounds, (int)Math.Ceiling(Width), (int)Math.Ceiling(Height));
+                if (Left < bounds.Left || Left + Width > bounds.Right + 5)
+                {
+                    Left = clamped.X;
+                }
+                if (Top < bounds.Top || Top + Height > bounds.Bottom + 1)
+                {
+                    Top = clamped.Y;
+                }
             }
             else
             {
@@ -594,6 +733,7 @@ public partial class CharacterWindow : Window
 
     public void ShowSpeechBubble(int durationMs = 3500, bool forceRefreshContent = false)
     {
+        _pendingHideBubbleAfterJump = false;
         if (!HasCustomText)
         {
             HideSpeechBubble();
@@ -729,6 +869,7 @@ public partial class CharacterWindow : Window
 
     private void OnBubbleContainerSizeChanged(object sender, SizeChangedEventArgs e)
     {
+        if (_isUpdatingLayout) return;
         if (BubbleContainer.Visibility != Visibility.Visible || !HasCustomText) return;
         if (!e.HeightChanged && !e.WidthChanged) return;
 
@@ -784,6 +925,11 @@ public partial class CharacterWindow : Window
     private void OnBubbleTimerTick()
     {
         _bubbleTimer.Stop();
+        if (_isJumping)
+        {
+            _pendingHideBubbleAfterJump = true;
+            return;
+        }
         if (!_alwaysShowBubble)
         {
             HideSpeechBubble();
@@ -898,10 +1044,21 @@ public partial class CharacterWindow : Window
 
         TalkActionTimer?.Stop();
         TalkActionTimer = null;
+        BeginAnimation(TopProperty, null);
+        BeginAnimation(LeftProperty, null);
         _isAnimating = false;
         _isFalling = false;
         _isWalking = false;
         _isJumping = false;
+
+        if (_pendingHideBubbleAfterJump)
+        {
+            _pendingHideBubbleAfterJump = false;
+            if (!_alwaysShowBubble)
+            {
+                HideSpeechBubble();
+            }
+        }
 
         if (_attachedHwnd is { } hwnd && TryGetAttachedWindowBounds(out var rect))
         {
@@ -1054,6 +1211,7 @@ public partial class CharacterWindow : Window
     public void EnterInteractionState()
     {
         _isInteracting = true;
+        _pendingHideBubbleAfterJump = false;
         TalkActionTimer?.Stop();
         TalkActionTimer = null;
         _idleTimer.Stop();
@@ -1110,6 +1268,7 @@ public partial class CharacterWindow : Window
         _windowTrackingTimer.Stop();
         _holdTimer.Stop();
         _bubbleTimer.Stop();
+        _pendingHideBubbleAfterJump = false;
         TalkActionTimer?.Stop();
         TalkActionTimer = null;
         TimedAnimationTimer?.Stop();

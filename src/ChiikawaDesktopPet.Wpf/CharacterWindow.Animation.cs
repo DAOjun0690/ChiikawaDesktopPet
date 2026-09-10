@@ -74,7 +74,7 @@ public partial class CharacterWindow
 
     public void PlayRandomAction()
     {
-        if (_isDragging) return;
+        if (_isDragging || _isFalling || _isJumping) return;
 
         // Stop current animation/movement to switch immediately
         _idleTimer.Stop();
