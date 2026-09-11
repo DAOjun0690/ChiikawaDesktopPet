@@ -260,6 +260,33 @@
       "worship": { "fps": 10 }
     }
   },
+  "nailong": {
+    "animations": {
+      "walkleft": { "fps": 8 },
+      "walkright": { "fps": 8 },
+      "bounce": { "fps": 12 },
+      "fly": { "fps": 12 },
+      "watermelon": { "fps": 10 },
+      "chicken": { "fps": 10 },
+      "sleep": { "fps": 8 },
+      "tease": { "fps": 10 },
+      "cry": { "fps": 10 },
+      "snort": { "fps": 10 },
+      "dance": { "fps": 10 },
+      "laugh": { "fps": 10 },
+      "drool": { "fps": 10 },
+      "liondance": { "fps": 10 },
+      "salute": { "fps": 10 },
+      "pet": { "fps": 10 },
+      "bye": { "fps": 10 },
+      "nod": { "fps": 10 },
+      "bag": { "fps": 10 },
+      "cny": { "fps": 10 },
+      "hop": { "fps": 10 },
+      "gasp": { "fps": 10 },
+      "hi": { "fps": 10 }
+    }
+  },
   "coanimations": {
     "animations": {
       "chiikawa_momonga": { "fps": 15 }

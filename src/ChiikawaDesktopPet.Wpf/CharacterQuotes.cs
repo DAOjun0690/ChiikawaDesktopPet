@@ -26,7 +26,8 @@ public static class CharacterQuotes
         ["sky_rapper"] = "BRO...（從天空中比出大拇指凝視著你）",
         ["shisa"] = "うれシーサー！（好開心獅薩！）",
         ["linedog"] = "汪汪！今天也要開開心心！（搖尾巴）",
-        ["chesthair_emperor"] = "眾卿退朝吧！陪朕出去走走！"
+        ["chesthair_emperor"] = "眾卿退朝吧！陪朕出去走走！",
+        ["nailong"] = "我來啦～！肚子餓了！"
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     public static string GetDefaultQuote(string characterName) =>

@@ -99,7 +99,23 @@ public partial class App : Application
         ["suspicious"] = "總有小人害朕",
         ["reward"] = "這個賞你",
         ["read"] = "批閱奏摺",
-        ["inspect"] = "驚喜烤地瓜"
+        ["inspect"] = "驚喜烤地瓜",
+        ["fly"] = "超人飛撲(我來啦)",
+        ["watermelon"] = "大口吃西瓜",
+        ["chicken"] = "大口啃雞腿",
+        ["tease"] = "做鬼臉吐舌(略略略)",
+        ["snort"] = "傲嬌轉身(哼)",
+        ["drool"] = "雙眼放光流口水",
+        ["liondance"] = "新春舞獅(恭喜發財)",
+        ["salute"] = "拱手拜年(笑口常開)",
+        ["pet"] = "摸摸小恐龍",
+        ["bye"] = "轉身掰掰(BYE BYE)",
+        ["nod"] = "歪頭認可(嗯)",
+        ["bag"] = "福袋探頭祈福",
+        ["cny"] = "大花棉襖眨眼",
+        ["hop"] = "單腳跳躍(步步高昇)",
+        ["gasp"] = "摀嘴偷笑",
+        ["hi"] = "招手打招呼(HI)"
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     private sealed class CharacterInstanceData(

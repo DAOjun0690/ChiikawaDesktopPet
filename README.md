@@ -26,7 +26,7 @@
 
 * **輕量與原生體驗**：基於 .NET 10 WPF，以無邊框、背景透明、永遠置頂視窗呈現，單檔發布大小僅約 **2.3 MB**。
 * **靜音辦公友善 (Office-Friendly)**：全域完全無突發音效干擾，安心在辦公室與專注工作環境中陪伴。
-* **多位人氣與趣味角色完整登場（支援多實例召喚）**：吉伊卡哇 (Chiikawa)、小八貓 (Hachiware)、兔兔烏薩奇 (Usagi)、小桃 (Momonga)、獅薩 (Shisa)、自嘲熊 (JokeBear)、愛心兔 (LOVE RABBIT)、普羅 (Poro)、鏈鋸人 波奇塔 (Pochita)、貓貓蟲咖波 (Bugcat Capoo)、胸毛公寓 猴子朋友、胸毛公寓 哥布林喵喵怪、LV.67 野生喵喵怪(屬性:皇上)、廢貓阿米 - 左手畫的 (Armi)、けたわん (Ketawan2)、天空饒舌歌手 (Sky Rapper)、線條小狗 (Maltese Puppy)、總統-賴 (Lai) 等，每位角色皆有各自專屬的待機、漫遊與趣味彩蛋動作。
+* **多位人氣與趣味角色完整登場（支援多實例召喚）**：吉伊卡哇 (Chiikawa)、小八貓 (Hachiware)、兔兔烏薩奇 (Usagi)、小桃 (Momonga)、獅薩 (Shisa)、自嘲熊 (JokeBear)、愛心兔 (LOVE RABBIT)、普羅 (Poro)、鏈鋸人 波奇塔 (Pochita)、貓貓蟲咖波 (Bugcat Capoo)、胸毛公寓 猴子朋友、胸毛公寓 哥布林喵喵怪、LV.67 野生喵喵怪(屬性:皇上)、奶龍 (Nai Long)、廢貓阿米 - 左手畫的 (Armi)、けたわん (Ketawan2)、天空饒舌歌手 (Sky Rapper)、線條小狗 (Maltese Puppy)、總統-賴 (Lai) 等，每位角色皆有各自專屬的待機、漫遊與趣味彩蛋動作。
 * **🤫 Boss Key 一鍵隱藏與解除封印 (Boss Key & Unseal Mode)**：
   * **一鍵緊急隱藏**：支援全域快捷鍵 **`Win + Alt + H`** 或點選任一角色右鍵選單最頂部的 **「一鍵隱藏」**，瞬間隱藏畫面上所有角色。
   * **凍結靜音低消耗**：隱藏期間所有角色完全凍結並暫停所有動畫、動作與計時器，不佔用 CPU 也不會彈出任何對話氣泡或系統通知。
@@ -75,7 +75,7 @@
 
 日後發布 Release 時，將提供以下兩種版本：
 
-* **輕量單檔版**：需本機已安裝 [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)，總體積僅約 **50 MB**（已包含全部 17 位角色與連動動畫之高度壓縮封裝包，相較原本 160MB+ 體積縮減近 70%）。
+* **輕量單檔版**：需本機已安裝 [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)，總體積僅約 **50 MB**（已包含全部 18 位角色與連動動畫之高度壓縮封裝包，相較原本 160MB+ 體積縮減近 70%）。
 * **自包含獨立版**：免安裝 .NET Runtime，開箱即用，總體積約 **110 MB**（原本約 180 MB）。
 * **零磁碟碎檔**：全域 3,000+ 張圖檔已封裝為各角色獨立 `.zip`，WPF 執行時期使用記憶體串流直讀，不殘留磁碟暫存檔，啟動秒開。
 
@@ -194,6 +194,7 @@ dotnet run --project src/ChiikawaDesktopPet.AssetPipeline -- <來源路徑> asse
   * 「普羅 (Poro)」角色形象之智慧財產權屬 **Riot Games** 所有。
   * 「波奇塔 (Pochita / ポチタ)」及《鏈鋸人 (Chainsaw Man)》作品與角色形象之智慧財產權屬原作者 **藤本樹 (Fujimoto Tatsuki) / 集英社** 所有。
   * 「廢貓阿米 (Armi - 左手畫的)」角色形象之智慧財產權屬原作者所有。
+  * 「奶龍 (Nai Long)」及其系列作品與角色形象之智慧財產權均屬原作者／出品方 **第七印象文化傳媒 (Seventh Impression)** 及官方授權方 **羚邦娛樂 (Medialink)** 所有。動態貼圖素材取自 LINE STORE 官方發行貼圖。
   * 「Sky Rapper (天空饒舌歌手)」屬社群網路迷因原創動畫形象。
   * 專案內包含之公眾人物迷因角色（如「總統-賴」）純屬社群梗圖娛樂與技術展示，不具任何政治用途或政治立場。
 * **原專案致謝**：本專案的動作參數與最初素材整理參考自 [gitChara-dot/Yaha-Pet](https://github.com/gitChara-dot/Yaha-Pet) 的 Python/PyQt6 開源實作，特此致謝。
