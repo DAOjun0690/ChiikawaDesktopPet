@@ -1,7 +1,7 @@
 import os
-import math
-import numpy as np
-from PIL import Image, ImageOps
+
+import asset_common as ac
+from asset_common import fit_to_canvas, load_rgba, make_left_facing
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUTPUT_DIR = os.path.join(REPO_ROOT, "assets", "optimized", "chesthair_emperor")
@@ -9,10 +9,13 @@ ANIM_DIR = os.path.join(OUTPUT_DIR, "animations")
 SPRITES_DIR = os.path.join(OUTPUT_DIR, "sprites")
 ICONS_DIR = os.path.join(OUTPUT_DIR, "icons")
 
-SCRATCH_STICKERS_DIR = os.path.join(
-    os.environ.get("USERPROFILE", ""),
-    ".gemini", "antigravity", "brain",
-    "af32e271-f32d-4918-bf81-84cb62196693", "scratch", "stickers"
+SCRATCH_STICKERS_DIR = os.environ.get(
+    "EMPEROR_STICKER_SCRATCH_DIR",
+    os.path.join(
+        os.environ.get("USERPROFILE", ""),
+        ".gemini", "antigravity", "brain",
+        "af32e271-f32d-4918-bf81-84cb62196693", "scratch", "stickers",
+    ),
 )
 
 os.makedirs(ANIM_DIR, exist_ok=True)
@@ -25,65 +28,6 @@ def get_sticker_path(num):
         if f.startswith(prefix):
             return os.path.join(SCRATCH_STICKERS_DIR, f)
     raise FileNotFoundError(f"Sticker {num} not found in {SCRATCH_STICKERS_DIR}")
-
-def load_rgba(path):
-    return Image.open(path).convert("RGBA")
-
-def make_left_facing(img, split_y=46):
-    """
-    Mirrors the character body horizontally so it faces left,
-    while keeping the Chinese text in the top portion unmirrored and readable left-to-right.
-    """
-    arr = np.array(img)
-    arr_text = arr.copy()
-    arr_text[split_y:, :, 3] = 0
-    arr_body = arr.copy()
-    arr_body[0:split_y, :, 3] = 0
-    
-    im_body_mirrored = ImageOps.mirror(Image.fromarray(arr_body))
-    im_text = Image.fromarray(arr_text)
-    
-    res = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    res.paste(im_body_mirrored, (0, 0), im_body_mirrored)
-    res.paste(im_text, (0, 0), im_text)
-    return res
-
-def fit_to_canvas(img, target_size=(270, 240), scale=1.0, scale_x=1.0, scale_y=1.0,
-                  angle=0, dx=0, dy=0, flip=False, anchor_bottom=True):
-    """
-    Fits the original sticker with full typography onto target canvas.
-    Preserves 100% of original sticker resolution and layout.
-    """
-    w, h = img.size
-    sx = scale * scale_x
-    sy = scale * scale_y
-    new_w = max(1, int(w * sx))
-    new_h = max(1, int(h * sy))
-    scaled = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
-    if angle != 0:
-        scaled = scaled.rotate(angle, resample=Image.Resampling.BICUBIC, expand=True)
-        new_w, new_h = scaled.size
-    if flip:
-        scaled = ImageOps.mirror(scaled)
-    
-    canvas = Image.new("RGBA", target_size, (0, 0, 0, 0))
-    if anchor_bottom:
-        arr = np.array(scaled)
-        nz = np.where(arr[:, :, 3] > 10)
-        if len(nz[0]) > 0:
-            content_bottom = nz[0].max()
-            target_bottom = target_size[1] - 4 + dy
-            y = target_bottom - content_bottom
-            x = (target_size[0] - new_w) // 2 + dx
-        else:
-            x = (target_size[0] - new_w) // 2 + dx
-            y = (target_size[1] - new_h) // 2 + dy
-    else:
-        x = (target_size[0] - new_w) // 2 + dx
-        y = (target_size[1] - new_h) // 2 + dy
-    
-    canvas.paste(scaled, (x, y), scaled)
-    return canvas
 
 print("1. Building Static Sprites (Fully preserving original typography)...")
 raw_01 = load_rgba(get_sticker_path(1))
@@ -157,21 +101,8 @@ for idx, (dx, dy, sx, sy) in enumerate(walk_steps, 1):
 print("4. Building Character Animations (Full typography preserved)...")
 
 def build_animation(anim_name, base_img, frame_params, target_size=(270, 240), scale=1.0, anchor_bottom=True):
-    out_dir = os.path.join(ANIM_DIR, anim_name)
-    os.makedirs(out_dir, exist_ok=True)
-    for idx, params in enumerate(frame_params, 1):
-        ang = params.get("ang", 0)
-        dx = params.get("dx", 0)
-        dy = params.get("dy", 0)
-        sx = params.get("sx", 1.0)
-        sy = params.get("sy", 1.0)
-        sc = params.get("scale", scale)
-        flip = params.get("flip", False)
-        ab = params.get("anchor_bottom", anchor_bottom)
-        frame = fit_to_canvas(base_img, target_size=target_size, scale=sc,
-                              scale_x=sx, scale_y=sy, angle=ang, dx=dx, dy=dy,
-                              flip=flip, anchor_bottom=ab)
-        frame.save(os.path.join(out_dir, f"{idx}.png"))
+    ac.build_animation(ANIM_DIR, anim_name, base_img, frame_params, target_size=target_size,
+                        scale=scale, anchor_bottom=anchor_bottom)
 
 # 1. bounce (Sticker 02 - 看朕打下的「江山」 full)
 raw_02 = load_rgba(get_sticker_path(2))

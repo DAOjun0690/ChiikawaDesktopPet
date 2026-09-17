@@ -1,11 +1,11 @@
 import os
 import glob
-import json
 import zipfile
 import subprocess
 import urllib.request
-import numpy as np
-from PIL import Image, ImageOps
+
+import asset_common as ac
+from asset_common import load_rgba
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUTPUT_DIR = os.path.join(REPO_ROOT, "assets", "optimized", "nailong")
@@ -21,7 +21,10 @@ if not os.path.exists(SCRATCH_DIR):
 APNG_DIR = os.path.join(SCRATCH_DIR, "nailong_apng")
 FRAMES_DIR = os.path.join(SCRATCH_DIR, "nailong_frames")
 
-FFMPEG = r"C:\Users\JEFF WANG\AppData\Local\ffmpegio\ffmpeg-downloader\ffmpeg\bin\ffmpeg.exe"
+FFMPEG = os.environ.get(
+    "FFMPEG_PATH",
+    r"C:\Users\JEFF WANG\AppData\Local\ffmpegio\ffmpeg-downloader\ffmpeg\bin\ffmpeg.exe",
+)
 if not os.path.exists(FFMPEG):
     FFMPEG = "ffmpeg"
 
@@ -52,41 +55,11 @@ def ensure_sticker_frames(idx):
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
     return sorted(glob.glob(os.path.join(sub_dir, "*.png")))
 
-def load_rgba(path):
-    return Image.open(path).convert("RGBA")
-
 def fit_to_canvas(img, target_size=TARGET_CANVAS, scale=0.78, scale_x=1.0, scale_y=1.0,
                   angle=0, dx=0, dy=0, flip=False, anchor_bottom=True):
-    w, h = img.size
-    sx = scale * scale_x
-    sy = scale * scale_y
-    new_w = max(1, int(w * sx))
-    new_h = max(1, int(h * sy))
-    scaled = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
-    if angle != 0:
-        scaled = scaled.rotate(angle, resample=Image.Resampling.BICUBIC, expand=True)
-        new_w, new_h = scaled.size
-    if flip:
-        scaled = ImageOps.mirror(scaled)
-    
-    canvas = Image.new("RGBA", target_size, (0, 0, 0, 0))
-    if anchor_bottom:
-        arr = np.array(scaled)
-        nz = np.where(arr[:, :, 3] > 10)
-        if len(nz[0]) > 0:
-            content_bottom = nz[0].max()
-            target_bottom = target_size[1] - 4 + dy
-            y = target_bottom - content_bottom
-            x = (target_size[0] - new_w) // 2 + dx
-        else:
-            x = (target_size[0] - new_w) // 2 + dx
-            y = (target_size[1] - new_h) // 2 + dy
-    else:
-        x = (target_size[0] - new_w) // 2 + dx
-        y = (target_size[1] - new_h) // 2 + dy
-    
-    canvas.paste(scaled, (x, y), scaled)
-    return canvas
+    return ac.fit_to_canvas(img, target_size=target_size, scale=scale, scale_x=scale_x,
+                             scale_y=scale_y, angle=angle, dx=dx, dy=dy, flip=flip,
+                             anchor_bottom=anchor_bottom)
 
 print("1. Ensuring all 24 sticker frames are extracted...")
 frames = {}

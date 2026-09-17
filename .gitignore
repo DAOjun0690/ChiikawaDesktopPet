@@ -26,6 +26,7 @@ Thumbs.db
 [Dd]esktop.ini
 .DS_Store
 *.log
+__pycache__/
 
 # Raw character source art - intermediate input for AssetPipeline, not shipped.
 # The build only needs assets/optimized/<character>/, which stays tracked.

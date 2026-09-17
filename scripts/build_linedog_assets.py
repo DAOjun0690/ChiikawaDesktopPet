@@ -2,7 +2,10 @@ import os
 import glob
 import urllib.request
 import subprocess
-from PIL import Image, ImageOps
+from PIL import Image
+
+import asset_common as ac
+from asset_common import load_rgba
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUTPUT_DIR = os.path.join(REPO_ROOT, "assets", "optimized", "linedog")
@@ -14,7 +17,10 @@ SCRATCH_DIR = os.path.join(os.environ.get("USERPROFILE", ""), ".gemini", "antigr
 STICON_ANIM_DIR = os.path.join(SCRATCH_DIR, "sticons_anim")
 STICON_FRAMES_DIR = os.path.join(SCRATCH_DIR, "sticons_frames")
 
-FFMPEG = r"C:\Users\JEFF WANG\AppData\Local\ffmpegio\ffmpeg-downloader\ffmpeg\bin\ffmpeg.exe"
+FFMPEG = os.environ.get(
+    "FFMPEG_PATH",
+    r"C:\Users\JEFF WANG\AppData\Local\ffmpegio\ffmpeg-downloader\ffmpeg\bin\ffmpeg.exe",
+)
 if not os.path.exists(FFMPEG):
     FFMPEG = "ffmpeg"
 
@@ -41,23 +47,9 @@ def ensure_sticon_frames(num_str):
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
     return sorted(glob.glob(os.path.join(dest_sub, "*.png")))
 
-def load_rgba(path):
-    return Image.open(path).convert("RGBA")
-
 def fit_to_canvas(img, target_size=(240, 240), scale=1.2, angle=0, dx=0, dy=0, flip=False):
-    w, h = img.size
-    new_w = int(w * scale)
-    new_h = int(h * scale)
-    scaled = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
-    if angle != 0:
-        scaled = scaled.rotate(angle, resample=Image.Resampling.BICUBIC, expand=False)
-    if flip:
-        scaled = ImageOps.mirror(scaled)
-    canvas = Image.new("RGBA", target_size, (0, 0, 0, 0))
-    x = (target_size[0] - new_w) // 2 + dx
-    y = (target_size[1] - new_h) // 2 + dy
-    canvas.paste(scaled, (x, y), scaled)
-    return canvas
+    return ac.fit_to_canvas(img, target_size=target_size, scale=scale, angle=angle, dx=dx, dy=dy,
+                             flip=flip, anchor_bottom=False, expand_on_rotate=False)
 
 print("1. Preparing source sticon frames...")
 for i in [1, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15, 17, 18, 21, 23, 25, 26, 28, 29, 30, 31, 33, 38, 40]:

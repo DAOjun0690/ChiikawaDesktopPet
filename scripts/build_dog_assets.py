@@ -1,7 +1,6 @@
 import os
-import math
-import numpy as np
-from PIL import Image, ImageOps, ImageDraw
+
+import asset_common as ac
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUTPUT_DIR = os.path.join(REPO_ROOT, "assets", "optimized", "chesthair_dog")
@@ -9,7 +8,10 @@ ANIM_DIR = os.path.join(OUTPUT_DIR, "animations")
 SPRITES_DIR = os.path.join(OUTPUT_DIR, "sprites")
 ICONS_DIR = os.path.join(OUTPUT_DIR, "icons")
 
-SCRATCH_DIR = r"C:\Users\JEFF WANG\.gemini\antigravity\brain\46e43fe3-974a-452b-836d-3afa38f8fe20\scratch\dog_stickers"
+SCRATCH_DIR = os.environ.get(
+    "DOG_STICKER_SCRATCH_DIR",
+    r"C:\Users\JEFF WANG\.gemini\antigravity\brain\46e43fe3-974a-452b-836d-3afa38f8fe20\scratch\dog_stickers",
+)
 
 os.makedirs(ANIM_DIR, exist_ok=True)
 os.makedirs(SPRITES_DIR, exist_ok=True)
@@ -19,81 +21,23 @@ def get_sticker(rel_path):
     p = os.path.join(SCRATCH_DIR, rel_path)
     if not os.path.exists(p):
         raise FileNotFoundError(f"Missing {p}")
-    return Image.open(p).convert("RGBA")
+    return ac.load_rgba(p)
 
 def make_left_facing(img, split_ratio=0.22):
-    """
-    Mirrors body horizontally so it faces left, while keeping top text unmirrored.
-    """
-    arr = np.array(img)
-    h = arr.shape[0]
-    split_y = int(h * split_ratio)
-    
-    arr_text = arr.copy()
-    arr_text[split_y:, :, 3] = 0
-    
-    arr_body = arr.copy()
-    arr_body[0:split_y, :, 3] = 0
-    
-    im_body_mirrored = ImageOps.mirror(Image.fromarray(arr_body))
-    im_text = Image.fromarray(arr_text)
-    
-    res = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    res.paste(im_body_mirrored, (0, 0), im_body_mirrored)
-    res.paste(im_text, (0, 0), im_text)
-    return res
+    """Mirrors body horizontally so it faces left, while keeping top text unmirrored."""
+    return ac.make_left_facing(img, split_y=int(img.height * split_ratio))
 
+# ponytail: this character anchors content 6px above the canvas bottom, not the
+# shared default of 4px — kept as a thin wrapper so every call site below is untouched.
 def fit_to_canvas(img, target_size=(270, 240), scale=0.74, scale_x=1.0, scale_y=1.0,
                   angle=0, dx=0, dy=0, flip=False, anchor_bottom=True):
-    w, h = img.size
-    sx = scale * scale_x
-    sy = scale * scale_y
-    new_w = max(1, int(w * sx))
-    new_h = max(1, int(h * sy))
-    scaled = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
-    if angle != 0:
-        scaled = scaled.rotate(angle, resample=Image.Resampling.BICUBIC, expand=True)
-        new_w, new_h = scaled.size
-    if flip:
-        scaled = ImageOps.mirror(scaled)
-    
-    canvas = Image.new("RGBA", target_size, (0, 0, 0, 0))
-    if anchor_bottom:
-        arr = np.array(scaled)
-        nz = np.where(arr[:, :, 3] > 10)
-        if len(nz[0]) > 0:
-            content_bottom = nz[0].max()
-            target_bottom = target_size[1] - 6 + dy
-            y = target_bottom - content_bottom
-            x = (target_size[0] - new_w) // 2 + dx
-        else:
-            x = (target_size[0] - new_w) // 2 + dx
-            y = (target_size[1] - new_h) // 2 + dy
-    else:
-        x = (target_size[0] - new_w) // 2 + dx
-        y = (target_size[1] - new_h) // 2 + dy
-    
-    canvas.paste(scaled, (x, y), scaled)
-    return canvas
+    return ac.fit_to_canvas(img, target_size=target_size, scale=scale, scale_x=scale_x,
+                             scale_y=scale_y, angle=angle, dx=dx, dy=dy, flip=flip,
+                             anchor_bottom=anchor_bottom, bottom_margin=6)
 
 def build_animation(anim_name, base_img, frame_params, target_size=(270, 240), scale=0.74, anchor_bottom=True):
-    out_dir = os.path.join(ANIM_DIR, anim_name)
-    os.makedirs(out_dir, exist_ok=True)
-    for idx, params in enumerate(frame_params, 1):
-        ang = params.get("ang", 0)
-        dx = params.get("dx", 0)
-        dy = params.get("dy", 0)
-        sx = params.get("sx", 1.0)
-        sy = params.get("sy", 1.0)
-        sc = params.get("scale", scale)
-        flip = params.get("flip", False)
-        ab = params.get("anchor_bottom", anchor_bottom)
-        img_src = params.get("img", base_img)
-        frame = fit_to_canvas(img_src, target_size=target_size, scale=sc,
-                              scale_x=sx, scale_y=sy, angle=ang, dx=dx, dy=dy,
-                              flip=flip, anchor_bottom=ab)
-            
-        frame.save(os.path.join(out_dir, f"{idx}.png"))
+    ac.build_animation(ANIM_DIR, anim_name, base_img, frame_params, target_size=target_size,
+                        scale=scale, anchor_bottom=anchor_bottom, bottom_margin=6)
 
 print("1. Generating Base Sprites...")
 raw_spawn = get_sticker("lv76_33346223/01_828016993.png")     # 汪！歡呼

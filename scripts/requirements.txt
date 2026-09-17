@@ -1,0 +1,4 @@
+# build_nailong_assets.py / build_linedog_assets.py also need an `ffmpeg` binary
+# on PATH (or set FFMPEG_PATH) to decode downloaded APNG stickers.
+Pillow
+numpy
