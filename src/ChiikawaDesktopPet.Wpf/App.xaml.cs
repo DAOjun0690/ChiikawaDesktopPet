@@ -216,6 +216,7 @@ public partial class App : Application
     private bool _isRestoringProfile;
     private bool _isAutoSaveDirty;
     private System.Windows.Threading.DispatcherTimer? _autoSaveTimer;
+    private System.Windows.Threading.DispatcherTimer? _powerRecoveryTimer;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -236,10 +237,11 @@ public partial class App : Application
         try
         {
             Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+            Microsoft.Win32.SystemEvents.PowerModeChanged += OnPowerModeChanged;
         }
         catch (Exception ex)
         {
-            CrashLogger.Log(ex, "App.DisplaySettingsChanged_Subscribe");
+            CrashLogger.Log(ex, "App.SystemEvents_Subscribe");
         }
 
         bool isFirstInstance;
@@ -551,7 +553,12 @@ public partial class App : Application
             }
             else if (msg == NativeMethods.WM_DISPLAYCHANGE || msg == NativeMethods.WM_DWMCOMPOSITIONCHANGED)
             {
-                RefreshAllVisualSurfaces();
+                SchedulePowerStateRecovery("HotkeyWndProc.WM_DISPLAYCHANGE/WM_DWMCOMPOSITIONCHANGED");
+            }
+            else if (msg == NativeMethods.WM_POWERBROADCAST)
+            {
+                int powerEvent = wParam.ToInt32();
+                SchedulePowerStateRecovery($"HotkeyWndProc.WM_POWERBROADCAST (0x{powerEvent:X4})");
             }
         }
         catch (Exception ex)
@@ -1177,21 +1184,79 @@ public partial class App : Application
 
     private void OnDisplaySettingsChanged(object? sender, EventArgs e)
     {
-        RefreshAllVisualSurfaces();
+        SchedulePowerStateRecovery("SystemEvents.DisplaySettingsChanged");
     }
 
-    public void RefreshAllVisualSurfaces()
+    private void OnPowerModeChanged(object? sender, Microsoft.Win32.PowerModeChangedEventArgs e)
+    {
+        SchedulePowerStateRecovery($"SystemEvents.PowerModeChanged ({e.Mode})");
+    }
+
+    public static void SchedulePowerStateRecoveryStatic(string reason)
+    {
+        if (Current is App app)
+        {
+            app.SchedulePowerStateRecovery(reason);
+        }
+    }
+
+    public void SchedulePowerStateRecovery(string reason)
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(() => SchedulePowerStateRecovery(reason));
+            return;
+        }
+
+        if (_isShuttingDown) return;
+
+        string powerStatusInfo;
+        try
+        {
+            var status = SystemInformation.PowerStatus;
+            powerStatusInfo = $"LineStatus={status.PowerLineStatus}, BatteryCharge={status.BatteryChargeStatus}, Percent={status.BatteryLifePercent:P0}";
+        }
+        catch
+        {
+            powerStatusInfo = "PowerStatus=Unavailable";
+        }
+
+        CrashLogger.Info($"Power/Display recovery triggered: {reason} | {powerStatusInfo}", "App.PowerRecovery");
+
+        // Phase 1: Immediate visual refresh and screen boundary clamp
+        RefreshAllVisualSurfaces(clampToScreen: true);
+
+        // Phase 2: Delayed 500ms refresh to let graphics driver, DWM and power scheme stabilize
+        _powerRecoveryTimer?.Stop();
+        _powerRecoveryTimer = new System.Windows.Threading.DispatcherTimer(
+            TimeSpan.FromMilliseconds(500),
+            System.Windows.Threading.DispatcherPriority.Normal,
+            (_, _) =>
+            {
+                _powerRecoveryTimer?.Stop();
+                _powerRecoveryTimer = null;
+                if (!_isShuttingDown)
+                {
+                    RefreshAllVisualSurfaces(clampToScreen: true);
+                    CrashLogger.Info("Phase 2 delayed recovery completed.", "App.PowerRecovery");
+                }
+            },
+            Dispatcher);
+        _powerRecoveryTimer.Start();
+    }
+
+    public void RefreshAllVisualSurfaces(bool clampToScreen = false)
     {
         if (Dispatcher.CheckAccess())
         {
             foreach (var instance in _instances.Values)
             {
-                instance.Window.RefreshVisualSurface();
+                instance.Window.RefreshVisualSurface(clampToScreen);
             }
         }
         else
         {
-            Dispatcher.BeginInvoke(RefreshAllVisualSurfaces);
+            Dispatcher.BeginInvoke(() => RefreshAllVisualSurfaces(clampToScreen));
         }
     }
 
@@ -1207,11 +1272,14 @@ public partial class App : Application
         _isShuttingDown = true;
         _autoSaveTimer?.Stop();
         _autoSaveTimer = null;
+        _powerRecoveryTimer?.Stop();
+        _powerRecoveryTimer = null;
         SaveAutoSaveProfile(force: true);
 
         try
         {
             Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+            Microsoft.Win32.SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         }
         catch
         {

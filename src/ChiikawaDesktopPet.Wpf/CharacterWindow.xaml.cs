@@ -217,7 +217,12 @@ public partial class CharacterWindow : Window
 
             if (msg == NativeMethods.WM_DISPLAYCHANGE || msg == NativeMethods.WM_DWMCOMPOSITIONCHANGED)
             {
-                RefreshVisualSurface();
+                App.SchedulePowerStateRecoveryStatic("CharacterWindow.WM_DISPLAYCHANGE/WM_DWMCOMPOSITIONCHANGED");
+            }
+            else if (msg == NativeMethods.WM_POWERBROADCAST)
+            {
+                int powerEvent = wParam.ToInt32();
+                App.SchedulePowerStateRecoveryStatic($"CharacterWindow.WM_POWERBROADCAST (0x{powerEvent:X4})");
             }
         }
         catch (Exception ex)
@@ -391,11 +396,11 @@ public partial class CharacterWindow : Window
         UpdateWindowSizeAndLayout(oldWidth, oldHeight);
     }
 
-    public void RefreshVisualSurface()
+    public void RefreshVisualSurface(bool clamp = false)
     {
         if (!Dispatcher.CheckAccess())
         {
-            Dispatcher.BeginInvoke(RefreshVisualSurface);
+            Dispatcher.BeginInvoke(() => RefreshVisualSurface(clamp));
             return;
         }
 
@@ -407,6 +412,11 @@ public partial class CharacterWindow : Window
         {
             SpriteImage.Source = null;
             SpriteImage.Source = bs;
+        }
+
+        if (clamp && !_isShuttingDown && !IsPetHidden)
+        {
+            ClampToScreen();
         }
     }
 

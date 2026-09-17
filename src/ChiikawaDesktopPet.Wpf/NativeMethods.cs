@@ -270,6 +270,13 @@ internal static partial class NativeMethods
     public const int WM_CONTEXTMENU = 0x007B;
     public const int WM_DISPLAYCHANGE = 0x007E;
     public const int WM_DWMCOMPOSITIONCHANGED = 0x031E;
+    public const int WM_POWERBROADCAST = 0x0218;
+
+    public const int PBT_APMPOWERSTATUSCHANGE = 0x000A;
+    public const int PBT_APMRESUMEAUTOMATIC = 0x0012;
+    public const int PBT_APMRESUMESUSPEND = 0x0007;
+    public const int PBT_POWERSETTINGCHANGE = 0x8013;
+
     public const nint HTTRANSPARENT = -1;
     public const nint HTCLIENT = 1;
     public const int VK_RBUTTON = 0x02;
