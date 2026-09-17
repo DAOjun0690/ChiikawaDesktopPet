@@ -28,6 +28,7 @@ public class TrayMenuTests
     [InlineData("chesthair_emperor", "LV.67 野生喵喵怪(屬性:皇上)")]
     [InlineData("nailong", "奶龍 (Nai Long)")]
     [InlineData("chesthair_dog", "LV.76 野生喵喵怪(屬性:狗狗)")]
+    [InlineData("ditto", "精靈寶可夢 百變怪 (Ditto)")]
     public void GetCharacterDisplayName_KnownCharacter_ReturnsExpectedDisplayName(string key, string expectedDisplayName)
     {
         string displayName = App.GetCharacterDisplayName(key);
@@ -147,6 +148,39 @@ public class TrayMenuTests
     public void GetAnimationDisplayName_ChestHairDog_ReturnsTraditionalChineseDisplayName(string animKey, string expectedDisplayName)
     {
         string displayName = App.GetAnimationDisplayName(animKey, "chesthair_dog");
+        Assert.Equal(expectedDisplayName, displayName);
+    }
+
+    [Theory]
+    [InlineData("pikachu", "變身皮卡丘 (真假對望)")]
+    [InlineData("pokeball", "伸手抓精靈球 (飛撲捕捉)")]
+    [InlineData("heart", "抱著大愛心 (心動撒嬌)")]
+    [InlineData("melt", "融化成史萊姆 (攤成一灘)")]
+    [InlineData("sleep", "抱枕頭安穩睡覺 (呼呼大睡)")]
+    [InlineData("cry", "瀑布大噴淚 (哇哇大哭)")]
+    [InlineData("shiver", "瑟瑟發抖 (果凍冷顫)")]
+    [InlineData("stretch", "萬歲大伸展 (手臂伸高高)")]
+    [InlineData("sparkle", "崇拜星星眼 (金星閃爍)")]
+    [InlineData("wave", "雙手熱情打招呼 (揮手嗨嗨)")]
+    [InlineData("dance", "快樂扭扭舞 (搖擺律動)")]
+    [InlineData("sing", "引吭高歌 (張大圓嘴大喊)")]
+    [InlineData("giggle", "掩嘴偷笑 (羞怯扭動)")]
+    [InlineData("clone", "影分身百變怪 (身後分裂)")]
+    [InlineData("peek", "歪頭暗中觀察 (探頭看)")]
+    [InlineData("squish", "像麻糬壓扁拉長 (軟Q變形)")]
+    [InlineData("sigh", "吹泡泡放鬆 (呆呆嘆氣)")]
+    [InlineData("sweat", "滿頭大汗三條線 (尷尬冒汗)")]
+    [InlineData("mood", "晴雨雙重心情 (晴天雨天切換)")]
+    [InlineData("grumpy", "憋氣忍耐生悶氣 (氣噗噗發抖)")]
+    [InlineData("bye", "單手揮手掰掰 (優雅揮別)")]
+    [InlineData("surprise", "嚇一大跳 (圓嘴O型震驚)")]
+    [InlineData("bounce", "原地疑惑彈跳 (問號跳跳)")]
+    [InlineData("waddle", "左右搖曳晃動 (果凍擺動)")]
+    [InlineData("walkleft", "向左走 (果凍漫步)")]
+    [InlineData("walkright", "向右走 (果凍漫步)")]
+    public void GetAnimationDisplayName_Ditto_ReturnsTraditionalChineseDisplayName(string animKey, string expectedDisplayName)
+    {
+        string displayName = App.GetAnimationDisplayName(animKey, "ditto");
         Assert.Equal(expectedDisplayName, displayName);
     }
 

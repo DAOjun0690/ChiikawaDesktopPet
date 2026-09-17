@@ -312,6 +312,36 @@
       "beg": { "fps": 12 }
     }
   },
+  "ditto": {
+    "animations": {
+      "walkleft": { "fps": 10 },
+      "walkright": { "fps": 10 },
+      "wave": { "fps": 10 },
+      "stretch": { "fps": 13 },
+      "surprise": { "fps": 11 },
+      "waddle": { "fps": 7 },
+      "sparkle": { "fps": 11 },
+      "heart": { "fps": 8 },
+      "bounce": { "fps": 9 },
+      "dance": { "fps": 14 },
+      "shiver": { "fps": 12 },
+      "giggle": { "fps": 10 },
+      "squish": { "fps": 7 },
+      "bye": { "fps": 10 },
+      "sing": { "fps": 14 },
+      "melt": { "fps": 6 },
+      "clone": { "fps": 9 },
+      "peek": { "fps": 12 },
+      "sleep": { "fps": 12 },
+      "sigh": { "fps": 10 },
+      "cry": { "fps": 10 },
+      "sweat": { "fps": 12 },
+      "mood": { "fps": 10 },
+      "grumpy": { "fps": 10 },
+      "pikachu": { "fps": 11 },
+      "pokeball": { "fps": 11 }
+    }
+  },
   "coanimations": {
     "animations": {
       "chiikawa_momonga": { "fps": 15 }

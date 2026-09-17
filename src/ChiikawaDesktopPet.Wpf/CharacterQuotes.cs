@@ -28,7 +28,8 @@ public static class CharacterQuotes
         ["linedog"] = "汪汪！今天也要開開心心！（搖尾巴）",
         ["chesthair_emperor"] = "眾卿退朝吧！陪朕出去走走！",
         ["nailong"] = "我來啦～！肚子餓了！",
-        ["chesthair_dog"] = "汪！汪汪！快點誇獎我！（熱情搖尾巴繞圈圈）"
+        ["chesthair_dog"] = "汪！汪汪！快點誇獎我！（熱情搖尾巴繞圈圈）",
+        ["ditto"] = "……（軟Q黏人中，呆呆地盯著你看）(•‿•)"
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     public static string GetDefaultQuote(string characterName) =>

@@ -33,7 +33,8 @@ internal static class CharacterRegistry
         ("linedog", "線條小狗 (Maltese Puppy)", true),
         ("chesthair_emperor", "LV.67 野生喵喵怪(屬性:皇上)", true),
         ("nailong", "奶龍 (Nai Long)", true),
-        ("chesthair_dog", "LV.76 野生喵喵怪(屬性:狗狗)", true)
+        ("chesthair_dog", "LV.76 野生喵喵怪(屬性:狗狗)", true),
+        ("ditto", "精靈寶可夢 百變怪 (Ditto)", true)
     ];
 
     public static readonly string[] AutoSpawnCandidates =

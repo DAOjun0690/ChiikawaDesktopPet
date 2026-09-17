@@ -157,6 +157,35 @@ public partial class App : Application
                 ["bounce"] = "開心彈跳 (原地雀躍)",
                 ["walkleft"] = "向左走",
                 ["walkright"] = "向右走"
+            }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase),
+            ["ditto"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["pikachu"] = "變身皮卡丘 (真假對望)",
+                ["pokeball"] = "伸手抓精靈球 (飛撲捕捉)",
+                ["heart"] = "抱著大愛心 (心動撒嬌)",
+                ["melt"] = "融化成史萊姆 (攤成一灘)",
+                ["sleep"] = "抱枕頭安穩睡覺 (呼呼大睡)",
+                ["cry"] = "瀑布大噴淚 (哇哇大哭)",
+                ["shiver"] = "瑟瑟發抖 (果凍冷顫)",
+                ["stretch"] = "萬歲大伸展 (手臂伸高高)",
+                ["sparkle"] = "崇拜星星眼 (金星閃爍)",
+                ["wave"] = "雙手熱情打招呼 (揮手嗨嗨)",
+                ["dance"] = "快樂扭扭舞 (搖擺律動)",
+                ["sing"] = "引吭高歌 (張大圓嘴大喊)",
+                ["giggle"] = "掩嘴偷笑 (羞怯扭動)",
+                ["clone"] = "影分身百變怪 (身後分裂)",
+                ["peek"] = "歪頭暗中觀察 (探頭看)",
+                ["squish"] = "像麻糬壓扁拉長 (軟Q變形)",
+                ["sigh"] = "吹泡泡放鬆 (呆呆嘆氣)",
+                ["sweat"] = "滿頭大汗三條線 (尷尬冒汗)",
+                ["mood"] = "晴雨雙重心情 (晴天雨天切換)",
+                ["grumpy"] = "憋氣忍耐生悶氣 (氣噗噗發抖)",
+                ["bye"] = "單手揮手掰掰 (優雅揮別)",
+                ["surprise"] = "嚇一大跳 (圓嘴O型震驚)",
+                ["bounce"] = "原地疑惑彈跳 (問號跳跳)",
+                ["waddle"] = "左右搖曳晃動 (果凍擺動)",
+                ["walkleft"] = "向左走 (果凍漫步)",
+                ["walkright"] = "向右走 (果凍漫步)"
             }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase)
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
