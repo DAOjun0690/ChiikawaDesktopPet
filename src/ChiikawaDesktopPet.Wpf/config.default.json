@@ -287,6 +287,31 @@
       "hi": { "fps": 10 }
     }
   },
+  "chesthair_dog": {
+    "animations": {
+      "walkleft": { "fps": 12 },
+      "walkright": { "fps": 12 },
+      "bounce": { "fps": 12 },
+      "swat": { "fps": 12 },
+      "tantrum": { "fps": 14 },
+      "fume": { "fps": 12 },
+      "cry": { "fps": 12 },
+      "beat_combo": { "fps": 10 },
+      "skid": { "fps": 12 },
+      "resist": { "fps": 12 },
+      "knife": { "fps": 10 },
+      "praise": { "fps": 12 },
+      "galaxy": { "fps": 10 },
+      "work": { "fps": 15 },
+      "melt": { "fps": 10 },
+      "sleep": { "fps": 8 },
+      "peek": { "fps": 10 },
+      "fly": { "fps": 14 },
+      "eat": { "fps": 12 },
+      "roll": { "fps": 14 },
+      "beg": { "fps": 12 }
+    }
+  },
   "coanimations": {
     "animations": {
       "chiikawa_momonga": { "fps": 15 }

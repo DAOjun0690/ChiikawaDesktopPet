@@ -32,7 +32,8 @@ internal static class CharacterRegistry
         ("sky_rapper", "Sky Rapper (天空饒舌歌手)", true),
         ("linedog", "線條小狗 (Maltese Puppy)", true),
         ("chesthair_emperor", "LV.67 野生喵喵怪(屬性:皇上)", true),
-        ("nailong", "奶龍 (Nai Long)", true)
+        ("nailong", "奶龍 (Nai Long)", true),
+        ("chesthair_dog", "LV.76 野生喵喵怪(屬性:狗狗)", true)
     ];
 
     public static readonly string[] AutoSpawnCandidates =

@@ -9,11 +9,13 @@ if (args.Length > 0 && (args[0] == "--pack" || args[0] == "pack"))
     string coanimationsDir = Path.Combine(repoRoot, "assets", "coanimations");
     string outputDir = Path.Combine(repoRoot, "assets", "packs");
 
+    string? targetChar = null;
     for (int i = 1; i < args.Length; i++)
     {
         if (args[i] == "--optimized-dir" && i + 1 < args.Length) optimizedDir = args[++i];
         else if (args[i] == "--coanimations-dir" && i + 1 < args.Length) coanimationsDir = args[++i];
         else if (args[i] == "--output-dir" && i + 1 < args.Length) outputDir = args[++i];
+        else if (args[i] == "--char" && i + 1 < args.Length) targetChar = args[++i];
     }
 
     Console.WriteLine($"[AssetPacker] Starting quantization & packaging...");
@@ -21,6 +23,19 @@ if (args.Length > 0 && (args[0] == "--pack" || args[0] == "pack"))
     Console.WriteLine($"  Source coanimations: {coanimationsDir}");
     Console.WriteLine($"  Output packs:        {outputDir}");
     Console.WriteLine($"  Quantizer engine:    {(PngQuantizer.HasPngquant ? $"pngquant ({PngQuantizer.PngquantPath})" : "ImageSharp (WuQuantizer 8-bit)")}");
+
+    if (!string.IsNullOrEmpty(targetChar))
+    {
+        string charDir = Path.Combine(optimizedDir, targetChar);
+        string zipPath = Path.Combine(outputDir, $"{targetChar}.zip");
+        Directory.CreateDirectory(outputDir);
+        var res = AssetPacker.PackDirectoryToZip(charDir, zipPath);
+        double cOrigMb = res.OriginalBytes / 1048576.0;
+        double cPackMb = res.PackedBytes / 1048576.0;
+        double ratio = res.OriginalBytes > 0 ? (1.0 - (double)res.PackedBytes / res.OriginalBytes) * 100 : 0;
+        Console.WriteLine($"\n[Pack] {targetChar}.zip: {res.Files} files, {cOrigMb:F2} MB -> {cPackMb:F2} MB (-{ratio:F1}%)");
+        return 0;
+    }
 
     var report = AssetPacker.PackAll(optimizedDir, coanimationsDir, outputDir);
     double origMb = report.OriginalBytes / 1048576.0;

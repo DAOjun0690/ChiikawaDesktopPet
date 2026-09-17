@@ -587,4 +587,45 @@ public class DefaultAnimationTests
             window.Close();
         });
     }
+
+    [Fact]
+    public void CharacterWindow_ChestHairDog_InitializesAndDiscoversAllAnimations()
+    {
+        RunInSta(() =>
+        {
+            var window = new CharacterWindow("chesthair_dog");
+            var allAnimations = window.AllAnimationNames();
+            Assert.Contains("walkleft", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("walkright", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("bounce", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("swat", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("tantrum", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("fume", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("cry", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("beat_combo", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("skid", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("resist", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("knife", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("praise", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("galaxy", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("work", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("melt", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("sleep", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("peek", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("fly", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("eat", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("roll", allAnimations, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("beg", allAnimations, StringComparer.OrdinalIgnoreCase);
+
+            var inPlace = window.InPlaceAnimationNames();
+            Assert.Contains("swat", inPlace, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("tantrum", inPlace, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("fume", inPlace, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("cry", inPlace, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("bounce", inPlace, StringComparer.OrdinalIgnoreCase);
+
+            Assert.NotNull(window.SpriteImage);
+            window.Close();
+        });
+    }
 }

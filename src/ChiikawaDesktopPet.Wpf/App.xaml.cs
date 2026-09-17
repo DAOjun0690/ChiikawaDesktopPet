@@ -115,8 +115,50 @@ public partial class App : Application
         ["cny"] = "大花棉襖眨眼",
         ["hop"] = "單腳跳躍(步步高昇)",
         ["gasp"] = "摀嘴偷笑",
-        ["hi"] = "招手打招呼(HI)"
+        ["hi"] = "招手打招呼(HI)",
+        ["swat"] = "報紙打狗勾",
+        ["beat_combo"] = "打狗連環大戲",
+        ["tantrum"] = "暴躁踢腿抗議",
+        ["fume"] = "頭頂冒煙生悶氣",
+        ["skid"] = "急煞剎車",
+        ["resist"] = "全身抗拒拔河",
+        ["knife"] = "叼菜刀去去就回",
+        ["praise"] = "快點誇獎我",
+        ["galaxy"] = "宇宙思考放空",
+        ["work"] = "瘋狂敲鍵盤",
+        ["peek"] = "桌邊探頭",
+        ["roll"] = "瘋狂打滾",
+        ["beg"] = "我要摸摸"
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly FrozenDictionary<string, FrozenDictionary<string, string>> CharacterSpecificAnimationDisplayNames =
+        new Dictionary<string, FrozenDictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["chesthair_dog"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["swat"] = "報紙打狗勾 (啪啪啪)",
+                ["beat_combo"] = "打狗連環大戲 (挨打➔暴怒➔冒煙➔哭哭)",
+                ["tantrum"] = "暴躁踢腿抗議 (啊！啊！)",
+                ["fume"] = "頭頂冒煙 (生悶氣)",
+                ["cry"] = "委屈掉眼淚 (哭哭發抖)",
+                ["skid"] = "急煞剎車 (地面噴煙)",
+                ["resist"] = "全身抗拒 (拉牽繩拔河)",
+                ["knife"] = "叼菜刀 (我去去就回)",
+                ["praise"] = "快點誇獎我 (金星閃爍)",
+                ["galaxy"] = "宇宙思考 (眼神放空)",
+                ["work"] = "瘋狂敲鍵盤 (加班打字)",
+                ["melt"] = "營業疲勞 (融化趴平)",
+                ["sleep"] = "安穩蓋被被 (呼呼大睡)",
+                ["peek"] = "桌邊探頭 (暗中盯著你)",
+                ["fly"] = "披風超狗 (凌空滑翔)",
+                ["eat"] = "趴在碗前 (大吃特吃)",
+                ["roll"] = "瘋狂打滾 (Zoomies)",
+                ["beg"] = "我要摸摸 (揮手撒嬌)",
+                ["bounce"] = "開心彈跳 (原地雀躍)",
+                ["walkleft"] = "向左走",
+                ["walkright"] = "向右走"
+            }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase)
+        }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     private sealed class CharacterInstanceData(
         string instanceId,
@@ -557,7 +599,7 @@ public partial class App : Application
         var playSubmenu = new MenuItem(displayName);
         foreach (var animName in window.AllAnimationNames())
         {
-            var item = new MenuItem(GetAnimationDisplayName(animName));
+            var item = new MenuItem(GetAnimationDisplayName(animName, key));
             string nameCopy = animName;
             item.Click += (_, _) => window.PlayAnimationByName(nameCopy);
             playSubmenu.DropDownItems.Add(item);
@@ -1108,8 +1150,17 @@ public partial class App : Application
     public static string GetCharacterInstanceDisplayName(string characterName, int index) =>
         $"{GetCharacterDisplayName(characterName)} {index}";
 
-    public static string GetAnimationDisplayName(string animName) =>
-        AnimationDisplayNames.TryGetValue(animName, out var name) ? name : animName;
+    public static string GetAnimationDisplayName(string animName, string? characterName = null)
+    {
+        if (!string.IsNullOrEmpty(characterName) &&
+            CharacterSpecificAnimationDisplayNames.TryGetValue(characterName, out var charDict) &&
+            charDict.TryGetValue(animName, out var specificName))
+        {
+            return specificName;
+        }
+
+        return AnimationDisplayNames.TryGetValue(animName, out var name) ? name : animName;
+    }
 
     private void OnWakeupSignaled(object? state, bool timedOut)
     {

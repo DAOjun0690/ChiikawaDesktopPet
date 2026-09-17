@@ -27,6 +27,7 @@ public class TrayMenuTests
     [InlineData("linedog", "線條小狗 (Maltese Puppy)")]
     [InlineData("chesthair_emperor", "LV.67 野生喵喵怪(屬性:皇上)")]
     [InlineData("nailong", "奶龍 (Nai Long)")]
+    [InlineData("chesthair_dog", "LV.76 野生喵喵怪(屬性:狗狗)")]
     public void GetCharacterDisplayName_KnownCharacter_ReturnsExpectedDisplayName(string key, string expectedDisplayName)
     {
         string displayName = App.GetCharacterDisplayName(key);
@@ -122,6 +123,31 @@ public class TrayMenuTests
     {
         string displayName = App.GetAnimationDisplayName("fly_away");
         Assert.Equal("fly_away", displayName);
+    }
+
+    [Theory]
+    [InlineData("swat", "報紙打狗勾 (啪啪啪)")]
+    [InlineData("beat_combo", "打狗連環大戲 (挨打➔暴怒➔冒煙➔哭哭)")]
+    [InlineData("tantrum", "暴躁踢腿抗議 (啊！啊！)")]
+    [InlineData("fume", "頭頂冒煙 (生悶氣)")]
+    [InlineData("cry", "委屈掉眼淚 (哭哭發抖)")]
+    [InlineData("skid", "急煞剎車 (地面噴煙)")]
+    [InlineData("resist", "全身抗拒 (拉牽繩拔河)")]
+    [InlineData("knife", "叼菜刀 (我去去就回)")]
+    [InlineData("praise", "快點誇獎我 (金星閃爍)")]
+    [InlineData("galaxy", "宇宙思考 (眼神放空)")]
+    [InlineData("work", "瘋狂敲鍵盤 (加班打字)")]
+    [InlineData("melt", "營業疲勞 (融化趴平)")]
+    [InlineData("sleep", "安穩蓋被被 (呼呼大睡)")]
+    [InlineData("peek", "桌邊探頭 (暗中盯著你)")]
+    [InlineData("fly", "披風超狗 (凌空滑翔)")]
+    [InlineData("eat", "趴在碗前 (大吃特吃)")]
+    [InlineData("roll", "瘋狂打滾 (Zoomies)")]
+    [InlineData("beg", "我要摸摸 (揮手撒嬌)")]
+    public void GetAnimationDisplayName_ChestHairDog_ReturnsTraditionalChineseDisplayName(string animKey, string expectedDisplayName)
+    {
+        string displayName = App.GetAnimationDisplayName(animKey, "chesthair_dog");
+        Assert.Equal(expectedDisplayName, displayName);
     }
 
     [Theory]

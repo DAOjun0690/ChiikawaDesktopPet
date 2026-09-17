@@ -26,6 +26,7 @@ public class CharacterQuotesTests
     [InlineData("linedog", "汪汪！今天也要開開心心！（搖尾巴）")]
     [InlineData("chesthair_emperor", "眾卿退朝吧！陪朕出去走走！")]
     [InlineData("nailong", "我來啦～！肚子餓了！")]
+    [InlineData("chesthair_dog", "汪！汪汪！快點誇獎我！（熱情搖尾巴繞圈圈）")]
     public void GetDefaultQuote_KnownCharacters_ReturnsExpectedQuote(string characterName, string expectedQuote)
     {
         string quote = CharacterQuotes.GetDefaultQuote(characterName);

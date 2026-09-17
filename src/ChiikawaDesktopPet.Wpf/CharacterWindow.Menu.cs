@@ -33,7 +33,7 @@ public partial class CharacterWindow
         var playMenu = new MenuItem { Header = "播放動畫" };
         foreach (var animName in AllAnimationNames())
         {
-            var item = new MenuItem { Header = App.GetAnimationDisplayName(animName) };
+            var item = new MenuItem { Header = App.GetAnimationDisplayName(animName, CharacterName) };
             string nameCopy = animName;
             item.Click += (_, _) => PlayAnimationByName(nameCopy);
             playMenu.Items.Add(item);
@@ -75,7 +75,7 @@ public partial class CharacterWindow
         {
             var item = new MenuItem
             {
-                Header = App.GetAnimationDisplayName(animName),
+                Header = App.GetAnimationDisplayName(animName, CharacterName),
                 IsCheckable = true,
                 IsChecked = string.Equals(_defaultAnimation, animName, StringComparison.OrdinalIgnoreCase)
             };
