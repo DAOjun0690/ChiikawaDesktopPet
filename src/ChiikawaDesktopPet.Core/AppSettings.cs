@@ -7,4 +7,5 @@ public class AppSettings
     public bool ConfineToCurrentMonitor { get; set; } = true;
     public bool EnableWindowsNotifications { get; set; } = false;
     public bool AutoSaveProfile { get; set; } = true;
+    public BongoConfig Bongo { get; set; } = new();
 }

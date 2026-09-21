@@ -236,6 +236,15 @@ public partial class App : Application
     private MenuItem? _clickThroughMenu;
     private MenuItem? _toggleAllClickThroughItem;
     private ToolStripSeparator? _clickThroughSeparator;
+    private MenuItem? _bongoMenu;
+    private MenuItem? _toggleBongoItem;
+    private MenuItem? _clickThroughBongoItem;
+    private MenuItem? _bongoSkinsMenu;
+    private BongoWindow? _bongoWindow;
+    private GlobalKeyboardHook? _globalKeyboardHook;
+    private GlobalMouseHook? _globalMouseHook;
+    private BongoSkinManager? _bongoSkinManager;
+
     private readonly Dictionary<string, int> _characterCounters = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, CharacterInstanceData> _instances = new(StringComparer.OrdinalIgnoreCase);
 
@@ -323,6 +332,33 @@ public partial class App : Application
             // Ignore if wakeup event registration fails
         }
 
+        _bongoSkinManager = new BongoSkinManager();
+        _globalKeyboardHook = new GlobalKeyboardHook();
+        _globalMouseHook = new GlobalMouseHook();
+        _bongoWindow = new BongoWindow(_settings.Bongo, _bongoSkinManager, _globalKeyboardHook, _globalMouseHook);
+
+        _bongoWindow.VisibilityChanged += () =>
+        {
+            if (_toggleBongoItem != null)
+            {
+                _toggleBongoItem.Checked = _settings.Bongo.IsEnabled;
+            }
+        };
+        _bongoWindow.ClickThroughChanged += (ct) =>
+        {
+            if (_clickThroughBongoItem != null)
+            {
+                _clickThroughBongoItem.Checked = ct;
+            }
+            _settings.Bongo.ClickThrough = ct;
+            SettingsManager.Save(_settings);
+            ScheduleAutoSave();
+        };
+        if (_settings.Bongo.IsEnabled)
+        {
+            _bongoWindow.ShowBongo();
+        }
+
         _trayContextMenu = new ContextMenuStrip();
 
         _unsealMenuItem = new MenuItem("與你訂下約定的我命令你，封印解除!");
@@ -344,6 +380,56 @@ public partial class App : Application
             spawnMenu.DropDownItems.Add(item);
         }
         _trayContextMenu.Items.Add(spawnMenu);
+
+        _bongoMenu = new MenuItem("🥁 Bongo 打字pet");
+        _toggleBongoItem = new MenuItem("啟用 Bongo 打字pet")
+        {
+            CheckOnClick = true,
+            Checked = _settings.Bongo.IsEnabled
+        };
+        _toggleBongoItem.Click += (_, _) =>
+        {
+            if (_toggleBongoItem.Checked)
+            {
+                if (IsAllHidden) UnhideAllCharacters();
+                _bongoWindow?.ShowBongo();
+            }
+            else
+            {
+                _bongoWindow?.HideBongo();
+            }
+            _settings.Bongo.IsEnabled = _toggleBongoItem.Checked;
+            SettingsManager.Save(_settings);
+            ScheduleAutoSave();
+        };
+        _bongoMenu.DropDownItems.Add(_toggleBongoItem);
+
+        _clickThroughBongoItem = new MenuItem("滑鼠穿透 (點擊穿透)")
+        {
+            CheckOnClick = true,
+            Checked = _settings.Bongo.ClickThrough
+        };
+        _clickThroughBongoItem.Click += (_, _) =>
+        {
+            if (_bongoWindow != null)
+            {
+                _bongoWindow.SetClickThrough(_clickThroughBongoItem.Checked);
+                _settings.Bongo.ClickThrough = _clickThroughBongoItem.Checked;
+                SettingsManager.Save(_settings);
+                ScheduleAutoSave();
+            }
+        };
+        _bongoMenu.DropDownItems.Add(_clickThroughBongoItem);
+
+        _bongoSkinsMenu = new MenuItem("更換造型 (Skins)");
+        PopulateBongoSkinsMenu(_bongoSkinsMenu);
+        _bongoMenu.DropDownItems.Add(_bongoSkinsMenu);
+
+        var resetBongoPosItem = new MenuItem("重設位置至右下角");
+        resetBongoPosItem.Click += (_, _) => _bongoWindow?.ResetPosition();
+        _bongoMenu.DropDownItems.Add(resetBongoPosItem);
+
+        _trayContextMenu.Items.Add(_bongoMenu);
 
         _aliveMenu = new MenuItem("現在存活的角色") { Enabled = false };
         _trayContextMenu.Items.Add(_aliveMenu);
@@ -808,6 +894,8 @@ public partial class App : Application
             instance.Window.HidePet();
         }
 
+        _bongoWindow?.PauseForBossKey();
+
         if (_trayContextMenu != null && _unsealMenuItem != null && _unsealSeparator != null)
         {
             if (!_trayContextMenu.Items.Contains(_unsealMenuItem))
@@ -834,16 +922,100 @@ public partial class App : Application
             instance.Window.ShowPet();
         }
 
+        _bongoWindow?.ResumeFromBossKey();
+
         ClickThroughManager.Instance.ResumeHook();
         InteractionCoordinator.Instance.ResumeScanning();
+    }
+
+    private void PopulateBongoSkinsMenu(MenuItem parent)
+    {
+        parent.DropDownItems.Clear();
+        if (_bongoSkinManager == null || _bongoWindow == null) return;
+
+        var skins = _bongoSkinManager.DiscoverSkins();
+        foreach (var skin in skins)
+        {
+            var item = new MenuItem(skin.DisplayName)
+            {
+                CheckOnClick = true,
+                Checked = string.Equals(skin.Key, _settings.Bongo.CurrentSkinKey, StringComparison.OrdinalIgnoreCase)
+            };
+            string k = skin.Key;
+            item.Click += (_, _) =>
+            {
+                _bongoWindow.ApplySkin(k);
+                _settings.Bongo.CurrentSkinKey = k;
+                SettingsManager.Save(_settings);
+                PopulateBongoSkinsMenu(parent);
+                ScheduleAutoSave();
+            };
+            parent.DropDownItems.Add(item);
+        }
     }
 
     public static void HideAllCharactersStatic() => (Current as App)?.HideAllCharacters();
     public static void UnhideAllCharactersStatic() => (Current as App)?.UnhideAllCharacters();
 
+    private BongoProfileState? CaptureBongoProfileState()
+    {
+        if (_bongoWindow == null || !_settings.Bongo.IsEnabled) return null;
+        return new BongoProfileState
+        {
+            IsEnabled = _settings.Bongo.IsEnabled,
+            SkinKey = _settings.Bongo.CurrentSkinKey,
+            PositionX = _bongoWindow.Left,
+            PositionY = _bongoWindow.Top,
+            Scale = _settings.Bongo.Scale,
+            IsLocked = _settings.Bongo.IsLocked,
+            ClickThrough = _settings.Bongo.ClickThrough
+        };
+    }
+
+    private void RestoreBongoProfile(BongoProfileState? bongoState)
+    {
+        if (bongoState == null || _bongoWindow == null) return;
+
+        _settings.Bongo.IsEnabled = bongoState.IsEnabled;
+        _settings.Bongo.CurrentSkinKey = bongoState.SkinKey;
+        _settings.Bongo.Scale = bongoState.Scale;
+        _settings.Bongo.PositionX = bongoState.PositionX;
+        _settings.Bongo.PositionY = bongoState.PositionY;
+        _settings.Bongo.IsLocked = bongoState.IsLocked;
+        _settings.Bongo.ClickThrough = bongoState.ClickThrough;
+
+        _bongoWindow.ApplyScale(_settings.Bongo.Scale);
+        _bongoWindow.ApplySkin(_settings.Bongo.CurrentSkinKey);
+        if (!(_settings.Bongo.PositionX == -1 && _settings.Bongo.PositionY == -1))
+        {
+            _bongoWindow.Left = _settings.Bongo.PositionX;
+            _bongoWindow.Top = _settings.Bongo.PositionY;
+        }
+        _bongoWindow.SetLocked(_settings.Bongo.IsLocked);
+        _bongoWindow.SetClickThrough(_settings.Bongo.ClickThrough);
+
+        if (_settings.Bongo.IsEnabled)
+        {
+            _bongoWindow.ShowBongo();
+        }
+        else
+        {
+            _bongoWindow.HideBongo();
+        }
+
+        if (_toggleBongoItem != null)
+        {
+            _toggleBongoItem.Checked = _settings.Bongo.IsEnabled;
+        }
+        if (_clickThroughBongoItem != null)
+        {
+            _clickThroughBongoItem.Checked = _settings.Bongo.ClickThrough;
+        }
+    }
+
     private void ExportProfile()
     {
-        if (_instances.Count == 0)
+        if (_instances.Count == 0 && (_bongoWindow == null || !_settings.Bongo.IsEnabled))
         {
             if (EnableWindowsNotifications)
             {
@@ -879,7 +1051,8 @@ public partial class App : Application
             var profile = new PetProfile
             {
                 Version = 1,
-                Characters = new List<CharacterProfileItem>()
+                Characters = new List<CharacterProfileItem>(),
+                BongoState = CaptureBongoProfileState()
             };
 
             foreach (var instance in _instances.Values)
@@ -889,7 +1062,8 @@ public partial class App : Application
 
             ProfileManager.SaveToFile(saveDialog.FileName, profile);
 
-            string msg = $"成功匯出 {profile.Characters.Count} 個角色配置！";
+            string bongoMsg = profile.BongoState != null ? "（含 Bongo 打字pet）" : string.Empty;
+            string msg = $"成功匯出 {profile.Characters.Count} 個角色配置{bongoMsg}！";
             if (EnableWindowsNotifications)
             {
                 _trayIcon?.ShowBalloonTip(1500, "匯出成功", msg, ToolTipIcon.Info);
@@ -943,7 +1117,7 @@ public partial class App : Application
             return;
         }
 
-        if (profile == null || profile.Characters == null || profile.Characters.Count == 0)
+        if (profile == null || (profile.Characters.Count == 0 && profile.BongoState == null))
         {
             System.Windows.MessageBox.Show(
                 "設定檔格式不正確或未包含任何角色資料！",
@@ -974,6 +1148,8 @@ public partial class App : Application
                 double randomX = Random.Shared.Next(minX, maxX);
                 SpawnCharacter(charItem.CharacterName, randomX, charItem);
             }
+
+            RestoreBongoProfile(profile.BongoState);
         }
         finally
         {
@@ -981,7 +1157,8 @@ public partial class App : Application
             SaveAutoSaveProfile();
         }
 
-        string msg = $"成功匯入 {profile.Characters.Count} 個角色！";
+        string bongoMsg = profile.BongoState != null ? "（含 Bongo 打字pet）" : string.Empty;
+        string msg = $"成功匯入 {profile.Characters.Count} 個角色{bongoMsg}！";
         if (EnableWindowsNotifications)
         {
             _trayIcon?.ShowBalloonTip(1500, "匯入成功", msg, ToolTipIcon.Info);
@@ -1006,7 +1183,8 @@ public partial class App : Application
             var profile = new PetProfile
             {
                 Version = 1,
-                Characters = new List<CharacterProfileItem>()
+                Characters = new List<CharacterProfileItem>(),
+                BongoState = CaptureBongoProfileState()
             };
 
             foreach (var instance in _instances.Values)
@@ -1073,7 +1251,7 @@ public partial class App : Application
             return false;
         }
 
-        if (profile == null || profile.Characters == null || profile.Characters.Count == 0)
+        if (profile == null || (profile.Characters.Count == 0 && profile.BongoState == null))
         {
             if (isManual)
             {
@@ -1106,6 +1284,8 @@ public partial class App : Application
                 double randomX = Random.Shared.Next(minX, maxX);
                 SpawnCharacter(charItem.CharacterName, randomX, charItem);
             }
+
+            RestoreBongoProfile(profile.BongoState);
         }
         finally
         {
@@ -1115,7 +1295,8 @@ public partial class App : Application
 
         if (isManual)
         {
-            string msg = $"成功從自動存檔恢復 {profile.Characters.Count} 個角色！";
+            string bongoMsg = profile.BongoState != null ? "（含 Bongo 打字pet）" : string.Empty;
+            string msg = $"成功從自動存檔恢復 {profile.Characters.Count} 個角色{bongoMsg}！";
             if (EnableWindowsNotifications)
             {
                 _trayIcon?.ShowBalloonTip(1500, "恢復成功", msg, ToolTipIcon.Info);
@@ -1373,7 +1554,30 @@ public partial class App : Application
             _hotkeyHwndSource = null;
         }
 
+        if (_bongoWindow != null)
+        {
+            _settings.Bongo.PositionX = _bongoWindow.Left;
+            _settings.Bongo.PositionY = _bongoWindow.Top;
+            _settings.Bongo.Scale = _bongoWindow.Config.Scale;
+            _settings.Bongo.CurrentSkinKey = _bongoWindow.Config.CurrentSkinKey;
+            _settings.Bongo.IsEnabled = _bongoWindow.Config.IsEnabled;
+            _settings.Bongo.IsLocked = _bongoWindow.Config.IsLocked;
+            _settings.Bongo.ClickThrough = _bongoWindow.Config.ClickThrough;
+            _settings.Bongo.InputMode = _bongoWindow.Config.InputMode;
+            _settings.Bongo.TrackMouseMotion = _bongoWindow.Config.TrackMouseMotion;
+            SettingsManager.Save(_settings);
+
+            _bongoWindow.Close();
+            _bongoWindow = null;
+        }
+
+        _globalKeyboardHook?.Dispose();
+        _globalKeyboardHook = null;
+        _globalMouseHook?.Dispose();
+        _globalMouseHook = null;
+
         _trayIcon?.Dispose();
         base.OnExit(e);
     }
+
 }

@@ -1,0 +1,16 @@
+{
+  "key": "usagi",
+  "displayName": "Usagi (兔兔烏薩奇)",
+  "author": "DAOjun0690",
+  "description": "兔兔烏薩奇狂暴敲鍵盤與高速滑鼠點擊，超頻速度破表高喊烏哈（YAHA）！",
+  "bodyFile": "body.png",
+  "leftUpFile": "left_up.png",
+  "leftDownFile": "left_down.png",
+  "leftDownRightFile": "left_down_right.png",
+  "rightUpFile": "right_up.png",
+  "rightDownFile": "right_down.png",
+  "faceNormalFile": "face_normal.png",
+  "faceFocusedFile": "face_focused.png",
+  "faceOverdriveFile": "face_overdrive.png",
+  "overdriveEffectFile": "effect_overdrive.png"
+}

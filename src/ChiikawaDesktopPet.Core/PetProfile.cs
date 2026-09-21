@@ -21,8 +21,20 @@ public class CharacterProfileItem
     public double DialogueImageMaxHeight { get; set; } = 200.0;
 }
 
+public class BongoProfileState
+{
+    public bool IsEnabled { get; set; } = true;
+    public string SkinKey { get; set; } = "chiikawa";
+    public double PositionX { get; set; } = -1;
+    public double PositionY { get; set; } = -1;
+    public double Scale { get; set; } = 1.0;
+    public bool IsLocked { get; set; } = false;
+    public bool ClickThrough { get; set; } = false;
+}
+
 public class PetProfile
 {
     public int Version { get; set; } = 1;
     public List<CharacterProfileItem> Characters { get; set; } = [];
+    public BongoProfileState? BongoState { get; set; }
 }

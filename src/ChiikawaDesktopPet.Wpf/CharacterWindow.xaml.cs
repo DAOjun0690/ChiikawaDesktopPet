@@ -11,7 +11,7 @@ using ChiikawaDesktopPet.Core;
 
 namespace ChiikawaDesktopPet.Wpf;
 
-public partial class CharacterWindow : Window
+public partial class CharacterWindow : Window, IClickThroughWindow
 {
     public string CharacterName { get; }
     public int InstanceIndex { get; }

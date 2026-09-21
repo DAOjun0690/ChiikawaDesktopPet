@@ -1,0 +1,16 @@
+{
+  "key": "chiikawa",
+  "displayName": "Chiikawa (吉伊卡哇)",
+  "author": "DAOjun0690",
+  "description": "吉伊卡哇認真打字、小爪握持滑鼠努力工作的可愛模樣！",
+  "bodyFile": "body.png",
+  "leftUpFile": "left_up.png",
+  "leftDownFile": "left_down.png",
+  "leftDownRightFile": "left_down_right.png",
+  "rightUpFile": "right_up.png",
+  "rightDownFile": "right_down.png",
+  "faceNormalFile": "face_normal.png",
+  "faceFocusedFile": "face_focused.png",
+  "faceOverdriveFile": "face_overdrive.png",
+  "overdriveEffectFile": "effect_overdrive.png"
+}

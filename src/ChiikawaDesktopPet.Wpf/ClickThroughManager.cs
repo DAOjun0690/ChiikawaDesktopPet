@@ -4,15 +4,27 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Windows.Interop;
+using System.Windows.Threading;
 
 namespace ChiikawaDesktopPet.Wpf;
+
+internal interface IClickThroughWindow
+{
+    bool HasOpenContextMenu { get; }
+    bool IsPointInsideContextMenu(NativeMethods.POINT pt);
+    void CloseContextMenu();
+    void TriggerContextMenuFromHook();
+    bool IsPetHidden { get; }
+    bool IsLoaded { get; }
+    IntPtr Handle { get; }
+    Dispatcher Dispatcher { get; }
+}
 
 public sealed class ClickThroughManager
 {
     public static ClickThroughManager Instance { get; } = new();
 
-    private readonly HashSet<CharacterWindow> _registeredWindows = [];
+    private readonly HashSet<IClickThroughWindow> _registeredWindows = [];
     private readonly object _lock = new();
 
     private IntPtr _hookHandle = IntPtr.Zero;
@@ -46,7 +58,7 @@ public sealed class ClickThroughManager
         }
     }
 
-    public void Register(CharacterWindow window)
+    internal void Register(IClickThroughWindow window)
     {
         lock (_lock)
         {
@@ -58,7 +70,7 @@ public sealed class ClickThroughManager
         }
     }
 
-    public void Unregister(CharacterWindow window)
+    internal void Unregister(IClickThroughWindow window)
     {
         lock (_lock)
         {
@@ -106,7 +118,7 @@ public sealed class ClickThroughManager
 
                 if (isMouseDown)
                 {
-                    CharacterWindow[] registered;
+                    IClickThroughWindow[] registered;
                     lock (_lock)
                     {
                         registered = _registeredWindows.ToArray();
@@ -118,10 +130,7 @@ public sealed class ClickThroughManager
                         {
                             window.Dispatcher.BeginInvoke(() =>
                             {
-                                if (window.ContextMenu != null)
-                                {
-                                    window.ContextMenu.IsOpen = false;
-                                }
+                                window.CloseContextMenu();
                             });
                         }
                     }
@@ -156,9 +165,9 @@ public sealed class ClickThroughManager
         return NativeMethods.CallNextHookEx(_hookHandle, nCode, wParam, lParam);
     }
 
-    private CharacterWindow? FindHitWindow(NativeMethods.POINT pt)
+    private IClickThroughWindow? FindHitWindow(NativeMethods.POINT pt)
     {
-        CharacterWindow[] windows;
+        IClickThroughWindow[] windows;
         lock (_lock)
         {
             windows = _registeredWindows.ToArray();
@@ -169,7 +178,7 @@ public sealed class ClickThroughManager
         {
             if (window.IsPetHidden || !window.IsLoaded) continue;
 
-            IntPtr hwnd = window.Handle != IntPtr.Zero ? window.Handle : new WindowInteropHelper(window).Handle;
+            IntPtr hwnd = window.Handle;
             if (hwnd == IntPtr.Zero) continue;
 
             if (NativeMethods.GetWindowRect(hwnd, out var rect))

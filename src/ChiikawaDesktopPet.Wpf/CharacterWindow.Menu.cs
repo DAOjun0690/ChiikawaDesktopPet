@@ -285,6 +285,14 @@ public partial class CharacterWindow
     public bool HasOpenContextMenu { get; private set; }
     public IntPtr ContextMenuHwnd { get; private set; }
 
+    public void CloseContextMenu()
+    {
+        if (ContextMenu != null)
+        {
+            ContextMenu.IsOpen = false;
+        }
+    }
+
     internal bool IsPointInsideContextMenu(NativeMethods.POINT pt)
     {
         if (!HasOpenContextMenu) return false;
@@ -296,5 +304,7 @@ public partial class CharacterWindow
 
         return false;
     }
+
+    bool IClickThroughWindow.IsPointInsideContextMenu(NativeMethods.POINT pt) => IsPointInsideContextMenu(pt);
 }
 

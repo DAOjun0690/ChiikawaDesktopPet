@@ -1,0 +1,63 @@
+<Window x:Class="ChiikawaDesktopPet.Wpf.BongoWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        Focusable="False"
+        ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight"
+        RenderOptions.BitmapScalingMode="HighQuality"
+        UseLayoutRounding="True"
+        Title="Bongo 打字pet">
+    <Window.ContextMenu>
+        <ContextMenu x:Name="BongoContextMenu" />
+    </Window.ContextMenu>
+    <Grid x:Name="RootContainer" MouseLeftButtonDown="OnMouseLeftButtonDown">
+        <Grid.LayoutTransform>
+            <ScaleTransform x:Name="WindowScaleTransform" ScaleX="1.0" ScaleY="1.0" />
+        </Grid.LayoutTransform>
+
+        <!-- Overdrive / Heat background effects -->
+        <Image x:Name="EffectImage"
+               Stretch="None"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center"
+               Visibility="Collapsed" />
+
+        <!-- Character body & face layer (Normal, Focused, Overdrive) -->
+        <Image x:Name="FaceImage"
+               Stretch="None"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center" />
+
+        <!-- Desk, Mousepad on Left, Keyboard on Right -->
+        <Image x:Name="BodyImage"
+               Stretch="None"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center" />
+
+        <!-- Left paw layer (Mouse Hand on the left mousepad) -->
+        <Image x:Name="LeftPawImage"
+               Stretch="None"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center">
+            <Image.RenderTransform>
+                <TranslateTransform x:Name="LeftPawTransform" X="0" Y="0" />
+            </Image.RenderTransform>
+        </Image>
+
+        <!-- Right paw layer (Keyboard Hand on the right keyboard) -->
+        <Image x:Name="RightPawImage"
+               Stretch="None"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center">
+            <Image.RenderTransform>
+                <TranslateTransform x:Name="RightPawTransform" X="0" Y="0" />
+            </Image.RenderTransform>
+        </Image>
+    </Grid>
+</Window>
+

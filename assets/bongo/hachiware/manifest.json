@@ -1,0 +1,16 @@
+{
+  "key": "hachiware",
+  "displayName": "Hachiware (小八貓)",
+  "author": "DAOjun0690",
+  "description": "八字瀏海小八貓，左手滑鼠右手鍵盤，打字充滿好奇心與活力！",
+  "bodyFile": "body.png",
+  "leftUpFile": "left_up.png",
+  "leftDownFile": "left_down.png",
+  "leftDownRightFile": "left_down_right.png",
+  "rightUpFile": "right_up.png",
+  "rightDownFile": "right_down.png",
+  "faceNormalFile": "face_normal.png",
+  "faceFocusedFile": "face_focused.png",
+  "faceOverdriveFile": "face_overdrive.png",
+  "overdriveEffectFile": "effect_overdrive.png"
+}

@@ -89,6 +89,41 @@ public class ProfileManagerTests
     }
 
     [Fact]
+    public void SerializeAndDeserialize_WithBongoState_RoundTripsSuccessfully()
+    {
+        var original = new PetProfile
+        {
+            Version = 1,
+            Characters = [],
+            BongoState = new BongoProfileState
+            {
+                IsEnabled = true,
+                SkinKey = "hachiware",
+                PositionX = 350.5,
+                PositionY = 720.0,
+                Scale = 1.5,
+                IsLocked = true,
+                ClickThrough = false
+            }
+        };
+
+        string json = ProfileManager.Serialize(original);
+        Assert.NotNull(json);
+        Assert.Contains("hachiware", json);
+
+        var restored = ProfileManager.Deserialize(json);
+        Assert.NotNull(restored);
+        Assert.NotNull(restored.BongoState);
+        Assert.True(restored.BongoState.IsEnabled);
+        Assert.Equal("hachiware", restored.BongoState.SkinKey);
+        Assert.Equal(350.5, restored.BongoState.PositionX);
+        Assert.Equal(720.0, restored.BongoState.PositionY);
+        Assert.Equal(1.5, restored.BongoState.Scale);
+        Assert.True(restored.BongoState.IsLocked);
+        Assert.False(restored.BongoState.ClickThrough);
+    }
+
+    [Fact]
     public void Deserialize_InvalidJson_ReturnsNull()
     {
         string invalidJson = "{ this is not valid json }";

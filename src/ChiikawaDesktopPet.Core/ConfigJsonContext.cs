@@ -9,6 +9,9 @@ namespace ChiikawaDesktopPet.Core;
 [JsonSerializable(typeof(CharacterProfileItem))]
 [JsonSerializable(typeof(List<CharacterProfileItem>))]
 [JsonSerializable(typeof(AppSettings))]
+[JsonSerializable(typeof(BongoConfig))]
+[JsonSerializable(typeof(BongoProfileState))]
+[JsonSerializable(typeof(BongoSkinManifest))]
 public sealed partial class ConfigJsonContext : JsonSerializerContext
 {
 }

@@ -1,0 +1,16 @@
+{
+  "key": "chesthair_monkey",
+  "displayName": "胸毛公寓 猴子朋友",
+  "author": "DAOjun0690",
+  "description": "胸毛公寓猴子朋友認真敲打鍵盤，超頻速度爆發魔性尖叫！",
+  "bodyFile": "body.png",
+  "leftUpFile": "left_up.png",
+  "leftDownFile": "left_down.png",
+  "leftDownRightFile": "left_down_right.png",
+  "rightUpFile": "right_up.png",
+  "rightDownFile": "right_down.png",
+  "faceNormalFile": "face_normal.png",
+  "faceFocusedFile": "face_focused.png",
+  "faceOverdriveFile": "face_overdrive.png",
+  "overdriveEffectFile": "effect_overdrive.png"
+}
