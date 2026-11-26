@@ -26,13 +26,16 @@ public partial class TextInputDialog : Window
         TextAlignment currentAlignment = TextAlignment.Center,
         double currentFontSize = 13.0,
         double currentImageMaxWidth = 260.0,
-        double currentImageMaxHeight = 200.0)
+        double currentImageMaxHeight = 200.0,
+        string? displayNameOverride = null)
     {
         InitializeComponent();
         _characterName = characterName;
         _defaultQuote = CharacterQuotes.GetDefaultQuote(characterName);
 
-        string displayName = App.GetCharacterDisplayName(characterName);
+        string displayName = !string.IsNullOrWhiteSpace(displayNameOverride)
+            ? displayNameOverride
+            : App.GetCharacterDisplayName(characterName);
         Title = $"設定【{displayName}】對話文字";
         PromptLabel.Text = $"請輸入【{displayName}】頭頂對話框要顯示的文字（支援 Markdown 與圖片語法）：";
 

@@ -363,4 +363,238 @@ public class BongoWindowIntegrationTests
         thread.Join();
         Assert.Null(failure);
     }
+
+    [Fact]
+    public void BongoWindow_BaseVisualScale_100PercentIsHalfVisualSize_AndBubbleIsNotScaled()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var config = new BongoConfig { Scale = 1.0 };
+                var skinManager = new BongoSkinManager();
+                using var keyboardHook = new GlobalKeyboardHook();
+                using var mouseHook = new GlobalMouseHook();
+                var window = new BongoWindow(config, skinManager, keyboardHook, mouseHook);
+
+                Assert.Equal(0.5, BongoWindow.BaseVisualScale, 3);
+                Assert.Equal(0.5, window.WindowScaleTransform.ScaleX, 3);
+                Assert.Equal(0.5, window.WindowScaleTransform.ScaleY, 3);
+
+                window.ApplyScale(1.0);
+                Assert.Equal(1.0, config.Scale, 3);
+                Assert.Equal(0.5, window.WindowScaleTransform.ScaleX, 3);
+                Assert.Equal(0.5, window.WindowScaleTransform.ScaleY, 3);
+
+                window.ApplyScale(2.0);
+                Assert.Equal(2.0, config.Scale, 3);
+                Assert.Equal(1.0, window.WindowScaleTransform.ScaleX, 3);
+                Assert.Equal(1.0, window.WindowScaleTransform.ScaleY, 3);
+
+                // ScaleTransform must be on PetVisualContainer, not on RootContainer (so bubble is unscaled)
+                Assert.Same(window.WindowScaleTransform, window.PetVisualContainer.LayoutTransform);
+                Assert.NotSame(window.WindowScaleTransform, window.RootContainer.LayoutTransform);
+
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+        Assert.Null(failure);
+    }
+
+    [Fact]
+    public void BongoWindow_ContextMenu_ContainsDialogueBoardItems()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var config = new BongoConfig { AlwaysShowBubble = true };
+                var skinManager = new BongoSkinManager();
+                using var keyboardHook = new GlobalKeyboardHook();
+                using var mouseHook = new GlobalMouseHook();
+                var window = new BongoWindow(config, skinManager, keyboardHook, mouseHook);
+
+                var rebuildMethod = typeof(BongoWindow).GetMethod("RebuildContextMenu",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                Assert.NotNull(rebuildMethod);
+                rebuildMethod.Invoke(window, null);
+
+                MenuItem? alwaysShowItem = null;
+                MenuItem? setQuoteItem = null;
+                foreach (var item in window.ContextMenu!.Items)
+                {
+                    if (item is MenuItem mi && mi.Header is string h)
+                    {
+                        if (h == "永久顯示對話框") alwaysShowItem = mi;
+                        if (h == "設定對話文字...") setQuoteItem = mi;
+                    }
+                }
+
+                Assert.NotNull(alwaysShowItem);
+                Assert.True(alwaysShowItem!.IsCheckable);
+                Assert.True(alwaysShowItem.IsChecked);
+                Assert.NotNull(setQuoteItem);
+
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+        Assert.Null(failure);
+    }
+
+    [Fact]
+    public void BongoWindow_DialogueBoard_SupportsMarkdownCheckboxSharedAcrossSkinsAndProfileRoundTrip()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var config = new BongoConfig { IsEnabled = true, CurrentSkinKey = "chiikawa" };
+                var skinManager = new BongoSkinManager();
+                using var keyboardHook = new GlobalKeyboardHook();
+                using var mouseHook = new GlobalMouseHook();
+                var window = new BongoWindow(config, skinManager, keyboardHook, mouseHook);
+
+                // Without custom text, CurrentDialogueText falls back to skin default quote
+                Assert.False(window.HasCustomDialogueText);
+                Assert.Equal(CharacterQuotes.GetDefaultQuote("chiikawa"), window.CurrentDialogueText);
+
+                window.ApplySkin("chesthair_monkey");
+                Assert.Equal(CharacterQuotes.GetDefaultQuote("chesthair_monkey"), window.CurrentDialogueText);
+
+                // Set custom markdown todo list and enable AlwaysShowBubble
+                int profileChangedCount = 0;
+                window.ProfileChanged += () => profileChangedCount++;
+
+                window.SetCustomText("- [ ] 寫測試\n- [ ] 提交程式碼", TextAlignment.Left, 15.0, 280.0, 210.0);
+                window.SetAlwaysShowBubble(true);
+
+                Assert.True(window.HasCustomDialogueText);
+                Assert.True(window.AlwaysShowBubble);
+                Assert.True(window.IsBubbleVisible);
+                Assert.Equal(TextAlignment.Left, window.DialogueAlignment);
+                Assert.Equal(15.0, window.DialogueFontSize, 3);
+                Assert.True(profileChangedCount >= 2);
+
+                // Switching skins keeps the shared custom message board
+                window.ApplySkin("chiikawa");
+                Assert.Equal("- [ ] 寫測試\n- [ ] 提交程式碼", window.CurrentDialogueText);
+
+                // Toggling checkbox updates stored markdown text
+                var toggleMethod = typeof(BongoWindow).GetMethod("OnBubbleCheckboxToggled",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                Assert.NotNull(toggleMethod);
+                toggleMethod.Invoke(window, new object[] { 0 });
+                Assert.StartsWith("- [x] 寫測試", window.CustomDialogueText);
+
+                // Profile round-trip serialization + ApplyDialogueProfile
+                var profile = new PetProfile
+                {
+                    Version = 1,
+                    BongoState = new BongoProfileState
+                    {
+                        IsEnabled = true,
+                        SkinKey = "chesthair_monkey",
+                        Scale = 1.0,
+                        DialogueText = config.DialogueText,
+                        DialogueAlignment = config.DialogueAlignment,
+                        DialogueFontSize = config.DialogueFontSize,
+                        AlwaysShowBubble = config.AlwaysShowBubble,
+                        DialogueImageMaxWidth = config.DialogueImageMaxWidth,
+                        DialogueImageMaxHeight = config.DialogueImageMaxHeight
+                    }
+                };
+                string json = ProfileManager.Serialize(profile);
+                var restored = ProfileManager.Deserialize(json);
+                Assert.NotNull(restored?.BongoState);
+                Assert.Equal(config.DialogueText, restored!.BongoState!.DialogueText);
+                Assert.Equal("Left", restored.BongoState.DialogueAlignment);
+                Assert.Equal(15.0, restored.BongoState.DialogueFontSize, 3);
+                Assert.True(restored.BongoState.AlwaysShowBubble);
+
+                // Backward-compatibility: legacy JSON without dialogue fields deserializes with defaults
+                string legacyJson = """{"Version":1,"Characters":[],"BongoState":{"IsEnabled":true,"SkinKey":"chiikawa","PositionX":100,"PositionY":200,"Scale":1.0}}""";
+                var legacy = ProfileManager.Deserialize(legacyJson);
+                Assert.NotNull(legacy?.BongoState);
+                Assert.Null(legacy!.BongoState!.DialogueText);
+                Assert.Equal("Center", legacy.BongoState.DialogueAlignment);
+                Assert.Equal(13.0, legacy.BongoState.DialogueFontSize, 3);
+                Assert.False(legacy.BongoState.AlwaysShowBubble);
+
+                window.ApplyDialogueProfile(legacy.BongoState);
+                Assert.False(window.HasCustomDialogueText);
+                Assert.False(window.AlwaysShowBubble);
+                Assert.False(window.IsBubbleVisible);
+
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+        Assert.Null(failure);
+    }
+
+    [Fact]
+    public void BongoWindow_BubblePlacement_FlipsToBottomNearTopEdge_AndStaysTopWithSpace()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var config = new BongoConfig { IsEnabled = true };
+                var skinManager = new BongoSkinManager();
+                using var keyboardHook = new GlobalKeyboardHook();
+                using var mouseHook = new GlobalMouseHook();
+                var window = new BongoWindow(config, skinManager, keyboardHook, mouseHook);
+
+                window.SetCustomText("測試自動翻轉氣泡");
+                window.SetAlwaysShowBubble(true);
+
+                var workArea = SystemParameters.WorkArea;
+                // Near top edge: insufficient space above -> flip to Bottom
+                var nearTop = window.UpdateBubblePlacement(bubbleH: 120, petTopDip: workArea.Top + 10, petHeightDip: 120);
+                Assert.Equal(CharacterWindow.SpeechBubblePlacement.Bottom, nearTop);
+                Assert.Equal(Visibility.Visible, window.BubblePointerUp.Visibility);
+                Assert.Equal(Visibility.Collapsed, window.BubblePointerDown.Visibility);
+
+                // Near bottom edge: plenty of space above -> Top
+                var nearBottom = window.UpdateBubblePlacement(bubbleH: 120, petTopDip: workArea.Bottom - 160, petHeightDip: 120);
+                Assert.Equal(CharacterWindow.SpeechBubblePlacement.Top, nearBottom);
+                Assert.Equal(Visibility.Collapsed, window.BubblePointerUp.Visibility);
+                Assert.Equal(Visibility.Visible, window.BubblePointerDown.Visibility);
+
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+        Assert.Null(failure);
+    }
 }

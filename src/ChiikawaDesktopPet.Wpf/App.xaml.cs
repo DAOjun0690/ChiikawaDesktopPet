@@ -361,6 +361,11 @@ public partial class App : Application
             SettingsManager.Save(_settings);
             ScheduleAutoSave();
         };
+        _bongoWindow.ProfileChanged += () =>
+        {
+            SettingsManager.Save(_settings);
+            ScheduleAutoSave();
+        };
         if (_settings.Bongo.IsEnabled)
         {
             _bongoWindow.ShowBongo();
@@ -1002,7 +1007,13 @@ public partial class App : Application
             PositionY = _bongoWindow.SafeTop,
             Scale = double.IsFinite(_settings.Bongo.Scale) ? _settings.Bongo.Scale : 1.0,
             IsLocked = _settings.Bongo.IsLocked,
-            ClickThrough = _settings.Bongo.ClickThrough
+            ClickThrough = _settings.Bongo.ClickThrough,
+            DialogueText = _settings.Bongo.DialogueText,
+            DialogueAlignment = _settings.Bongo.DialogueAlignment,
+            DialogueFontSize = _settings.Bongo.DialogueFontSize,
+            AlwaysShowBubble = _settings.Bongo.AlwaysShowBubble,
+            DialogueImageMaxWidth = _settings.Bongo.DialogueImageMaxWidth,
+            DialogueImageMaxHeight = _settings.Bongo.DialogueImageMaxHeight
         };
     }
 
@@ -1027,6 +1038,7 @@ public partial class App : Application
         }
         _bongoWindow.SetLocked(_settings.Bongo.IsLocked);
         _bongoWindow.SetClickThrough(_settings.Bongo.ClickThrough);
+        _bongoWindow.ApplyDialogueProfile(bongoState);
 
         if (_settings.Bongo.IsEnabled)
         {

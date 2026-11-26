@@ -12,6 +12,8 @@ namespace ChiikawaDesktopPet.Wpf;
 
 public partial class BongoWindow : Window, IClickThroughWindow
 {
+    public const double BaseVisualScale = 0.5;
+
     private readonly BongoConfig _config;
     private readonly BongoSkinManager _skinManager;
     private readonly GlobalKeyboardHook _keyboardHook;
@@ -22,6 +24,9 @@ public partial class BongoWindow : Window, IClickThroughWindow
     private readonly DispatcherTimer _rightPawResetTimer;
     private readonly DispatcherTimer _speedPollTimer;
     private readonly DispatcherTimer _mouseMotionTimer;
+    private readonly DispatcherTimer _bubbleTimer = new();
+    private bool _isUpdatingBubbleLayout;
+    private double _lastBubbleHeight;
 
     private double _targetMouseX;
     private double _targetMouseY;
@@ -50,10 +55,25 @@ public partial class BongoWindow : Window, IClickThroughWindow
     public BongoConfig Config => _config;
     public event Action? VisibilityChanged;
     public event Action<bool>? ClickThroughChanged;
+    public event Action? ProfileChanged;
 
     public bool HasOpenContextMenu => BongoContextMenu.IsOpen;
     public bool IsPetHidden => _isBossKeyHidden || _isSystemSuspended || !IsVisible;
     public bool IsSystemSuspended => _isSystemSuspended;
+    public CharacterWindow.SpeechBubblePlacement CurrentBubblePlacement { get; private set; } = CharacterWindow.SpeechBubblePlacement.Top;
+    public bool AlwaysShowBubble => _config.AlwaysShowBubble;
+    public bool IsBubbleVisible => BubbleContainer.Visibility == Visibility.Visible;
+    public string CustomDialogueText => _config.DialogueText ?? string.Empty;
+    public bool HasCustomDialogueText => !string.IsNullOrWhiteSpace(_config.DialogueText);
+    public string CurrentDialogueText => HasCustomDialogueText
+        ? _config.DialogueText!
+        : CharacterQuotes.GetDefaultQuote(_config.CurrentSkinKey);
+    public TextAlignment DialogueAlignment => ParseAlignment(_config.DialogueAlignment);
+    public double DialogueFontSize => _config.DialogueFontSize > 0
+        ? Math.Clamp(_config.DialogueFontSize, 9.0, 36.0)
+        : 13.0;
+    public double DialogueImageMaxWidth => _config.DialogueImageMaxWidth > 0 ? _config.DialogueImageMaxWidth : 260.0;
+    public double DialogueImageMaxHeight => _config.DialogueImageMaxHeight > 0 ? _config.DialogueImageMaxHeight : 200.0;
     public double SafeLeft => double.IsFinite(Left) ? Left : (double.IsFinite(_config.PositionX) ? _config.PositionX : -1);
     public double SafeTop => double.IsFinite(Top) ? Top : (double.IsFinite(_config.PositionY) ? _config.PositionY : -1);
     public IntPtr Handle => _hwnd != IntPtr.Zero ? _hwnd : (_hwnd = new WindowInteropHelper(this).Handle);
@@ -166,6 +186,9 @@ public partial class BongoWindow : Window, IClickThroughWindow
             }
         };
 
+        _bubbleTimer.Tick += (_, _) => OnBubbleTimerTick();
+        BubbleContainer.SizeChanged += OnBubbleContainerSizeChanged;
+
         SourceInitialized += OnSourceInitialized;
         Loaded += OnLoaded;
         LocationChanged += OnLocationChanged;
@@ -209,14 +232,19 @@ public partial class BongoWindow : Window, IClickThroughWindow
             _mouseMotionTimer.Start();
         }
 
+        if (_config.AlwaysShowBubble)
+        {
+            ShowSpeechBubble(forceRefreshContent: true);
+        }
+
         RebuildContextMenu();
     }
 
     public void ApplyInitialPosition()
     {
         var workArea = SystemParameters.WorkArea;
-        double defaultWidth = 280 * _config.Scale;
-        double defaultHeight = 240 * _config.Scale;
+        double defaultWidth = 280 * _config.Scale * BaseVisualScale;
+        double defaultHeight = 240 * _config.Scale * BaseVisualScale;
 
         bool hasInvalidSavedPos = !double.IsFinite(_config.PositionX) ||
                                   !double.IsFinite(_config.PositionY) ||
@@ -249,6 +277,11 @@ public partial class BongoWindow : Window, IClickThroughWindow
         EffectImage.Source = _currentSkin.OverdriveEffect;
         EffectImage.Visibility = Visibility.Collapsed;
 
+        if (IsBubbleVisible && !HasCustomDialogueText)
+        {
+            UpdateBubbleContent();
+        }
+
         RebuildContextMenu();
     }
 
@@ -256,8 +289,10 @@ public partial class BongoWindow : Window, IClickThroughWindow
     {
         scale = Math.Clamp(scale, 0.2, 4.0);
         _config.Scale = scale;
-        WindowScaleTransform.ScaleX = scale;
-        WindowScaleTransform.ScaleY = scale;
+        double effectiveScale = scale * BaseVisualScale;
+        WindowScaleTransform.ScaleX = effectiveScale;
+        WindowScaleTransform.ScaleY = effectiveScale;
+        UpdateLayout();
         ClampToScreen();
     }
 
@@ -459,15 +494,37 @@ public partial class BongoWindow : Window, IClickThroughWindow
 
     private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (_config.IsLocked) return;
-        if (e.ButtonState == MouseButtonState.Pressed)
+        if (e.ButtonState != MouseButtonState.Pressed) return;
+
+        if (_config.IsLocked)
+        {
+            ShowSpeechBubble(3500);
+            return;
+        }
+
+        double startLeft = Left;
+        double startTop = Top;
+        try
         {
             DragMove();
+        }
+        catch (InvalidOperationException)
+        {
+            // Ignore if mouse button was released before DragMove started
+        }
+
+        double dx = double.IsFinite(Left) && double.IsFinite(startLeft) ? Math.Abs(Left - startLeft) : 0;
+        double dy = double.IsFinite(Top) && double.IsFinite(startTop) ? Math.Abs(Top - startTop) : 0;
+        if (dx + dy < 3.0)
+        {
+            ShowSpeechBubble(3500);
         }
     }
 
     private void OnLocationChanged(object? sender, EventArgs e)
     {
+        if (_isUpdatingBubbleLayout) return;
+
         ClampToScreen();
         if (double.IsFinite(Left) && double.IsFinite(Top))
         {
@@ -484,8 +541,8 @@ public partial class BongoWindow : Window, IClickThroughWindow
         double vHeight = SystemParameters.VirtualScreenHeight;
         if (vWidth <= 0 || vHeight <= 0) return;
 
-        double windowWidth = ActualWidth > 0 ? ActualWidth : 280 * _config.Scale;
-        double windowHeight = ActualHeight > 0 ? ActualHeight : 220 * _config.Scale;
+        double windowWidth = ActualWidth > 0 ? ActualWidth : 280 * _config.Scale * BaseVisualScale;
+        double windowHeight = ActualHeight > 0 ? ActualHeight : 220 * _config.Scale * BaseVisualScale;
 
         double currentLeft = Left;
         double currentTop = Top;
@@ -549,6 +606,7 @@ public partial class BongoWindow : Window, IClickThroughWindow
         _speedPollTimer.Stop();
         _mouseMotionTimer.Stop();
         _rightPawResetTimer.Stop();
+        _bubbleTimer.Stop();
         _activeRightKeys.Clear();
         _activeLeftKeys.Clear();
         _isMouseLeftDown = false;
@@ -630,6 +688,7 @@ public partial class BongoWindow : Window, IClickThroughWindow
         {
             ShowWindowEnsureLoaded();
             RefreshVisualSurface(clamp: true);
+            if (_config.AlwaysShowBubble) ShowSpeechBubble(forceRefreshContent: true);
             if (!_keyboardHook.IsActive) _keyboardHook.Start();
             if (!_mouseHook.IsActive) _mouseHook.Start();
             _speedPollTimer.Start();
@@ -655,6 +714,7 @@ public partial class BongoWindow : Window, IClickThroughWindow
         {
             ShowWindowEnsureLoaded();
             RefreshVisualSurface(clamp: true);
+            if (_config.AlwaysShowBubble) ShowSpeechBubble(forceRefreshContent: true);
             if (!_keyboardHook.IsActive) _keyboardHook.Start();
             if (!_mouseHook.IsActive) _mouseHook.Start();
             _speedPollTimer.Start();
@@ -669,6 +729,7 @@ public partial class BongoWindow : Window, IClickThroughWindow
         {
             ShowWindowEnsureLoaded();
             RefreshVisualSurface(clamp: true);
+            if (_config.AlwaysShowBubble) ShowSpeechBubble(forceRefreshContent: true);
             if (!_keyboardHook.IsActive) _keyboardHook.Start();
             if (!_mouseHook.IsActive) _mouseHook.Start();
             _speedPollTimer.Start();
@@ -686,6 +747,352 @@ public partial class BongoWindow : Window, IClickThroughWindow
         _mouseHook.Stop();
         VisibilityChanged?.Invoke();
     }
+
+    public void ShowSpeechBubble(int durationMs = 3500, bool forceRefreshContent = false)
+    {
+        string text = CurrentDialogueText;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            HideSpeechBubble(force: true);
+            return;
+        }
+
+        if (BubbleContainer.Visibility == Visibility.Visible && !forceRefreshContent)
+        {
+            if (!_config.AlwaysShowBubble)
+            {
+                StartBubbleTimer(durationMs, text);
+            }
+            return;
+        }
+
+        UpdateBubbleContent();
+        SetBubbleVisibilityAnchored(true);
+
+        if (!_config.AlwaysShowBubble)
+        {
+            StartBubbleTimer(durationMs, text);
+        }
+        else
+        {
+            _bubbleTimer.Stop();
+        }
+    }
+
+    public void HideSpeechBubble(bool force = false)
+    {
+        _bubbleTimer.Stop();
+        if (!force && _config.AlwaysShowBubble) return;
+
+        if (BubbleContainer.Visibility == Visibility.Visible)
+        {
+            SetBubbleVisibilityAnchored(false);
+        }
+    }
+
+    public void SetAlwaysShowBubble(bool always)
+    {
+        if (_config.AlwaysShowBubble == always && (always == IsBubbleVisible))
+        {
+            RebuildContextMenu();
+            return;
+        }
+
+        _config.AlwaysShowBubble = always;
+        if (_config.AlwaysShowBubble)
+        {
+            _bubbleTimer.Stop();
+            ShowSpeechBubble(forceRefreshContent: true);
+        }
+        else
+        {
+            HideSpeechBubble(force: true);
+        }
+
+        RebuildContextMenu();
+        ProfileChanged?.Invoke();
+    }
+
+    public void SetCustomText(
+        string? text,
+        TextAlignment alignment = TextAlignment.Center,
+        double fontSize = 13.0,
+        double imageMaxWidth = 260.0,
+        double imageMaxHeight = 200.0,
+        bool showPreview = true)
+    {
+        _config.DialogueText = string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+        _config.DialogueAlignment = alignment.ToString();
+        _config.DialogueFontSize = Math.Clamp(fontSize, 9.0, 36.0);
+        _config.DialogueImageMaxWidth = imageMaxWidth > 0 ? imageMaxWidth : 260.0;
+        _config.DialogueImageMaxHeight = imageMaxHeight > 0 ? imageMaxHeight : 200.0;
+
+        UpdateBubbleContent();
+
+        if (showPreview)
+        {
+            if (_config.AlwaysShowBubble || HasCustomDialogueText)
+            {
+                ShowSpeechBubble(3500, forceRefreshContent: true);
+            }
+            else
+            {
+                HideSpeechBubble(force: true);
+            }
+        }
+        else if (_config.AlwaysShowBubble)
+        {
+            ShowSpeechBubble(forceRefreshContent: true);
+        }
+        else
+        {
+            HideSpeechBubble(force: true);
+        }
+
+        ProfileChanged?.Invoke();
+    }
+
+    public void ApplyDialogueProfile(BongoProfileState state)
+    {
+        _config.DialogueText = string.IsNullOrWhiteSpace(state.DialogueText) ? null : state.DialogueText.Trim();
+        _config.DialogueAlignment = string.IsNullOrWhiteSpace(state.DialogueAlignment) ? "Center" : state.DialogueAlignment;
+        _config.DialogueFontSize = state.DialogueFontSize > 0 ? Math.Clamp(state.DialogueFontSize, 9.0, 36.0) : 13.0;
+        _config.DialogueImageMaxWidth = state.DialogueImageMaxWidth > 0 ? state.DialogueImageMaxWidth : 260.0;
+        _config.DialogueImageMaxHeight = state.DialogueImageMaxHeight > 0 ? state.DialogueImageMaxHeight : 200.0;
+        _config.AlwaysShowBubble = state.AlwaysShowBubble;
+
+        UpdateBubbleContent();
+        if (_config.AlwaysShowBubble)
+        {
+            ShowSpeechBubble(forceRefreshContent: true);
+        }
+        else
+        {
+            HideSpeechBubble(force: true);
+        }
+
+        RebuildContextMenu();
+    }
+
+    private void StartBubbleTimer(int durationMs, string dialogueText)
+    {
+        int effectiveDuration = durationMs;
+        if (durationMs == 3500 && MarkdownBubbleRenderer.ShouldExtendDisplayDuration(dialogueText))
+        {
+            effectiveDuration = 6000;
+        }
+
+        _bubbleTimer.Stop();
+        _bubbleTimer.Interval = TimeSpan.FromMilliseconds(effectiveDuration);
+        _bubbleTimer.Start();
+    }
+
+    private void OnBubbleTimerTick()
+    {
+        _bubbleTimer.Stop();
+        if (!_config.AlwaysShowBubble)
+        {
+            HideSpeechBubble();
+        }
+    }
+
+    private void UpdateBubbleContent()
+    {
+        BubbleBorder.MaxWidth = Math.Max(320, DialogueImageMaxWidth + 40);
+        BubbleScrollViewer?.ScrollToTop();
+        MarkdownBubbleRenderer.Render(
+            BubbleText,
+            CurrentDialogueText,
+            DialogueFontSize,
+            DialogueAlignment,
+            DialogueImageMaxWidth,
+            DialogueImageMaxHeight,
+            onImageLoaded: OnBubbleImageLoaded,
+            onCheckboxToggled: OnBubbleCheckboxToggled);
+    }
+
+    private void OnBubbleCheckboxToggled(int index)
+    {
+        if (!HasCustomDialogueText) return;
+
+        string current = _config.DialogueText!;
+        string newText = MarkdownBubbleRenderer.ToggleCheckboxAt(current, index);
+        if (newText != current)
+        {
+            _config.DialogueText = newText;
+            UpdateBubbleContent();
+            ProfileChanged?.Invoke();
+        }
+    }
+
+    private void OnBubbleImageLoaded()
+    {
+        Dispatcher.InvokeAsync(() =>
+        {
+            if (BubbleContainer.Visibility == Visibility.Visible)
+            {
+                SetBubbleVisibilityAnchored(true);
+                BubbleScrollViewer?.ScrollToTop();
+            }
+        });
+    }
+
+    private void OnBubbleContainerSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (_isUpdatingBubbleLayout) return;
+        if (BubbleContainer.Visibility != Visibility.Visible) return;
+        if (!e.HeightChanged && !e.WidthChanged) return;
+
+        double newBubbleH = BubbleContainer.ActualHeight;
+        if (Math.Abs(newBubbleH - _lastBubbleHeight) > 0.5)
+        {
+            ReanchorAfterBubbleSizeChange(e.PreviousSize, e.NewSize);
+        }
+    }
+
+    private void ReanchorAfterBubbleSizeChange(Size previousSize, Size newSize)
+    {
+        if (!double.IsFinite(Left) || !double.IsFinite(Top)) return;
+
+        _isUpdatingBubbleLayout = true;
+        try
+        {
+            double deltaH = newSize.Height - previousSize.Height;
+            double deltaW = newSize.Width - previousSize.Width;
+
+            if (CurrentBubblePlacement == CharacterWindow.SpeechBubblePlacement.Top)
+            {
+                Top -= deltaH;
+            }
+            if (Math.Abs(deltaW) > 0.5)
+            {
+                Left -= deltaW / 2.0;
+            }
+
+            _lastBubbleHeight = newSize.Height;
+            ClampToScreen();
+        }
+        finally
+        {
+            _isUpdatingBubbleLayout = false;
+        }
+    }
+
+    private void SetBubbleVisibilityAnchored(bool visible)
+    {
+        _isUpdatingBubbleLayout = true;
+        try
+        {
+            bool hasFinitePos = double.IsFinite(Left) && double.IsFinite(Top);
+            bool wasVisible = BubbleContainer.Visibility == Visibility.Visible;
+            var oldPlacement = CurrentBubblePlacement;
+
+            double oldBubbleH = wasVisible ? GetElementHeight(BubbleContainer) : 0;
+            double oldWindowW = ActualWidth > 0 ? ActualWidth : GetElementWidth(RootContainer);
+            double petH = GetElementHeight(PetVisualContainer);
+            if (petH <= 0) petH = 220 * _config.Scale * BaseVisualScale;
+
+            double petTopBefore = hasFinitePos
+                ? ((wasVisible && oldPlacement == CharacterWindow.SpeechBubblePlacement.Top) ? Top + oldBubbleH : Top)
+                : double.NaN;
+            double petCenterXBefore = hasFinitePos ? Left + oldWindowW / 2.0 : double.NaN;
+
+            BubbleContainer.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+
+            if (visible)
+            {
+                BubbleContainer.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                double measuredBubbleH = Math.Max(BubbleContainer.DesiredSize.Height, BubbleContainer.ActualHeight);
+                UpdateBubblePlacement(measuredBubbleH, petTopBefore, petH);
+            }
+            else
+            {
+                ApplyBubblePlacementRows(CharacterWindow.SpeechBubblePlacement.Top);
+            }
+
+            UpdateLayout();
+
+            double newBubbleH = visible ? GetElementHeight(BubbleContainer) : 0;
+            double newWindowW = ActualWidth > 0 ? ActualWidth : GetElementWidth(RootContainer);
+            _lastBubbleHeight = newBubbleH;
+
+            if (hasFinitePos)
+            {
+                Left = petCenterXBefore - newWindowW / 2.0;
+                Top = (visible && CurrentBubblePlacement == CharacterWindow.SpeechBubblePlacement.Top)
+                    ? petTopBefore - newBubbleH
+                    : petTopBefore;
+                ClampToScreen();
+            }
+        }
+        finally
+        {
+            _isUpdatingBubbleLayout = false;
+        }
+    }
+
+    public CharacterWindow.SpeechBubblePlacement UpdateBubblePlacement(double bubbleH, double petTopDip, double petHeightDip)
+    {
+        var placement = CharacterWindow.SpeechBubblePlacement.Top;
+        if (BubbleContainer.Visibility == Visibility.Visible && bubbleH > 0 && double.IsFinite(petTopDip))
+        {
+            var workArea = SystemParameters.WorkArea;
+            double spaceAbove = petTopDip - workArea.Top;
+            double spaceBelow = workArea.Bottom - (petTopDip + petHeightDip);
+
+            const double margin = 10.0;
+            bool canFitAbove = spaceAbove >= bubbleH + margin;
+            bool canFitBelow = spaceBelow >= bubbleH + margin;
+
+            if (!canFitAbove && (canFitBelow || spaceBelow > spaceAbove))
+            {
+                placement = CharacterWindow.SpeechBubblePlacement.Bottom;
+            }
+        }
+
+        ApplyBubblePlacementRows(placement);
+        return placement;
+    }
+
+    private void ApplyBubblePlacementRows(CharacterWindow.SpeechBubblePlacement placement)
+    {
+        CurrentBubblePlacement = placement;
+        if (placement == CharacterWindow.SpeechBubblePlacement.Bottom)
+        {
+            Grid.SetRow(PetVisualContainer, 0);
+            Grid.SetRow(BubbleContainer, 1);
+            BubblePointerUp.Visibility = Visibility.Visible;
+            BubblePointerDown.Visibility = Visibility.Collapsed;
+            BubbleContainer.Margin = new Thickness(10, 4, 10, 12);
+        }
+        else
+        {
+            Grid.SetRow(BubbleContainer, 0);
+            Grid.SetRow(PetVisualContainer, 1);
+            BubblePointerUp.Visibility = Visibility.Collapsed;
+            BubblePointerDown.Visibility = Visibility.Visible;
+            BubbleContainer.Margin = new Thickness(10, 12, 10, 8);
+        }
+    }
+
+    private static double GetElementHeight(FrameworkElement element)
+    {
+        if (element.ActualHeight > 0) return element.ActualHeight;
+        element.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        return element.DesiredSize.Height;
+    }
+
+    private static double GetElementWidth(FrameworkElement element)
+    {
+        if (element.ActualWidth > 0) return element.ActualWidth;
+        element.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        return element.DesiredSize.Width;
+    }
+
+    private static TextAlignment ParseAlignment(string? alignment) =>
+        Enum.TryParse<TextAlignment>(alignment, ignoreCase: true, out var parsed)
+            ? parsed
+            : TextAlignment.Center;
 
     private void RebuildContextMenu()
     {
@@ -828,6 +1235,45 @@ public partial class BongoWindow : Window, IClickThroughWindow
 
         BongoContextMenu.Items.Add(new Separator());
 
+        // Speech bubble / message board controls (matching CharacterWindow)
+        var alwaysShowBubbleItem = new MenuItem
+        {
+            Header = "永久顯示對話框",
+            IsCheckable = true,
+            IsChecked = _config.AlwaysShowBubble
+        };
+        alwaysShowBubbleItem.Click += (_, _) => SetAlwaysShowBubble(alwaysShowBubbleItem.IsChecked);
+        BongoContextMenu.Items.Add(alwaysShowBubbleItem);
+
+        var setQuoteItem = new MenuItem { Header = "設定對話文字..." };
+        setQuoteItem.Click += (_, _) =>
+        {
+            string displayName = $"Bongo 打字pet ({_currentSkin?.Info.DisplayName ?? _config.CurrentSkinKey})";
+            var dialog = new TextInputDialog(
+                _config.CurrentSkinKey,
+                CustomDialogueText,
+                DialogueAlignment,
+                DialogueFontSize,
+                DialogueImageMaxWidth,
+                DialogueImageMaxHeight,
+                displayNameOverride: displayName)
+            {
+                Owner = this
+            };
+            if (dialog.ShowDialog() == true)
+            {
+                SetCustomText(
+                    dialog.ResultText,
+                    dialog.ResultAlignment,
+                    dialog.ResultFontSize,
+                    dialog.ResultImageMaxWidth,
+                    dialog.ResultImageMaxHeight);
+            }
+        };
+        BongoContextMenu.Items.Add(setQuoteItem);
+
+        BongoContextMenu.Items.Add(new Separator());
+
         // Lock position toggle
         var lockItem = new MenuItem
         {
@@ -864,6 +1310,7 @@ public partial class BongoWindow : Window, IClickThroughWindow
         _speedPollTimer.Stop();
         _mouseMotionTimer.Stop();
         _rightPawResetTimer.Stop();
+        _bubbleTimer.Stop();
 
         _keyboardHook.KeyDown -= OnGlobalKeyDown;
         _keyboardHook.KeyUp -= OnGlobalKeyUp;

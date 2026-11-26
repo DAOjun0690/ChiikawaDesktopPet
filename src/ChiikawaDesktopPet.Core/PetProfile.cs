@@ -30,6 +30,12 @@ public class BongoProfileState
     public double Scale { get; set; } = 1.0;
     public bool IsLocked { get; set; } = false;
     public bool ClickThrough { get; set; } = false;
+    public string? DialogueText { get; set; }
+    public string? DialogueAlignment { get; set; } = "Center";
+    public double DialogueFontSize { get; set; } = 13.0;
+    public bool AlwaysShowBubble { get; set; } = false;
+    public double DialogueImageMaxWidth { get; set; } = 260.0;
+    public double DialogueImageMaxHeight { get; set; } = 200.0;
 }
 
 public class PetProfile

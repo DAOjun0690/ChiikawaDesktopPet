@@ -21,5 +21,11 @@ public class BongoConfig
     public BongoInputMode InputMode { get; set; } = BongoInputMode.KeyboardAndMouse;
     public bool TrackMouseMotion { get; set; } = true;
     public bool MirrorMouseMotion { get; set; } = true;
+    public string? DialogueText { get; set; }
+    public string? DialogueAlignment { get; set; } = "Center";
+    public double DialogueFontSize { get; set; } = 13.0;
+    public bool AlwaysShowBubble { get; set; } = false;
+    public double DialogueImageMaxWidth { get; set; } = 260.0;
+    public double DialogueImageMaxHeight { get; set; } = 200.0;
 }
 
