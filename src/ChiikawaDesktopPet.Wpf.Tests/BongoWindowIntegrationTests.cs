@@ -597,4 +597,60 @@ public class BongoWindowIntegrationTests
         thread.Join();
         Assert.Null(failure);
     }
+
+    [Fact]
+    public void BongoWindow_ShowAndHideTopBubble_AnchorsPetTopWithoutDownwardDrift()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var config = new BongoConfig { IsEnabled = true, CurrentSkinKey = "chesthair_monkey" };
+                var skinManager = new BongoSkinManager();
+                using var keyboardHook = new GlobalKeyboardHook();
+                using var mouseHook = new GlobalMouseHook();
+                var window = new BongoWindow(config, skinManager, keyboardHook, mouseHook);
+
+                var workArea = SystemParameters.WorkArea;
+                window.Show();
+                window.ApplySkin("chesthair_monkey");
+                window.Left = workArea.Left + 200;
+                window.Top = workArea.Top + 300;
+                window.UpdateLayout();
+
+                double petScreenTopBefore = window.Top + window.PetVisualContainer.TranslatePoint(new System.Windows.Point(0, 0), window.RootContainer).Y;
+
+                window.ShowSpeechBubble(3500);
+                window.UpdateLayout();
+
+                Assert.Equal(Visibility.Visible, window.BubbleContainer.Visibility);
+                Assert.Equal(CharacterWindow.SpeechBubblePlacement.Top, window.CurrentBubblePlacement);
+
+                double petScreenTopWithBubble = window.Top + window.PetVisualContainer.TranslatePoint(new System.Windows.Point(0, 0), window.RootContainer).Y;
+                Assert.True(
+                    Math.Abs(petScreenTopWithBubble - petScreenTopBefore) < 0.5,
+                    $"Pet drifted vertically when top bubble appeared! before={petScreenTopBefore}, after={petScreenTopWithBubble}");
+                Assert.True(window.Top < petScreenTopBefore, "Window.Top should move upward so bubble grows up");
+
+                window.HideSpeechBubble(force: true);
+                window.UpdateLayout();
+
+                double petScreenTopAfterHide = window.Top + window.PetVisualContainer.TranslatePoint(new System.Windows.Point(0, 0), window.RootContainer).Y;
+                Assert.True(
+                    Math.Abs(petScreenTopAfterHide - petScreenTopBefore) < 0.5,
+                    $"Pet drifted vertically when top bubble closed! before={petScreenTopBefore}, afterHide={petScreenTopAfterHide}");
+
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+        Assert.Null(failure);
+    }
 }

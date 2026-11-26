@@ -27,5 +27,9 @@ public class BongoConfig
     public bool AlwaysShowBubble { get; set; } = false;
     public double DialogueImageMaxWidth { get; set; } = 260.0;
     public double DialogueImageMaxHeight { get; set; } = 200.0;
+    public int BananaThreshold { get; set; } = 20;
+    public int BananaCopyPasteProgress { get; set; } = 0;
+    public int TotalCopyPasteCount { get; set; } = 0;
+    public int TotalBananasEaten { get; set; } = 0;
 }
 

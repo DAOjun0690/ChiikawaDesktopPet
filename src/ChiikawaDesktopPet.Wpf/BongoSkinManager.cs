@@ -1,11 +1,30 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Windows.Media.Imaging;
 using ChiikawaDesktopPet.Core;
 
 namespace ChiikawaDesktopPet.Wpf;
+
+public class BananaTreeAssets
+{
+    public BitmapSource? TreeBase { get; init; }
+    public BitmapSource? Stage1Sprout { get; init; }
+    public BitmapSource? Stage2Small { get; init; }
+    public BitmapSource? Stage3Medium { get; init; }
+    public BitmapSource? Stage4Ripe { get; init; }
+
+    public BitmapSource? GetFruitForStage(BananaGrowthStage stage) => stage switch
+    {
+        BananaGrowthStage.Sprout => Stage1Sprout,
+        BananaGrowthStage.Small => Stage2Small,
+        BananaGrowthStage.Medium => Stage3Medium,
+        BananaGrowthStage.Ripe => Stage4Ripe,
+        _ => null
+    };
+}
 
 public class BongoSkinInfo
 {
@@ -30,12 +49,14 @@ public class BongoSkin
     public BitmapSource? FaceFocused { get; set; }
     public BitmapSource? FaceOverdrive { get; set; }
     public BitmapSource? OverdriveEffect { get; set; }
+    public IReadOnlyList<BitmapSource> EatFrames { get; set; } = [];
 }
 
 public class BongoSkinManager
 {
     private readonly string _bongoRootDir;
     private readonly Dictionary<string, BongoSkin> _loadedSkins = new(StringComparer.OrdinalIgnoreCase);
+    private BananaTreeAssets? _bananaTreeAssets;
 
     public BongoSkinManager(string? baseDir = null)
     {
@@ -70,7 +91,7 @@ public class BongoSkinManager
         foreach (var dir in Directory.EnumerateDirectories(_bongoRootDir))
         {
             string key = Path.GetFileName(dir);
-            if (string.IsNullOrEmpty(key)) continue;
+            if (string.IsNullOrEmpty(key) || key.StartsWith('_')) continue;
 
             string manifestPath = Path.Combine(dir, "manifest.json");
             BongoSkinManifest? manifest = null;
@@ -157,11 +178,45 @@ public class BongoSkinManager
             FaceNormal = LoadImage(Path.Combine(skinDir, manifest.FaceNormalFile)),
             FaceFocused = manifest.FaceFocusedFile != null ? LoadImage(Path.Combine(skinDir, manifest.FaceFocusedFile)) : null,
             FaceOverdrive = manifest.FaceOverdriveFile != null ? LoadImage(Path.Combine(skinDir, manifest.FaceOverdriveFile)) : null,
-            OverdriveEffect = manifest.OverdriveEffectFile != null ? LoadImage(Path.Combine(skinDir, manifest.OverdriveEffectFile)) : null
+            OverdriveEffect = manifest.OverdriveEffectFile != null ? LoadImage(Path.Combine(skinDir, manifest.OverdriveEffectFile)) : null,
+            EatFrames = LoadEatFrames(Path.Combine(skinDir, "eat"))
         };
 
         _loadedSkins[key] = skin;
         return skin;
+    }
+
+    public BananaTreeAssets LoadBananaTreeAssets()
+    {
+        if (_bananaTreeAssets != null) return _bananaTreeAssets;
+
+        string dir = Path.Combine(_bongoRootDir, "_shared", "banana_tree");
+        _bananaTreeAssets = new BananaTreeAssets
+        {
+            TreeBase = LoadImage(Path.Combine(dir, "tree_base.png")),
+            Stage1Sprout = LoadImage(Path.Combine(dir, "banana_stage_1.png")),
+            Stage2Small = LoadImage(Path.Combine(dir, "banana_stage_2.png")),
+            Stage3Medium = LoadImage(Path.Combine(dir, "banana_stage_3.png")),
+            Stage4Ripe = LoadImage(Path.Combine(dir, "banana_stage_4.png"))
+        };
+        return _bananaTreeAssets;
+    }
+
+    private static IReadOnlyList<BitmapSource> LoadEatFrames(string eatDir)
+    {
+        if (!Directory.Exists(eatDir)) return [];
+
+        var files = Directory.EnumerateFiles(eatDir, "*.png")
+            .OrderBy(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var frames = new List<BitmapSource>(files.Count);
+        foreach (string file in files)
+        {
+            var bmp = LoadImage(file);
+            if (bmp != null) frames.Add(bmp);
+        }
+        return frames;
     }
 
     private static BitmapSource? LoadImage(string filePath)

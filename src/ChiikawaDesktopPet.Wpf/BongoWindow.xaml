@@ -93,45 +93,84 @@
             <Grid.LayoutTransform>
                 <ScaleTransform x:Name="WindowScaleTransform" ScaleX="0.5" ScaleY="0.5" />
             </Grid.LayoutTransform>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
 
-            <!-- Overdrive / Heat background effects -->
-            <Image x:Name="EffectImage"
-                   Stretch="None"
-                   HorizontalAlignment="Center"
-                   VerticalAlignment="Center"
-                   Visibility="Collapsed" />
+            <!-- Left side Banana Tree (grows with Ctrl+C / Ctrl+V) -->
+            <Grid x:Name="BananaTreeContainer"
+                  Grid.Column="0"
+                  Width="128"
+                  Height="240"
+                  VerticalAlignment="Bottom"
+                  Margin="0,0,-10,0"
+                  Background="Transparent"
+                  MouseLeftButtonDown="OnBananaTreeMouseLeftButtonDown">
+                <Image x:Name="BananaTreeBaseImage"
+                       Stretch="None"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center" />
+                <Image x:Name="BananaFruitImage"
+                       Stretch="None"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Visibility="Collapsed"
+                       RenderTransformOrigin="0.64,0.46">
+                    <Image.RenderTransform>
+                        <RotateTransform x:Name="BananaSwayTransform" Angle="0" />
+                    </Image.RenderTransform>
+                </Image>
+            </Grid>
 
-            <!-- Character body & face layer (Normal, Focused, Overdrive) -->
-            <Image x:Name="FaceImage"
-                   Stretch="None"
-                   HorizontalAlignment="Center"
-                   VerticalAlignment="Center" />
+            <!-- Right side Bongo Pet Layers -->
+            <Grid x:Name="BongoPetLayers" Grid.Column="1">
+                <!-- Overdrive / Heat background effects -->
+                <Image x:Name="EffectImage"
+                       Stretch="None"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Visibility="Collapsed" />
 
-            <!-- Desk, Mousepad on Left, Keyboard on Right -->
-            <Image x:Name="BodyImage"
-                   Stretch="None"
-                   HorizontalAlignment="Center"
-                   VerticalAlignment="Center" />
+                <!-- Character body & face layer (Normal, Focused, Overdrive) -->
+                <Image x:Name="FaceImage"
+                       Stretch="None"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center" />
 
-            <!-- Left paw layer (Mouse Hand on the left mousepad) -->
-            <Image x:Name="LeftPawImage"
-                   Stretch="None"
-                   HorizontalAlignment="Center"
-                   VerticalAlignment="Center">
-                <Image.RenderTransform>
-                    <TranslateTransform x:Name="LeftPawTransform" X="0" Y="0" />
-                </Image.RenderTransform>
-            </Image>
+                <!-- Banana eating animation layer (Monkey skin) -->
+                <Image x:Name="EatAnimationImage"
+                       Stretch="None"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Visibility="Collapsed" />
 
-            <!-- Right paw layer (Keyboard Hand on the right keyboard) -->
-            <Image x:Name="RightPawImage"
-                   Stretch="None"
-                   HorizontalAlignment="Center"
-                   VerticalAlignment="Center">
-                <Image.RenderTransform>
-                    <TranslateTransform x:Name="RightPawTransform" X="0" Y="0" />
-                </Image.RenderTransform>
-            </Image>
+                <!-- Desk, Mousepad on Left, Keyboard on Right -->
+                <Image x:Name="BodyImage"
+                       Stretch="None"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center" />
+
+                <!-- Left paw layer (Mouse Hand on the left mousepad) -->
+                <Image x:Name="LeftPawImage"
+                       Stretch="None"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center">
+                    <Image.RenderTransform>
+                        <TranslateTransform x:Name="LeftPawTransform" X="0" Y="0" />
+                    </Image.RenderTransform>
+                </Image>
+
+                <!-- Right paw layer (Keyboard Hand on the right keyboard) -->
+                <Image x:Name="RightPawImage"
+                       Stretch="None"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center">
+                    <Image.RenderTransform>
+                        <TranslateTransform x:Name="RightPawTransform" X="0" Y="0" />
+                    </Image.RenderTransform>
+                </Image>
+            </Grid>
         </Grid>
     </Grid>
 </Window>

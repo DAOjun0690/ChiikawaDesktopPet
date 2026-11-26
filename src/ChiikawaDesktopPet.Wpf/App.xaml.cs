@@ -366,6 +366,10 @@ public partial class App : Application
             SettingsManager.Save(_settings);
             ScheduleAutoSave();
         };
+        _bongoWindow.BananaStatsChanged += () =>
+        {
+            SettingsManager.Save(_settings);
+        };
         if (_settings.Bongo.IsEnabled)
         {
             _bongoWindow.ShowBongo();

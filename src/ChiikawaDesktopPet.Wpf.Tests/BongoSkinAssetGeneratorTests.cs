@@ -84,10 +84,15 @@ public class BongoSkinAssetGeneratorTests
             mousepadBorderColor: Color.FromRgb(220, 190, 110),
             charType: CharacterKind.ChesthairMonkey);
 
+        GenerateBananaTreeAssets(bongoRoot);
+
         Assert.True(File.Exists(Path.Combine(bongoRoot, "chiikawa", "body.png")));
         Assert.True(File.Exists(Path.Combine(bongoRoot, "hachiware", "body.png")));
         Assert.True(File.Exists(Path.Combine(bongoRoot, "usagi", "body.png")));
         Assert.True(File.Exists(Path.Combine(bongoRoot, "chesthair_monkey", "body.png")));
+        Assert.True(File.Exists(Path.Combine(bongoRoot, "chesthair_monkey", "eat", "eat_01.png")));
+        Assert.True(File.Exists(Path.Combine(bongoRoot, "_shared", "banana_tree", "tree_base.png")));
+        Assert.True(File.Exists(Path.Combine(bongoRoot, "_shared", "banana_tree", "banana_stage_4.png")));
     }
 
     private enum CharacterKind { Chiikawa, Hachiware, Usagi, ChesthairMonkey }
@@ -382,6 +387,297 @@ public class BongoSkinAssetGeneratorTests
             dc.DrawImage(left, new Rect(0, 0, Width, Height));
             dc.DrawImage(right, new Rect(0, 0, Width, Height));
         });
+
+        // 8. For ChesthairMonkey, generate Bongo-aligned banana eating animation frames
+        if (charType == CharacterKind.ChesthairMonkey)
+        {
+            GenerateMonkeyEatFrames(repoRoot, dir);
+        }
+    }
+
+    private static void GenerateMonkeyEatFrames(string repoRoot, string skinDir)
+    {
+        string srcEatDir = Path.Combine(repoRoot, "assets", "optimized", "chesthair_monkey", "animations", "eat");
+        if (!Directory.Exists(srcEatDir)) return;
+
+        string dstEatDir = Path.Combine(skinDir, "eat");
+        Directory.CreateDirectory(dstEatDir);
+
+        // Position slightly higher so the banana in the monkey's hand is fully visible above the desk (Y=126)
+        var eatRect = new Rect(84, 2, 152, 134);
+
+        for (int i = 1; i <= 20; i++)
+        {
+            string srcPath = Path.Combine(srcEatDir, $"{i}.png");
+            if (!File.Exists(srcPath)) continue;
+
+            var eatBmp = LoadCroppedSprite(srcPath);
+            string dstPath = Path.Combine(dstEatDir, $"eat_{i:D2}.png");
+            SavePng(dstPath, dc =>
+            {
+                dc.DrawImage(eatBmp, eatRect);
+            });
+        }
+    }
+
+    private static void GenerateBananaTreeAssets(string bongoRoot)
+    {
+        const int treeW = 128;
+        const int treeH = 240;
+
+        string dir = Path.Combine(bongoRoot, "_shared", "banana_tree");
+        Directory.CreateDirectory(dir);
+
+        var inkBrush = new SolidColorBrush(Color.FromRgb(56, 36, 27)); // #38241B matching Bongo ink
+        var inkPen = new Pen(inkBrush, 3.0) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
+        var thinInkPen = new Pen(inkBrush, 2.2) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
+
+        // 1. Base Banana Tree (no fruit)
+        SavePngSized(Path.Combine(dir, "tree_base.png"), treeW, treeH, dc =>
+        {
+            // Little grassy mound at desk ground level (Y ~ 224..234)
+            var moundBrush = new SolidColorBrush(Color.FromRgb(138, 198, 92));
+            dc.DrawEllipse(moundBrush, inkPen, new Point(56, 224), 34, 10);
+
+            // Curved tropical banana trunk
+            var trunkBrush = new SolidColorBrush(Color.FromRgb(166, 114, 68));
+            var trunkShadowBrush = new SolidColorBrush(Color.FromRgb(142, 92, 50));
+            var trunkGeo = new StreamGeometry();
+            using (var ctx = trunkGeo.Open())
+            {
+                ctx.BeginFigure(new Point(46, 222), true, true);
+                ctx.BezierTo(new Point(48, 178), new Point(54, 134), new Point(62, 96), true, false);
+                ctx.LineTo(new Point(74, 98), true, false);
+                ctx.BezierTo(new Point(68, 136), new Point(66, 178), new Point(68, 222), true, false);
+            }
+            trunkGeo.Freeze();
+            dc.DrawGeometry(trunkBrush, inkPen, trunkGeo);
+
+            // Cute trunk bark stripes
+            var barkPen = new Pen(trunkShadowBrush, 2.2) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+            dc.DrawLine(barkPen, new Point(53, 196), new Point(63, 193));
+            dc.DrawLine(barkPen, new Point(54, 168), new Point(64, 165));
+            dc.DrawLine(barkPen, new Point(57, 140), new Point(66, 138));
+            dc.DrawLine(barkPen, new Point(60, 116), new Point(69, 115));
+
+            // Back palm leaves (darker green)
+            var darkLeafBrush = new SolidColorBrush(Color.FromRgb(78, 158, 62));
+            var lightLeafBrush = new SolidColorBrush(Color.FromRgb(112, 194, 78));
+            var veinPen = new Pen(new SolidColorBrush(Color.FromRgb(156, 222, 112)), 2.0)
+            {
+                StartLineCap = PenLineCap.Round,
+                EndLineCap = PenLineCap.Round
+            };
+
+            // Top-left back leaf
+            DrawBananaLeaf(dc, darkLeafBrush, inkPen, veinPen,
+                origin: new Point(66, 94),
+                ctrl1: new Point(44, 52), ctrl2: new Point(16, 56), tip: new Point(10, 82),
+                ctrl3: new Point(26, 76), ctrl4: new Point(46, 82));
+
+            // Top-right back leaf
+            DrawBananaLeaf(dc, darkLeafBrush, inkPen, veinPen,
+                origin: new Point(70, 94),
+                ctrl1: new Point(88, 52), ctrl2: new Point(112, 58), tip: new Point(120, 82),
+                ctrl3: new Point(104, 78), ctrl4: new Point(86, 84));
+
+            // Top center upright leaf
+            DrawBananaLeaf(dc, lightLeafBrush, inkPen, veinPen,
+                origin: new Point(68, 92),
+                ctrl1: new Point(58, 50), ctrl2: new Point(72, 26), tip: new Point(92, 34),
+                ctrl3: new Point(86, 54), ctrl4: new Point(80, 74));
+
+            // Front-left arching leaf
+            DrawBananaLeaf(dc, lightLeafBrush, inkPen, veinPen,
+                origin: new Point(66, 98),
+                ctrl1: new Point(38, 80), ctrl2: new Point(16, 94), tip: new Point(12, 124),
+                ctrl3: new Point(28, 110), ctrl4: new Point(48, 106));
+
+            // Front-right arching leaf (framing the hanging banana!)
+            DrawBananaLeaf(dc, lightLeafBrush, inkPen, veinPen,
+                origin: new Point(70, 98),
+                ctrl1: new Point(94, 80), ctrl2: new Point(116, 92), tip: new Point(122, 118),
+                ctrl3: new Point(106, 108), ctrl4: new Point(88, 106));
+        });
+
+        // Hanging stem anchor at (82, 106)
+        // 2. Stage 1: Tiny green sprout bud
+        SavePngSized(Path.Combine(dir, "banana_stage_1.png"), treeW, treeH, dc =>
+        {
+            var stemPen = new Pen(new SolidColorBrush(Color.FromRgb(102, 138, 56)), 3.0) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+            dc.DrawLine(stemPen, new Point(74, 102), new Point(82, 112));
+
+            var budBrush = new SolidColorBrush(Color.FromRgb(154, 214, 78));
+            DrawCurvedBanana(dc, budBrush, thinInkPen, anchorX: 82, anchorY: 112, scale: 0.42, highlight: false);
+        });
+
+        // 3. Stage 2: Small yellow-green banana
+        SavePngSized(Path.Combine(dir, "banana_stage_2.png"), treeW, treeH, dc =>
+        {
+            var stemPen = new Pen(new SolidColorBrush(Color.FromRgb(116, 136, 56)), 3.2) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+            dc.DrawLine(stemPen, new Point(74, 102), new Point(82, 113));
+
+            var smallBrush = new SolidColorBrush(Color.FromRgb(226, 224, 92));
+            DrawCurvedBanana(dc, smallBrush, thinInkPen, anchorX: 82, anchorY: 113, scale: 0.65, highlight: true);
+        });
+
+        // 4. Stage 3: Medium plump golden banana
+        SavePngSized(Path.Combine(dir, "banana_stage_3.png"), treeW, treeH, dc =>
+        {
+            var stemPen = new Pen(new SolidColorBrush(Color.FromRgb(126, 108, 48)), 3.4) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+            dc.DrawLine(stemPen, new Point(74, 102), new Point(82, 114));
+
+            var medBrush = new SolidColorBrush(Color.FromRgb(255, 222, 68));
+            DrawCurvedBanana(dc, medBrush, inkPen, anchorX: 82, anchorY: 114, scale: 0.88, highlight: true);
+        });
+
+        // 5. Stage 4: Big ripe glowing golden banana with sparkles!
+        SavePngSized(Path.Combine(dir, "banana_stage_4.png"), treeW, treeH, dc =>
+        {
+            // Warm golden radial glow behind ripe banana
+            var glowBrush = new RadialGradientBrush(
+                Color.FromArgb(155, 255, 232, 92),
+                Color.FromArgb(0, 255, 210, 40));
+            dc.DrawEllipse(glowBrush, null, new Point(86, 142), 34, 38);
+
+            var stemPen = new Pen(new SolidColorBrush(Color.FromRgb(120, 88, 42)), 3.6) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+            dc.DrawLine(stemPen, new Point(74, 102), new Point(82, 114));
+
+            var ripeBrush = new LinearGradientBrush(
+                Color.FromRgb(255, 236, 84),
+                Color.FromRgb(255, 192, 34),
+                new Point(0, 0), new Point(1, 1));
+            DrawCurvedBanana(dc, ripeBrush, inkPen, anchorX: 82, anchorY: 114, scale: 1.15, highlight: true);
+
+            // Cute manga sparkles indicating clickable/ripe!
+            var sparkleBrush = new SolidColorBrush(Color.FromRgb(255, 250, 190));
+            var sparklePen = new Pen(new SolidColorBrush(Color.FromRgb(255, 180, 30)), 1.4);
+            DrawSparkle(dc, sparkleBrush, sparklePen, new Point(108, 124), 6.5);
+            DrawSparkle(dc, sparkleBrush, sparklePen, new Point(62, 152), 5.0);
+            DrawSparkle(dc, sparkleBrush, sparklePen, new Point(106, 162), 4.5);
+        });
+    }
+
+    private static void DrawBananaLeaf(
+        DrawingContext dc,
+        Brush fill,
+        Pen outlinePen,
+        Pen veinPen,
+        Point origin,
+        Point ctrl1,
+        Point ctrl2,
+        Point tip,
+        Point ctrl3,
+        Point ctrl4)
+    {
+        var geo = new StreamGeometry();
+        using (var ctx = geo.Open())
+        {
+            ctx.BeginFigure(origin, true, true);
+            ctx.BezierTo(ctrl1, ctrl2, tip, true, false);
+            ctx.BezierTo(ctrl3, ctrl4, origin, true, false);
+        }
+        geo.Freeze();
+        dc.DrawGeometry(fill, outlinePen, geo);
+
+        // Center vein clipped cleanly inside the leaf contour
+        var veinGeo = new StreamGeometry();
+        using (var ctx = veinGeo.Open())
+        {
+            ctx.BeginFigure(origin, false, false);
+            Point midCtrl = new((ctrl1.X + ctrl4.X) * 0.5, (ctrl1.Y + ctrl4.Y) * 0.5);
+            Point veinEnd = new(origin.X + (tip.X - origin.X) * 0.72, origin.Y + (tip.Y - origin.Y) * 0.72);
+            ctx.QuadraticBezierTo(midCtrl, veinEnd, true, false);
+        }
+        veinGeo.Freeze();
+        dc.PushClip(geo);
+        dc.DrawGeometry(null, veinPen, veinGeo);
+        dc.Pop();
+    }
+
+    private static void DrawCurvedBanana(
+        DrawingContext dc,
+        Brush fill,
+        Pen outlinePen,
+        double anchorX,
+        double anchorY,
+        double scale,
+        bool highlight)
+    {
+        dc.PushTransform(new TranslateTransform(anchorX, anchorY));
+        dc.PushTransform(new ScaleTransform(scale, scale));
+
+        // Crescent banana body hanging down and curving playfully right-then-left
+        var geo = new StreamGeometry();
+        using (var ctx = geo.Open())
+        {
+            ctx.BeginFigure(new Point(-3, 0), true, true);
+            // Outer plump curve (right side)
+            ctx.BezierTo(new Point(14, 10), new Point(22, 32), new Point(6, 52), true, false);
+            // Tip
+            ctx.BezierTo(new Point(2, 55), new Point(-3, 53), new Point(-2, 48), true, false);
+            // Inner concave curve (left side)
+            ctx.BezierTo(new Point(7, 32), new Point(3, 15), new Point(-7, 5), true, false);
+        }
+        geo.Freeze();
+        dc.DrawGeometry(fill, outlinePen, geo);
+
+        // Brown banana tip dot
+        var tipBrush = new SolidColorBrush(Color.FromRgb(92, 56, 32));
+        dc.DrawEllipse(tipBrush, null, new Point(2, 52), 2.5, 2.0);
+
+        if (highlight)
+        {
+            var shinePen = new Pen(new SolidColorBrush(Color.FromArgb(200, 255, 255, 240)), 2.8)
+            {
+                StartLineCap = PenLineCap.Round,
+                EndLineCap = PenLineCap.Round
+            };
+            var shineGeo = new StreamGeometry();
+            using (var ctx = shineGeo.Open())
+            {
+                ctx.BeginFigure(new Point(6, 14), false, false);
+                ctx.QuadraticBezierTo(new Point(12, 26), new Point(8, 38), true, false);
+            }
+            shineGeo.Freeze();
+            dc.DrawGeometry(null, shinePen, shineGeo);
+        }
+
+        dc.Pop();
+        dc.Pop();
+    }
+
+    private static void DrawSparkle(DrawingContext dc, Brush fill, Pen pen, Point center, double r)
+    {
+        var geo = new StreamGeometry();
+        using (var ctx = geo.Open())
+        {
+            ctx.BeginFigure(new Point(center.X, center.Y - r), true, true);
+            ctx.QuadraticBezierTo(center, new Point(center.X + r, center.Y), true, false);
+            ctx.QuadraticBezierTo(center, new Point(center.X, center.Y + r), true, false);
+            ctx.QuadraticBezierTo(center, new Point(center.X - r, center.Y), true, false);
+            ctx.QuadraticBezierTo(center, new Point(center.X, center.Y - r), true, false);
+        }
+        geo.Freeze();
+        dc.DrawGeometry(fill, pen, geo);
+    }
+
+    private static void SavePngSized(string path, int width, int height, Action<DrawingContext> drawAction)
+    {
+        var visual = new DrawingVisual();
+        using (var dc = visual.RenderOpen())
+        {
+            drawAction(dc);
+        }
+
+        var rtb = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+        rtb.Render(visual);
+
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(rtb));
+
+        using var stream = File.Create(path);
+        encoder.Save(stream);
     }
 
     private enum MouseClickType

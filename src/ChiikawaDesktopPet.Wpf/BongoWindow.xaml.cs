@@ -19,14 +19,25 @@ public partial class BongoWindow : Window, IClickThroughWindow
     private readonly GlobalKeyboardHook _keyboardHook;
     private readonly GlobalMouseHook _mouseHook;
     private readonly BongoSpeedTracker _speedTracker;
+    private readonly BongoBananaTracker _bananaTracker;
+    private readonly BananaTreeAssets _bananaTreeAssets;
 
     private BongoSkin? _currentSkin;
     private readonly DispatcherTimer _rightPawResetTimer;
     private readonly DispatcherTimer _speedPollTimer;
     private readonly DispatcherTimer _mouseMotionTimer;
     private readonly DispatcherTimer _bubbleTimer = new();
+    private readonly DispatcherTimer _eatAnimationTimer;
+    private readonly DispatcherTimer _bananaSwayTimer;
+    private readonly DispatcherTimer _statsSaveDebounceTimer;
     private bool _isUpdatingBubbleLayout;
     private double _lastBubbleHeight;
+
+    private const int EatAnimationLoops = 2;
+    private bool _isEatingBanana;
+    private int _eatFrameIndex;
+    private int _eatLoopsCompleted;
+    private double _bananaSwayPhase;
 
     private double _targetMouseX;
     private double _targetMouseY;
@@ -53,9 +64,15 @@ public partial class BongoWindow : Window, IClickThroughWindow
     private bool _isMouseRightDown;
 
     public BongoConfig Config => _config;
+    public BongoBananaTracker BananaTracker => _bananaTracker;
+    public bool IsEatingBanana => _isEatingBanana;
+    public bool CanCurrentSkinEatBanana => _currentSkin != null && _currentSkin.EatFrames.Count > 0;
+    public BananaGrowthStage CurrentBananaStage => _bananaTracker.Stage;
+
     public event Action? VisibilityChanged;
     public event Action<bool>? ClickThroughChanged;
     public event Action? ProfileChanged;
+    public event Action? BananaStatsChanged;
 
     public bool HasOpenContextMenu => BongoContextMenu.IsOpen;
     public bool IsPetHidden => _isBossKeyHidden || _isSystemSuspended || !IsVisible;
@@ -132,6 +149,30 @@ public partial class BongoWindow : Window, IClickThroughWindow
             FocusCpmThreshold = _config.FocusCpmThreshold,
             OverdriveCpmThreshold = _config.OverdriveCpmThreshold
         };
+
+        _bananaTracker = BongoBananaTracker.FromConfig(_config);
+        _bananaTreeAssets = _skinManager.LoadBananaTreeAssets();
+        BananaTreeBaseImage.Source = _bananaTreeAssets.TreeBase;
+
+        _eatAnimationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+        _eatAnimationTimer.Tick += (_, _) => AdvanceEatAnimationFrame();
+
+        _bananaSwayTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
+        _bananaSwayTimer.Tick += (_, _) =>
+        {
+            _bananaSwayPhase += 0.22;
+            BananaSwayTransform.Angle = Math.Sin(_bananaSwayPhase) * 6.5;
+        };
+
+        _statsSaveDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        _statsSaveDebounceTimer.Tick += (_, _) =>
+        {
+            _statsSaveDebounceTimer.Stop();
+            _bananaTracker.SyncToConfig(_config);
+            BananaStatsChanged?.Invoke();
+        };
+
+        UpdateBananaTreeVisuals();
 
         _rightPawResetTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
         _rightPawResetTimer.Tick += (_, _) =>
@@ -243,7 +284,7 @@ public partial class BongoWindow : Window, IClickThroughWindow
     public void ApplyInitialPosition()
     {
         var workArea = SystemParameters.WorkArea;
-        double defaultWidth = 280 * _config.Scale * BaseVisualScale;
+        double defaultWidth = 438 * _config.Scale * BaseVisualScale;
         double defaultHeight = 240 * _config.Scale * BaseVisualScale;
 
         bool hasInvalidSavedPos = !double.IsFinite(_config.PositionX) ||
@@ -267,6 +308,11 @@ public partial class BongoWindow : Window, IClickThroughWindow
 
     public void ApplySkin(string skinKey)
     {
+        if (_isEatingBanana)
+        {
+            StopEatingAnimation();
+        }
+
         _currentSkin = _skinManager.LoadSkin(skinKey);
         _config.CurrentSkinKey = _currentSkin.Info.Key;
 
@@ -276,6 +322,8 @@ public partial class BongoWindow : Window, IClickThroughWindow
         FaceImage.Source = _currentSkin.FaceNormal;
         EffectImage.Source = _currentSkin.OverdriveEffect;
         EffectImage.Visibility = Visibility.Collapsed;
+
+        UpdateBananaTreeVisuals();
 
         if (IsBubbleVisible && !HasCustomDialogueText)
         {
@@ -328,6 +376,8 @@ public partial class BongoWindow : Window, IClickThroughWindow
 
             _speedTracker.RecordMouseClick(isLeftButton);
 
+            if (_isEatingBanana) return;
+
             if (_currentSkin != null)
             {
                 if (isLeftButton)
@@ -355,6 +405,8 @@ public partial class BongoWindow : Window, IClickThroughWindow
             if (isLeftButton) _isMouseLeftDown = false;
             else _isMouseRightDown = false;
 
+            if (_isEatingBanana) return;
+
             if (_currentSkin != null)
             {
                 if (_isMouseLeftDown)
@@ -379,30 +431,45 @@ public partial class BongoWindow : Window, IClickThroughWindow
 
         Dispatcher.BeginInvoke(DispatcherPriority.Input, () =>
         {
-            if (_config.InputMode == BongoInputMode.KeyboardAndMouse)
+            ProcessKeyDownOnUiThread(vkCode);
+        });
+    }
+
+    internal void ProcessKeyDownOnUiThread(int vkCode)
+    {
+        if (_bananaTracker.OnKeyDown(vkCode))
+        {
+            _bananaTracker.SyncToConfig(_config);
+            UpdateBananaTreeVisuals();
+            _statsSaveDebounceTimer.Stop();
+            _statsSaveDebounceTimer.Start();
+        }
+
+        if (_isEatingBanana) return;
+
+        if (_config.InputMode == BongoInputMode.KeyboardAndMouse)
+        {
+            _activeRightKeys.Add(vkCode);
+            _speedTracker.RecordKeyPress(vkCode, alternateIfRapid: false);
+            TapRightPaw(vkCode);
+        }
+        else
+        {
+            // In PureKeyboard mode, assign by key half
+            _speedTracker.RecordKeyPress(vkCode, alternateIfRapid: true);
+            if (BongoKeyboardLayout.IsLeftHandKey(vkCode))
             {
-                _activeRightKeys.Add(vkCode);
-                _speedTracker.RecordKeyPress(vkCode, alternateIfRapid: false);
-                TapRightPaw(vkCode);
+                _activeLeftKeys.Add(vkCode);
+                if (_currentSkin != null) LeftPawImage.Source = _currentSkin.LeftPawDown ?? _currentSkin.LeftPawUp;
             }
             else
             {
-                // In PureKeyboard mode, assign by key half
-                _speedTracker.RecordKeyPress(vkCode, alternateIfRapid: true);
-                if (BongoKeyboardLayout.IsLeftHandKey(vkCode))
-                {
-                    _activeLeftKeys.Add(vkCode);
-                    if (_currentSkin != null) LeftPawImage.Source = _currentSkin.LeftPawDown ?? _currentSkin.LeftPawUp;
-                }
-                else
-                {
-                    _activeRightKeys.Add(vkCode);
-                    TapRightPaw(vkCode);
-                }
+                _activeRightKeys.Add(vkCode);
+                TapRightPaw(vkCode);
             }
+        }
 
-            UpdateSpeedFeedback();
-        });
+        UpdateSpeedFeedback();
     }
 
     private void OnGlobalKeyUp(int vkCode)
@@ -411,7 +478,42 @@ public partial class BongoWindow : Window, IClickThroughWindow
 
         Dispatcher.BeginInvoke(DispatcherPriority.Input, () =>
         {
-            if (_config.InputMode == BongoInputMode.KeyboardAndMouse)
+            ProcessKeyUpOnUiThread(vkCode);
+        });
+    }
+
+    internal void ProcessKeyUpOnUiThread(int vkCode)
+    {
+        _bananaTracker.OnKeyUp(vkCode);
+
+        if (_isEatingBanana)
+        {
+            _activeLeftKeys.Remove(vkCode);
+            _activeRightKeys.Remove(vkCode);
+            return;
+        }
+
+        if (_config.InputMode == BongoInputMode.KeyboardAndMouse)
+        {
+            _activeRightKeys.Remove(vkCode);
+            if (_activeRightKeys.Count == 0)
+            {
+                if (_currentSkin != null) RightPawImage.Source = _currentSkin.RightPawUp;
+                _rightPawResetTimer.Stop();
+                _rightPawResetTimer.Start();
+            }
+        }
+        else
+        {
+            if (BongoKeyboardLayout.IsLeftHandKey(vkCode))
+            {
+                _activeLeftKeys.Remove(vkCode);
+                if (_activeLeftKeys.Count == 0 && _currentSkin != null)
+                {
+                    LeftPawImage.Source = _currentSkin.LeftPawUp;
+                }
+            }
+            else
             {
                 _activeRightKeys.Remove(vkCode);
                 if (_activeRightKeys.Count == 0)
@@ -421,28 +523,7 @@ public partial class BongoWindow : Window, IClickThroughWindow
                     _rightPawResetTimer.Start();
                 }
             }
-            else
-            {
-                if (BongoKeyboardLayout.IsLeftHandKey(vkCode))
-                {
-                    _activeLeftKeys.Remove(vkCode);
-                    if (_activeLeftKeys.Count == 0 && _currentSkin != null)
-                    {
-                        LeftPawImage.Source = _currentSkin.LeftPawUp;
-                    }
-                }
-                else
-                {
-                    _activeRightKeys.Remove(vkCode);
-                    if (_activeRightKeys.Count == 0)
-                    {
-                        if (_currentSkin != null) RightPawImage.Source = _currentSkin.RightPawUp;
-                        _rightPawResetTimer.Stop();
-                        _rightPawResetTimer.Start();
-                    }
-                }
-            }
-        });
+        }
     }
 
     // Dynamic right paw key targeting and timer reset logic
@@ -465,7 +546,7 @@ public partial class BongoWindow : Window, IClickThroughWindow
 
     private void UpdateSpeedFeedback()
     {
-        if (_currentSkin == null) return;
+        if (_currentSkin == null || _isEatingBanana) return;
 
         var tier = _speedTracker.GetCurrentTier();
         if (tier == _currentTier) return;
@@ -490,6 +571,132 @@ public partial class BongoWindow : Window, IClickThroughWindow
                 EffectImage.Visibility = Visibility.Collapsed;
                 break;
         }
+    }
+
+    private void OnBananaTreeMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ButtonState != MouseButtonState.Pressed) return;
+
+        if (_bananaTracker.IsRipe && CanCurrentSkinEatBanana && !_isEatingBanana)
+        {
+            e.Handled = true;
+            TryEatRipeBanana();
+        }
+    }
+
+    public bool TryEatRipeBanana()
+    {
+        if (_isEatingBanana || !_bananaTracker.IsRipe || !CanCurrentSkinEatBanana)
+        {
+            return false;
+        }
+
+        if (!_bananaTracker.TryHarvest())
+        {
+            return false;
+        }
+
+        _bananaTracker.SyncToConfig(_config);
+        UpdateBananaTreeVisuals();
+        StartEatingAnimation();
+
+        _statsSaveDebounceTimer.Stop();
+        BananaStatsChanged?.Invoke();
+        return true;
+    }
+
+    private void UpdateBananaTreeVisuals()
+    {
+        var stage = _bananaTracker.Stage;
+        var fruit = _bananaTreeAssets.GetFruitForStage(stage);
+        BananaFruitImage.Source = fruit;
+        BananaFruitImage.Visibility = fruit != null ? Visibility.Visible : Visibility.Collapsed;
+
+        bool canEatNow = _bananaTracker.IsRipe && CanCurrentSkinEatBanana && !_isEatingBanana;
+        BananaTreeContainer.Cursor = canEatNow ? System.Windows.Input.Cursors.Hand : System.Windows.Input.Cursors.Arrow;
+        BananaTreeContainer.ToolTip = _bananaTracker.FormatTooltip(CanCurrentSkinEatBanana);
+
+        if (_bananaTracker.IsRipe && !_isBossKeyHidden && !_isSystemSuspended && _config.IsEnabled)
+        {
+            if (!_bananaSwayTimer.IsEnabled)
+            {
+                _bananaSwayPhase = 0;
+                _bananaSwayTimer.Start();
+            }
+        }
+        else
+        {
+            _bananaSwayTimer.Stop();
+            BananaSwayTransform.Angle = 0;
+        }
+    }
+
+    private void StartEatingAnimation()
+    {
+        if (_currentSkin == null || _currentSkin.EatFrames.Count == 0) return;
+
+        _isEatingBanana = true;
+        _eatFrameIndex = 0;
+        _eatLoopsCompleted = 0;
+
+        FaceImage.Visibility = Visibility.Collapsed;
+        EffectImage.Visibility = Visibility.Collapsed;
+        LeftPawImage.Visibility = Visibility.Collapsed;
+        RightPawImage.Visibility = Visibility.Collapsed;
+
+        EatAnimationImage.Source = _currentSkin.EatFrames[0];
+        EatAnimationImage.Visibility = Visibility.Visible;
+
+        UpdateBananaTreeVisuals();
+        _eatAnimationTimer.Start();
+    }
+
+    internal void AdvanceEatAnimationFrame()
+    {
+        if (!_isEatingBanana || _currentSkin == null || _currentSkin.EatFrames.Count == 0)
+        {
+            StopEatingAnimation();
+            return;
+        }
+
+        _eatFrameIndex++;
+        if (_eatFrameIndex >= _currentSkin.EatFrames.Count)
+        {
+            _eatFrameIndex = 0;
+            _eatLoopsCompleted++;
+            if (_eatLoopsCompleted >= EatAnimationLoops)
+            {
+                StopEatingAnimation();
+                return;
+            }
+        }
+
+        EatAnimationImage.Source = _currentSkin.EatFrames[_eatFrameIndex];
+    }
+
+    private void StopEatingAnimation()
+    {
+        _eatAnimationTimer.Stop();
+        _isEatingBanana = false;
+        _eatFrameIndex = 0;
+        _eatLoopsCompleted = 0;
+
+        EatAnimationImage.Visibility = Visibility.Collapsed;
+        EatAnimationImage.Source = null;
+
+        FaceImage.Visibility = Visibility.Visible;
+        LeftPawImage.Visibility = Visibility.Visible;
+        RightPawImage.Visibility = Visibility.Visible;
+        _currentTier = BongoSpeedTier.Idle;
+
+        if (_currentSkin != null)
+        {
+            FaceImage.Source = _currentSkin.FaceNormal;
+            LeftPawImage.Source = _currentSkin.LeftPawUp;
+            RightPawImage.Source = _currentSkin.RightPawUp;
+        }
+
+        UpdateBananaTreeVisuals();
     }
 
     private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -541,8 +748,8 @@ public partial class BongoWindow : Window, IClickThroughWindow
         double vHeight = SystemParameters.VirtualScreenHeight;
         if (vWidth <= 0 || vHeight <= 0) return;
 
-        double windowWidth = ActualWidth > 0 ? ActualWidth : 280 * _config.Scale * BaseVisualScale;
-        double windowHeight = ActualHeight > 0 ? ActualHeight : 220 * _config.Scale * BaseVisualScale;
+        double windowWidth = ActualWidth > 0 ? ActualWidth : 438 * _config.Scale * BaseVisualScale;
+        double windowHeight = ActualHeight > 0 ? ActualHeight : 240 * _config.Scale * BaseVisualScale;
 
         double currentLeft = Left;
         double currentTop = Top;
@@ -607,6 +814,14 @@ public partial class BongoWindow : Window, IClickThroughWindow
         _mouseMotionTimer.Stop();
         _rightPawResetTimer.Stop();
         _bubbleTimer.Stop();
+        _bananaSwayTimer.Stop();
+        _statsSaveDebounceTimer.Stop();
+        BananaSwayTransform.Angle = 0;
+        _bananaTracker.ResetKeyState();
+        if (_isEatingBanana)
+        {
+            StopEatingAnimation();
+        }
         _activeRightKeys.Clear();
         _activeLeftKeys.Clear();
         _isMouseLeftDown = false;
@@ -693,6 +908,7 @@ public partial class BongoWindow : Window, IClickThroughWindow
             if (!_mouseHook.IsActive) _mouseHook.Start();
             _speedPollTimer.Start();
             _mouseMotionTimer.Start();
+            UpdateBananaTreeVisuals();
         }
         VisibilityChanged?.Invoke();
     }
@@ -719,6 +935,7 @@ public partial class BongoWindow : Window, IClickThroughWindow
             if (!_mouseHook.IsActive) _mouseHook.Start();
             _speedPollTimer.Start();
             _mouseMotionTimer.Start();
+            UpdateBananaTreeVisuals();
         }
     }
 
@@ -734,6 +951,7 @@ public partial class BongoWindow : Window, IClickThroughWindow
             if (!_mouseHook.IsActive) _mouseHook.Start();
             _speedPollTimer.Start();
             _mouseMotionTimer.Start();
+            UpdateBananaTreeVisuals();
         }
         VisibilityChanged?.Invoke();
     }
@@ -987,10 +1205,9 @@ public partial class BongoWindow : Window, IClickThroughWindow
             bool wasVisible = BubbleContainer.Visibility == Visibility.Visible;
             var oldPlacement = CurrentBubblePlacement;
 
-            double oldBubbleH = wasVisible ? GetElementHeight(BubbleContainer) : 0;
+            double oldBubbleH = wasVisible ? GetBubbleOuterHeight() : 0;
             double oldWindowW = ActualWidth > 0 ? ActualWidth : GetElementWidth(RootContainer);
-            double petH = GetElementHeight(PetVisualContainer);
-            if (petH <= 0) petH = 220 * _config.Scale * BaseVisualScale;
+            double petH = GetPetRowHeight();
 
             double petTopBefore = hasFinitePos
                 ? ((wasVisible && oldPlacement == CharacterWindow.SpeechBubblePlacement.Top) ? Top + oldBubbleH : Top)
@@ -1002,7 +1219,7 @@ public partial class BongoWindow : Window, IClickThroughWindow
             if (visible)
             {
                 BubbleContainer.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-                double measuredBubbleH = Math.Max(BubbleContainer.DesiredSize.Height, BubbleContainer.ActualHeight);
+                double measuredBubbleH = Math.Max(BubbleContainer.DesiredSize.Height, GetBubbleOuterHeight());
                 UpdateBubblePlacement(measuredBubbleH, petTopBefore, petH);
             }
             else
@@ -1012,9 +1229,9 @@ public partial class BongoWindow : Window, IClickThroughWindow
 
             UpdateLayout();
 
-            double newBubbleH = visible ? GetElementHeight(BubbleContainer) : 0;
+            double newBubbleH = visible ? GetBubbleOuterHeight() : 0;
             double newWindowW = ActualWidth > 0 ? ActualWidth : GetElementWidth(RootContainer);
-            _lastBubbleHeight = newBubbleH;
+            _lastBubbleHeight = visible ? BubbleContainer.ActualHeight : 0;
 
             if (hasFinitePos)
             {
@@ -1029,6 +1246,29 @@ public partial class BongoWindow : Window, IClickThroughWindow
         {
             _isUpdatingBubbleLayout = false;
         }
+    }
+
+    private double GetBubbleOuterHeight()
+    {
+        if (BubbleContainer.Visibility != Visibility.Visible) return 0;
+
+        if (BubbleContainer.ActualHeight > 0)
+        {
+            return BubbleContainer.ActualHeight + BubbleContainer.Margin.Top + BubbleContainer.Margin.Bottom;
+        }
+
+        BubbleContainer.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        return BubbleContainer.DesiredSize.Height;
+    }
+
+    private double GetPetRowHeight()
+    {
+        int petRow = Grid.GetRow(PetVisualContainer);
+        if (petRow >= 0 && petRow < RootContainer.RowDefinitions.Count && RootContainer.RowDefinitions[petRow].ActualHeight > 0)
+        {
+            return RootContainer.RowDefinitions[petRow].ActualHeight;
+        }
+        return 240 * _config.Scale * BaseVisualScale;
     }
 
     public CharacterWindow.SpeechBubblePlacement UpdateBubblePlacement(double bubbleH, double petTopDip, double petHeightDip)
@@ -1311,6 +1551,10 @@ public partial class BongoWindow : Window, IClickThroughWindow
         _mouseMotionTimer.Stop();
         _rightPawResetTimer.Stop();
         _bubbleTimer.Stop();
+        _eatAnimationTimer.Stop();
+        _bananaSwayTimer.Stop();
+        _statsSaveDebounceTimer.Stop();
+        _bananaTracker.SyncToConfig(_config);
 
         _keyboardHook.KeyDown -= OnGlobalKeyDown;
         _keyboardHook.KeyUp -= OnGlobalKeyUp;
