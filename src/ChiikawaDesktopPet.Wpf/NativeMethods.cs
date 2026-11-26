@@ -275,10 +275,29 @@ internal static partial class NativeMethods
     public const int WM_DWMCOMPOSITIONCHANGED = 0x031E;
     public const int WM_POWERBROADCAST = 0x0218;
 
+    public const int PBT_APMSUSPEND = 0x0004;
+    public const int PBT_APMRESUMESUSPEND = 0x0007;
     public const int PBT_APMPOWERSTATUSCHANGE = 0x000A;
     public const int PBT_APMRESUMEAUTOMATIC = 0x0012;
-    public const int PBT_APMRESUMESUSPEND = 0x0007;
     public const int PBT_POWERSETTINGCHANGE = 0x8013;
+
+    public const uint DEVICE_NOTIFY_WINDOW_HANDLE = 0x00000000;
+    public static readonly Guid GUID_CONSOLE_DISPLAY_STATE = new("6FE69556-704A-47A0-8F24-C28D936FDA47");
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct POWERBROADCAST_SETTING
+    {
+        public Guid PowerSetting;
+        public uint DataLength;
+        public byte Data;
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr RegisterPowerSettingNotification(IntPtr hRecipient, ref Guid powerSettingGuid, uint flags);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool UnregisterPowerSettingNotification(IntPtr handle);
 
     public const nint HTTRANSPARENT = -1;
     public const nint HTCLIENT = 1;

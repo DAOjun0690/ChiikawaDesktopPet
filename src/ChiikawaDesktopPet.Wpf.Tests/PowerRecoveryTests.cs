@@ -37,10 +37,70 @@ public class PowerRecoveryTests
     public void NativeMethods_PowerBroadcastConstants_HaveExpectedValues()
     {
         Assert.Equal(0x0218, NativeMethods.WM_POWERBROADCAST);
+        Assert.Equal(0x0004, NativeMethods.PBT_APMSUSPEND);
         Assert.Equal(0x000A, NativeMethods.PBT_APMPOWERSTATUSCHANGE);
         Assert.Equal(0x0012, NativeMethods.PBT_APMRESUMEAUTOMATIC);
         Assert.Equal(0x0007, NativeMethods.PBT_APMRESUMESUSPEND);
         Assert.Equal(0x8013, NativeMethods.PBT_POWERSETTINGCHANGE);
+    }
+
+    [Fact]
+    public void App_ShouldTriggerRecoveryForPowerBroadcast_IgnoresBatteryStatusChange()
+    {
+        Assert.False(App.ShouldTriggerRecoveryForPowerBroadcast(NativeMethods.PBT_APMPOWERSTATUSCHANGE));
+        Assert.False(App.ShouldTriggerRecoveryForPowerBroadcast(NativeMethods.PBT_APMSUSPEND));
+        Assert.True(App.ShouldTriggerRecoveryForPowerBroadcast(NativeMethods.PBT_APMRESUMEAUTOMATIC));
+        Assert.True(App.ShouldTriggerRecoveryForPowerBroadcast(NativeMethods.PBT_APMRESUMESUSPEND));
+    }
+
+    [Fact]
+    public void CharacterWindow_PauseAndResumeForSystemSuspend_RespectsBossKeyState()
+    {
+        RunInSta(() =>
+        {
+            var window = new CharacterWindow("chiikawa");
+            window.Show();
+            Assert.False(window.IsSystemSuspended);
+
+            window.PauseForSystemSuspend();
+            Assert.True(window.IsSystemSuspended);
+            Assert.False(window.IsPetHidden);
+
+            window.ResumeFromSystemSuspend();
+            Assert.False(window.IsSystemSuspended);
+
+            // If user hid via Boss Key, suspend + resume must keep IsPetHidden = true
+            window.HidePet();
+            window.PauseForSystemSuspend();
+            window.ResumeFromSystemSuspend();
+            Assert.True(window.IsPetHidden);
+            Assert.False(window.IsSystemSuspended);
+
+            window.Shutdown();
+        });
+    }
+
+    [Fact]
+    public void CrashLogger_RotateIfNeeded_MovesOversizedLogToOldArchive()
+    {
+        string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"yahapet_logrot_{Guid.NewGuid():N}");
+        System.IO.Directory.CreateDirectory(tempDir);
+        try
+        {
+            string logPath = System.IO.Path.Combine(tempDir, "crash.log");
+            string oldPath = logPath + ".old";
+            System.IO.File.WriteAllText(logPath, new string('A', 256));
+
+            CrashLogger.RotateIfNeeded(logPath, maxBytes: 128);
+
+            Assert.False(System.IO.File.Exists(logPath));
+            Assert.True(System.IO.File.Exists(oldPath));
+            Assert.Equal(256, new System.IO.FileInfo(oldPath).Length);
+        }
+        finally
+        {
+            try { System.IO.Directory.Delete(tempDir, recursive: true); } catch { }
+        }
     }
 
     [Fact]

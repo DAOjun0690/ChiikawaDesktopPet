@@ -7,7 +7,24 @@ namespace ChiikawaDesktopPet.Wpf;
 
 public static class CrashLogger
 {
+    public const long MaxLogFileBytes = 2 * 1024 * 1024; // 2 MB
     private static readonly object LogLock = new();
+
+    internal static void RotateIfNeeded(string logFile, long maxBytes = MaxLogFileBytes)
+    {
+        try
+        {
+            if (File.Exists(logFile) && new FileInfo(logFile).Length >= maxBytes)
+            {
+                string archivePath = logFile + ".old";
+                File.Move(logFile, archivePath, overwrite: true);
+            }
+        }
+        catch
+        {
+            // Never allow log rotation failure to throw
+        }
+    }
 
     public static string GetLogFilePath()
     {
@@ -43,6 +60,7 @@ public static class CrashLogger
             lock (LogLock)
             {
                 string logFile = GetLogFilePath();
+                RotateIfNeeded(logFile);
                 var sb = new StringBuilder();
                 sb.AppendLine("==================================================");
                 sb.AppendLine($"[Timestamp] {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}");
@@ -83,6 +101,7 @@ public static class CrashLogger
             lock (LogLock)
             {
                 string logFile = GetLogFilePath();
+                RotateIfNeeded(logFile);
                 var sb = new StringBuilder();
                 sb.AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [INFO] {(string.IsNullOrEmpty(context) ? "" : $"[{context}] ")}{message}");
                 File.AppendAllText(logFile, sb.ToString(), Encoding.UTF8);

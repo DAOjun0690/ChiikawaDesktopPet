@@ -59,7 +59,9 @@ public partial class CharacterWindow : Window, IClickThroughWindow
 
     private bool _jumpEnabled = true;
     private bool _isShuttingDown;
+    private bool _isSystemSuspended;
     public bool IsPetHidden { get; private set; }
+    public bool IsSystemSuspended => _isSystemSuspended;
 
     private System.Windows.Point _dragOffset;
     private readonly DispatcherTimer _holdTimer = new() { Interval = TimeSpan.FromMilliseconds(4500) };
@@ -213,16 +215,6 @@ public partial class CharacterWindow : Window, IClickThroughWindow
                         SmoothMoveTo(new PetPoint(moveX, moveY), null);
                         return (IntPtr)1;
                 }
-            }
-
-            if (msg == NativeMethods.WM_DISPLAYCHANGE || msg == NativeMethods.WM_DWMCOMPOSITIONCHANGED)
-            {
-                App.SchedulePowerStateRecoveryStatic("CharacterWindow.WM_DISPLAYCHANGE/WM_DWMCOMPOSITIONCHANGED");
-            }
-            else if (msg == NativeMethods.WM_POWERBROADCAST)
-            {
-                int powerEvent = wParam.ToInt32();
-                App.SchedulePowerStateRecoveryStatic($"CharacterWindow.WM_POWERBROADCAST (0x{powerEvent:X4})");
             }
         }
         catch (Exception ex)
@@ -1051,7 +1043,7 @@ public partial class CharacterWindow : Window, IClickThroughWindow
 
     private void EnterIdleState()
     {
-        if (IsPetHidden || _isShuttingDown) return;
+        if (IsPetHidden || _isSystemSuspended || _isShuttingDown) return;
 
         TalkActionTimer?.Stop();
         TalkActionTimer = null;
@@ -1126,6 +1118,7 @@ public partial class CharacterWindow : Window, IClickThroughWindow
     private void StartIdleTimer()
     {
         _idleTimer.Stop();
+        if (IsPetHidden || _isSystemSuspended || _isShuttingDown) return;
         _idleTimer.Interval = TimeSpan.FromMilliseconds(BehaviorPlanner.NextIdleIntervalMs(SystemRandomSource.Shared));
         _idleTimer.Start();
     }
@@ -1133,7 +1126,7 @@ public partial class CharacterWindow : Window, IClickThroughWindow
     private void OnIdleTick()
     {
         _idleTimer.Stop();
-        if (_randomAnimationsEnabled && !_isShuttingDown && !_isAnimating && !_isDragging && !_isFalling && !_isInteracting && !IsPetHidden)
+        if (_randomAnimationsEnabled && !_isShuttingDown && !_isSystemSuspended && !_isAnimating && !_isDragging && !_isFalling && !_isInteracting && !IsPetHidden)
         {
             var action = BehaviorPlanner.ChooseAutonomousAction(_otherAnimationNames, SystemRandomSource.Shared, _jumpEnabled);
             switch (action.Kind)
@@ -1323,6 +1316,55 @@ public partial class CharacterWindow : Window, IClickThroughWindow
 
         EnterIdleState();
         ClampToScreen();
+    }
+
+    public void PauseForSystemSuspend()
+    {
+        if (_isSystemSuspended || _isShuttingDown) return;
+        _isSystemSuspended = true;
+
+        _idleTimer.Stop();
+        _frameTimer.Stop();
+        _windowTrackingTimer.Stop();
+        _holdTimer.Stop();
+        _bubbleTimer.Stop();
+        _pendingHideBubbleAfterJump = false;
+        TalkActionTimer?.Stop();
+        TalkActionTimer = null;
+        TimedAnimationTimer?.Stop();
+        TimedAnimationTimer = null;
+
+        _isAnimating = false;
+        _isWalking = false;
+        _isJumping = false;
+        _isFalling = false;
+        _loopCurrentAnimation = false;
+
+        BeginAnimation(LeftProperty, null);
+        BeginAnimation(TopProperty, null);
+    }
+
+    public void ResumeFromSystemSuspend()
+    {
+        if (!_isSystemSuspended || _isShuttingDown) return;
+        _isSystemSuspended = false;
+
+        if (IsPetHidden || _isInteracting) return;
+
+        if (_attachedHwnd is { } hwnd)
+        {
+            if (NativeMethods.IsWindow(hwnd) && NativeMethods.IsWindowVisible(hwnd) && !NativeMethods.IsIconic(hwnd) && !NativeMethods.IsZoomed(hwnd))
+            {
+                _windowTrackingTimer.Start();
+            }
+            else
+            {
+                _attachedHwnd = null;
+            }
+        }
+
+        EnterIdleState();
+        RefreshVisualSurface(clamp: true);
     }
 
     public void Shutdown()

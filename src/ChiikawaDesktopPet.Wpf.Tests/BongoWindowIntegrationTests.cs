@@ -210,4 +210,157 @@ public class BongoWindowIntegrationTests
         thread.Start();
         thread.Join();
     }
+
+    [Fact]
+    public void BongoWindow_UnshownNaNCoordinates_SerializeSafelyAndRecoverOnClamp()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var config = new BongoConfig { IsEnabled = true, CurrentSkinKey = "chesthair_monkey" };
+                var skinManager = new BongoSkinManager();
+                using var keyboardHook = new GlobalKeyboardHook();
+                using var mouseHook = new GlobalMouseHook();
+                var window = new BongoWindow(config, skinManager, keyboardHook, mouseHook);
+
+                // Before Show(), WPF Window.Left/Top default to double.NaN
+                Assert.True(double.IsFinite(window.SafeLeft));
+                Assert.True(double.IsFinite(window.SafeTop));
+
+                var profile = new PetProfile
+                {
+                    Version = 1,
+                    BongoState = new BongoProfileState
+                    {
+                        IsEnabled = true,
+                        SkinKey = "chesthair_monkey",
+                        PositionX = window.SafeLeft,
+                        PositionY = window.SafeTop,
+                        Scale = config.Scale
+                    }
+                };
+                string json = ProfileManager.Serialize(profile);
+                Assert.Contains("chesthair_monkey", json);
+
+                // RefreshVisualSurface(clamp: true) must recover NaN to finite in-screen coordinates
+                window.RefreshVisualSurface(clamp: true);
+                Assert.True(double.IsFinite(window.Left));
+                Assert.True(double.IsFinite(window.Top));
+
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+        Assert.Null(failure);
+    }
+
+    [Fact]
+    public void BongoWindow_BossKeyHideAndUnhideAfterMonitorDisconnect_ClampsMonkeyBackOnScreenAndTogglesHooks()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var config = new BongoConfig { IsEnabled = true, CurrentSkinKey = "chesthair_monkey" };
+                var skinManager = new BongoSkinManager();
+                using var keyboardHook = new GlobalKeyboardHook();
+                using var mouseHook = new GlobalMouseHook();
+                var window = new BongoWindow(config, skinManager, keyboardHook, mouseHook);
+
+                window.ShowBongo();
+                Assert.Equal(Visibility.Visible, window.Visibility);
+                Assert.True(keyboardHook.IsActive);
+                Assert.True(mouseHook.IsActive);
+
+                // Simulate Boss Key hide while on a disconnected external monitor
+                window.PauseForBossKey();
+                Assert.Equal(Visibility.Collapsed, window.Visibility);
+                Assert.False(keyboardHook.IsActive);
+                Assert.False(mouseHook.IsActive);
+
+                // Simulate coordinates left on a vanished external monitor
+                window.Left = 50000;
+                window.Top = 50000;
+
+                // Resume from Boss Key -> must clamp back into current VirtualScreen and restore hooks
+                window.ResumeFromBossKey();
+                Assert.Equal(Visibility.Visible, window.Visibility);
+                Assert.True(keyboardHook.IsActive);
+                Assert.True(mouseHook.IsActive);
+
+                double vLeft = SystemParameters.VirtualScreenLeft;
+                double vTop = SystemParameters.VirtualScreenTop;
+                double vRight = vLeft + SystemParameters.VirtualScreenWidth;
+                double vBottom = vTop + SystemParameters.VirtualScreenHeight;
+                Assert.InRange(window.Left, vLeft, vRight);
+                Assert.InRange(window.Top, vTop, vBottom);
+
+                // HideBongo must also stop hooks
+                window.HideBongo();
+                Assert.False(keyboardHook.IsActive);
+                Assert.False(mouseHook.IsActive);
+
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+        Assert.Null(failure);
+    }
+
+    [Fact]
+    public void BongoWindow_SystemSuspendAndResume_StopsAndRestoresHooks()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var config = new BongoConfig { IsEnabled = true, CurrentSkinKey = "chesthair_monkey" };
+                var skinManager = new BongoSkinManager();
+                using var keyboardHook = new GlobalKeyboardHook();
+                using var mouseHook = new GlobalMouseHook();
+                var window = new BongoWindow(config, skinManager, keyboardHook, mouseHook);
+
+                window.ShowBongo();
+                Assert.True(keyboardHook.IsActive);
+                Assert.True(mouseHook.IsActive);
+
+                window.PauseForSystemSuspend();
+                Assert.True(window.IsSystemSuspended);
+                Assert.False(keyboardHook.IsActive);
+                Assert.False(mouseHook.IsActive);
+
+                window.ResumeFromSystemSuspend();
+                Assert.False(window.IsSystemSuspended);
+                Assert.Equal(Visibility.Visible, window.Visibility);
+                Assert.True(keyboardHook.IsActive);
+                Assert.True(mouseHook.IsActive);
+
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+        Assert.Null(failure);
+    }
 }

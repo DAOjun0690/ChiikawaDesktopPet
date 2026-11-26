@@ -35,6 +35,8 @@ public partial class BongoWindow : Window, IClickThroughWindow
 
     private BongoSpeedTier _currentTier = BongoSpeedTier.Idle;
     private bool _isBossKeyHidden;
+    private bool _isSystemSuspended;
+    private bool _hasBeenShown;
 
     private IntPtr _hwnd = IntPtr.Zero;
     private IntPtr _contextMenuHwnd = IntPtr.Zero;
@@ -50,7 +52,10 @@ public partial class BongoWindow : Window, IClickThroughWindow
     public event Action<bool>? ClickThroughChanged;
 
     public bool HasOpenContextMenu => BongoContextMenu.IsOpen;
-    public bool IsPetHidden => _isBossKeyHidden || !IsVisible;
+    public bool IsPetHidden => _isBossKeyHidden || _isSystemSuspended || !IsVisible;
+    public bool IsSystemSuspended => _isSystemSuspended;
+    public double SafeLeft => double.IsFinite(Left) ? Left : (double.IsFinite(_config.PositionX) ? _config.PositionX : -1);
+    public double SafeTop => double.IsFinite(Top) ? Top : (double.IsFinite(_config.PositionY) ? _config.PositionY : -1);
     public IntPtr Handle => _hwnd != IntPtr.Zero ? _hwnd : (_hwnd = new WindowInteropHelper(this).Handle);
 
     public void CloseContextMenu()
@@ -181,9 +186,16 @@ public partial class BongoWindow : Window, IClickThroughWindow
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        _hasBeenShown = true;
         ApplyScale(_config.Scale);
         ApplySkin(_config.CurrentSkinKey);
         ApplyInitialPosition();
+
+        _keyboardHook.KeyDown -= OnGlobalKeyDown;
+        _keyboardHook.KeyUp -= OnGlobalKeyUp;
+        _mouseHook.MouseMove -= OnGlobalMouseMove;
+        _mouseHook.MouseDown -= OnGlobalMouseDown;
+        _mouseHook.MouseUp -= OnGlobalMouseUp;
 
         _keyboardHook.KeyDown += OnGlobalKeyDown;
         _keyboardHook.KeyUp += OnGlobalKeyUp;
@@ -191,8 +203,11 @@ public partial class BongoWindow : Window, IClickThroughWindow
         _mouseHook.MouseDown += OnGlobalMouseDown;
         _mouseHook.MouseUp += OnGlobalMouseUp;
 
-        _speedPollTimer.Start();
-        _mouseMotionTimer.Start();
+        if (_config.IsEnabled && !_isBossKeyHidden && !_isSystemSuspended)
+        {
+            _speedPollTimer.Start();
+            _mouseMotionTimer.Start();
+        }
 
         RebuildContextMenu();
     }
@@ -203,10 +218,14 @@ public partial class BongoWindow : Window, IClickThroughWindow
         double defaultWidth = 280 * _config.Scale;
         double defaultHeight = 240 * _config.Scale;
 
-        if (_config.PositionX == -1 && _config.PositionY == -1)
+        bool hasInvalidSavedPos = !double.IsFinite(_config.PositionX) ||
+                                  !double.IsFinite(_config.PositionY) ||
+                                  (_config.PositionX == -1 && _config.PositionY == -1);
+
+        if (hasInvalidSavedPos)
         {
-            Left = Math.Max(0, workArea.Right - defaultWidth - 30);
-            Top = Math.Max(0, workArea.Bottom - defaultHeight - 30);
+            Left = Math.Max(workArea.Left, workArea.Right - defaultWidth - 30);
+            Top = Math.Max(workArea.Top, workArea.Bottom - defaultHeight - 30);
             _config.PositionX = Left;
             _config.PositionY = Top;
         }
@@ -450,8 +469,11 @@ public partial class BongoWindow : Window, IClickThroughWindow
     private void OnLocationChanged(object? sender, EventArgs e)
     {
         ClampToScreen();
-        _config.PositionX = Left;
-        _config.PositionY = Top;
+        if (double.IsFinite(Left) && double.IsFinite(Top))
+        {
+            _config.PositionX = Left;
+            _config.PositionY = Top;
+        }
     }
 
     private void ClampToScreen()
@@ -460,14 +482,31 @@ public partial class BongoWindow : Window, IClickThroughWindow
         double vTop = SystemParameters.VirtualScreenTop;
         double vWidth = SystemParameters.VirtualScreenWidth;
         double vHeight = SystemParameters.VirtualScreenHeight;
+        if (vWidth <= 0 || vHeight <= 0) return;
+
         double windowWidth = ActualWidth > 0 ? ActualWidth : 280 * _config.Scale;
         double windowHeight = ActualHeight > 0 ? ActualHeight : 220 * _config.Scale;
+
+        double currentLeft = Left;
+        double currentTop = Top;
+        if (!double.IsFinite(currentLeft) || !double.IsFinite(currentTop))
+        {
+            var workArea = SystemParameters.WorkArea;
+            currentLeft = Math.Max(workArea.Left, workArea.Right - windowWidth - 30);
+            currentTop = Math.Max(workArea.Top, workArea.Bottom - windowHeight - 30);
+        }
 
         double maxRight = vLeft + vWidth - windowWidth;
         double maxBottom = vTop + vHeight - windowHeight;
 
-        Left = Math.Clamp(Left, vLeft, Math.Max(vLeft, maxRight));
-        Top = Math.Clamp(Top, vTop, Math.Max(vTop, maxBottom));
+        Left = Math.Clamp(currentLeft, vLeft, Math.Max(vLeft, maxRight));
+        Top = Math.Clamp(currentTop, vTop, Math.Max(vTop, maxBottom));
+
+        if (double.IsFinite(Left) && double.IsFinite(Top))
+        {
+            _config.PositionX = Left;
+            _config.PositionY = Top;
+        }
     }
 
     public void SetLocked(bool isLocked)
@@ -527,10 +566,59 @@ public partial class BongoWindow : Window, IClickThroughWindow
         }
     }
 
+    public void RefreshVisualSurface(bool clamp = false)
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(() => RefreshVisualSurface(clamp));
+            return;
+        }
+
+        InvalidateVisual();
+        UpdateLayout();
+
+        if (_currentSkin != null)
+        {
+            BodyImage.Source = null;
+            BodyImage.Source = _currentSkin.Body;
+            LeftPawImage.Source = null;
+            LeftPawImage.Source = _currentSkin.LeftPawUp;
+            RightPawImage.Source = null;
+            RightPawImage.Source = _currentSkin.RightPawUp;
+            FaceImage.Source = null;
+            FaceImage.Source = _currentSkin.FaceNormal;
+        }
+
+        if (clamp)
+        {
+            ClampToScreen();
+        }
+    }
+
+    private void ShowWindowEnsureLoaded()
+    {
+        if (!double.IsFinite(Left) || !double.IsFinite(Top))
+        {
+            ApplyInitialPosition();
+        }
+
+        if (!_hasBeenShown && !IsLoaded)
+        {
+            _hasBeenShown = true;
+            Show();
+        }
+        else
+        {
+            Visibility = Visibility.Visible;
+        }
+    }
+
     public void PauseForBossKey()
     {
         _isBossKeyHidden = true;
         ResetInteractionState();
+        _keyboardHook.Stop();
+        _mouseHook.Stop();
         Visibility = Visibility.Collapsed;
         VisibilityChanged?.Invoke();
     }
@@ -538,23 +626,54 @@ public partial class BongoWindow : Window, IClickThroughWindow
     public void ResumeFromBossKey()
     {
         _isBossKeyHidden = false;
-        if (_config.IsEnabled)
+        if (_config.IsEnabled && !_isSystemSuspended)
         {
-            Visibility = Visibility.Visible;
+            ShowWindowEnsureLoaded();
+            RefreshVisualSurface(clamp: true);
+            if (!_keyboardHook.IsActive) _keyboardHook.Start();
+            if (!_mouseHook.IsActive) _mouseHook.Start();
             _speedPollTimer.Start();
             _mouseMotionTimer.Start();
         }
         VisibilityChanged?.Invoke();
     }
 
+    public void PauseForSystemSuspend()
+    {
+        if (_isSystemSuspended) return;
+        _isSystemSuspended = true;
+        ResetInteractionState();
+        _keyboardHook.Stop();
+        _mouseHook.Stop();
+    }
+
+    public void ResumeFromSystemSuspend()
+    {
+        if (!_isSystemSuspended) return;
+        _isSystemSuspended = false;
+        if (_config.IsEnabled && !_isBossKeyHidden)
+        {
+            ShowWindowEnsureLoaded();
+            RefreshVisualSurface(clamp: true);
+            if (!_keyboardHook.IsActive) _keyboardHook.Start();
+            if (!_mouseHook.IsActive) _mouseHook.Start();
+            _speedPollTimer.Start();
+            _mouseMotionTimer.Start();
+        }
+    }
+
     public void ShowBongo()
     {
         _config.IsEnabled = true;
-        Visibility = Visibility.Visible;
-        if (!_keyboardHook.IsActive) _keyboardHook.Start();
-        if (!_mouseHook.IsActive) _mouseHook.Start();
-        _speedPollTimer.Start();
-        _mouseMotionTimer.Start();
+        if (!_isBossKeyHidden && !_isSystemSuspended)
+        {
+            ShowWindowEnsureLoaded();
+            RefreshVisualSurface(clamp: true);
+            if (!_keyboardHook.IsActive) _keyboardHook.Start();
+            if (!_mouseHook.IsActive) _mouseHook.Start();
+            _speedPollTimer.Start();
+            _mouseMotionTimer.Start();
+        }
         VisibilityChanged?.Invoke();
     }
 
@@ -563,6 +682,8 @@ public partial class BongoWindow : Window, IClickThroughWindow
         _config.IsEnabled = false;
         Visibility = Visibility.Collapsed;
         ResetInteractionState();
+        _keyboardHook.Stop();
+        _mouseHook.Stop();
         VisibilityChanged?.Invoke();
     }
 

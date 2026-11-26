@@ -4,6 +4,7 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -253,8 +254,13 @@ public partial class App : Application
     private bool _isShuttingDown;
     private bool _isRestoringProfile;
     private bool _isAutoSaveDirty;
+    private bool _isSystemSuspended;
+    private IntPtr _displayPowerNotifyHandle = IntPtr.Zero;
+    private string? _pendingRecoveryReason;
     private System.Windows.Threading.DispatcherTimer? _autoSaveTimer;
+    private System.Windows.Threading.DispatcherTimer? _powerRecoveryDebounceTimer;
     private System.Windows.Threading.DispatcherTimer? _powerRecoveryTimer;
+    private System.Windows.Threading.DispatcherTimer? _resumeDelayTimer;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -276,6 +282,7 @@ public partial class App : Application
         {
             Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
             Microsoft.Win32.SystemEvents.PowerModeChanged += OnPowerModeChanged;
+            Microsoft.Win32.SystemEvents.SessionSwitch += OnSessionSwitch;
         }
         catch (Exception ex)
         {
@@ -587,6 +594,11 @@ public partial class App : Application
             _hotkeyHwndSource = new HwndSource(parameters);
             _hotkeyHwndSource.AddHook(HotkeyWndProc);
             NativeMethods.RegisterHotKey(_hotkeyHwndSource.Handle, HOTKEY_ID, NativeMethods.MOD_WIN | NativeMethods.MOD_ALT | NativeMethods.MOD_NOREPEAT, (uint)Keys.H);
+            Guid displayStateGuid = NativeMethods.GUID_CONSOLE_DISPLAY_STATE;
+            _displayPowerNotifyHandle = NativeMethods.RegisterPowerSettingNotification(
+                _hotkeyHwndSource.Handle,
+                ref displayStateGuid,
+                NativeMethods.DEVICE_NOTIFY_WINDOW_HANDLE);
         }
         catch
         {
@@ -668,12 +680,34 @@ public partial class App : Application
             }
             else if (msg == NativeMethods.WM_DISPLAYCHANGE || msg == NativeMethods.WM_DWMCOMPOSITIONCHANGED)
             {
-                SchedulePowerStateRecovery("HotkeyWndProc.WM_DISPLAYCHANGE/WM_DWMCOMPOSITIONCHANGED");
+                SchedulePowerStateRecovery("WM_DISPLAYCHANGE/WM_DWMCOMPOSITIONCHANGED");
             }
             else if (msg == NativeMethods.WM_POWERBROADCAST)
             {
                 int powerEvent = wParam.ToInt32();
-                SchedulePowerStateRecovery($"HotkeyWndProc.WM_POWERBROADCAST (0x{powerEvent:X4})");
+                if (powerEvent == NativeMethods.PBT_APMSUSPEND)
+                {
+                    EnterSystemSuspend("WM_POWERBROADCAST.PBT_APMSUSPEND");
+                }
+                else if (ShouldTriggerRecoveryForPowerBroadcast(powerEvent))
+                {
+                    ExitSystemSuspend($"WM_POWERBROADCAST (0x{powerEvent:X4})");
+                }
+                else if (powerEvent == NativeMethods.PBT_POWERSETTINGCHANGE && lParam != IntPtr.Zero)
+                {
+                    var setting = Marshal.PtrToStructure<NativeMethods.POWERBROADCAST_SETTING>(lParam);
+                    if (setting.PowerSetting == NativeMethods.GUID_CONSOLE_DISPLAY_STATE)
+                    {
+                        if (setting.Data == 0)
+                        {
+                            EnterSystemSuspend("DisplayOff (GUID_CONSOLE_DISPLAY_STATE)");
+                        }
+                        else if (setting.Data == 1)
+                        {
+                            ExitSystemSuspend("DisplayOn (GUID_CONSOLE_DISPLAY_STATE)");
+                        }
+                    }
+                }
             }
         }
         catch (Exception ex)
@@ -964,9 +998,9 @@ public partial class App : Application
         {
             IsEnabled = _settings.Bongo.IsEnabled,
             SkinKey = _settings.Bongo.CurrentSkinKey,
-            PositionX = _bongoWindow.Left,
-            PositionY = _bongoWindow.Top,
-            Scale = _settings.Bongo.Scale,
+            PositionX = _bongoWindow.SafeLeft,
+            PositionY = _bongoWindow.SafeTop,
+            Scale = double.IsFinite(_settings.Bongo.Scale) ? _settings.Bongo.Scale : 1.0,
             IsLocked = _settings.Bongo.IsLocked,
             ClickThrough = _settings.Bongo.ClickThrough
         };
@@ -1392,6 +1426,9 @@ public partial class App : Application
         });
     }
 
+    internal static bool ShouldTriggerRecoveryForPowerBroadcast(int powerEvent) =>
+        powerEvent is NativeMethods.PBT_APMRESUMEAUTOMATIC or NativeMethods.PBT_APMRESUMESUSPEND;
+
     private void OnDisplaySettingsChanged(object? sender, EventArgs e)
     {
         SchedulePowerStateRecovery("SystemEvents.DisplaySettingsChanged");
@@ -1399,7 +1436,103 @@ public partial class App : Application
 
     private void OnPowerModeChanged(object? sender, Microsoft.Win32.PowerModeChangedEventArgs e)
     {
-        SchedulePowerStateRecovery($"SystemEvents.PowerModeChanged ({e.Mode})");
+        if (e.Mode == Microsoft.Win32.PowerModes.Suspend)
+        {
+            EnterSystemSuspend("SystemEvents.PowerModeChanged (Suspend)");
+        }
+        else if (e.Mode == Microsoft.Win32.PowerModes.Resume)
+        {
+            ExitSystemSuspend("SystemEvents.PowerModeChanged (Resume)");
+        }
+    }
+
+    private void OnSessionSwitch(object? sender, Microsoft.Win32.SessionSwitchEventArgs e)
+    {
+        if (e.Reason == Microsoft.Win32.SessionSwitchReason.SessionLock)
+        {
+            EnterSystemSuspend("SystemEvents.SessionSwitch (SessionLock)");
+        }
+        else if (e.Reason == Microsoft.Win32.SessionSwitchReason.SessionUnlock)
+        {
+            ExitSystemSuspend("SystemEvents.SessionSwitch (SessionUnlock)");
+        }
+    }
+
+    public void EnterSystemSuspend(string reason)
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(() => EnterSystemSuspend(reason));
+            return;
+        }
+
+        if (_isShuttingDown || _isSystemSuspended) return;
+        _isSystemSuspended = true;
+
+        _resumeDelayTimer?.Stop();
+        _resumeDelayTimer = null;
+        _powerRecoveryDebounceTimer?.Stop();
+        _powerRecoveryDebounceTimer = null;
+        _powerRecoveryTimer?.Stop();
+        _powerRecoveryTimer = null;
+
+        CrashLogger.Info($"Entering system suspend quiescence: {reason}", "App.PowerState");
+
+        foreach (var instance in _instances.Values)
+        {
+            instance.Window.PauseForSystemSuspend();
+        }
+        _bongoWindow?.PauseForSystemSuspend();
+
+        ClickThroughManager.Instance.PauseHook();
+        InteractionCoordinator.Instance.PauseScanning();
+    }
+
+    public void ExitSystemSuspend(string reason)
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(() => ExitSystemSuspend(reason));
+            return;
+        }
+
+        if (_isShuttingDown) return;
+
+        if (!_isSystemSuspended)
+        {
+            SchedulePowerStateRecovery(reason);
+            return;
+        }
+
+        _resumeDelayTimer?.Stop();
+        _resumeDelayTimer = new System.Windows.Threading.DispatcherTimer(
+            TimeSpan.FromMilliseconds(500),
+            System.Windows.Threading.DispatcherPriority.Normal,
+            (_, _) =>
+            {
+                _resumeDelayTimer?.Stop();
+                _resumeDelayTimer = null;
+                if (_isShuttingDown || !_isSystemSuspended) return;
+
+                _isSystemSuspended = false;
+                CrashLogger.Info($"Resuming from system suspend: {reason}", "App.PowerState");
+
+                foreach (var instance in _instances.Values)
+                {
+                    instance.Window.ResumeFromSystemSuspend();
+                }
+                _bongoWindow?.ResumeFromSystemSuspend();
+
+                if (!IsAllHidden)
+                {
+                    ClickThroughManager.Instance.ResumeHook();
+                    InteractionCoordinator.Instance.ResumeScanning();
+                }
+
+                RefreshAllVisualSurfaces(clampToScreen: true);
+            },
+            Dispatcher);
+        _resumeDelayTimer.Start();
     }
 
     public static void SchedulePowerStateRecoveryStatic(string reason)
@@ -1418,41 +1551,49 @@ public partial class App : Application
             return;
         }
 
-        if (_isShuttingDown) return;
+        if (_isShuttingDown || _isSystemSuspended) return;
 
-        string powerStatusInfo;
-        try
+        _pendingRecoveryReason = reason;
+        if (_powerRecoveryDebounceTimer == null)
         {
-            var status = SystemInformation.PowerStatus;
-            powerStatusInfo = $"LineStatus={status.PowerLineStatus}, BatteryCharge={status.BatteryChargeStatus}, Percent={status.BatteryLifePercent:P0}";
-        }
-        catch
-        {
-            powerStatusInfo = "PowerStatus=Unavailable";
-        }
-
-        CrashLogger.Info($"Power/Display recovery triggered: {reason} | {powerStatusInfo}", "App.PowerRecovery");
-
-        // Phase 1: Immediate visual refresh and screen boundary clamp
-        RefreshAllVisualSurfaces(clampToScreen: true);
-
-        // Phase 2: Delayed 500ms refresh to let graphics driver, DWM and power scheme stabilize
-        _powerRecoveryTimer?.Stop();
-        _powerRecoveryTimer = new System.Windows.Threading.DispatcherTimer(
-            TimeSpan.FromMilliseconds(500),
-            System.Windows.Threading.DispatcherPriority.Normal,
-            (_, _) =>
-            {
-                _powerRecoveryTimer?.Stop();
-                _powerRecoveryTimer = null;
-                if (!_isShuttingDown)
+            _powerRecoveryDebounceTimer = new System.Windows.Threading.DispatcherTimer(
+                TimeSpan.FromMilliseconds(250),
+                System.Windows.Threading.DispatcherPriority.Normal,
+                (_, _) =>
                 {
+                    _powerRecoveryDebounceTimer?.Stop();
+                    if (_isShuttingDown || _isSystemSuspended) return;
+
+                    string triggerReason = _pendingRecoveryReason ?? "Unknown";
+                    _pendingRecoveryReason = null;
+                    CrashLogger.Info($"Display/Power recovery executed: {triggerReason}", "App.PowerRecovery");
+
                     RefreshAllVisualSurfaces(clampToScreen: true);
-                    CrashLogger.Info("Phase 2 delayed recovery completed.", "App.PowerRecovery");
-                }
-            },
-            Dispatcher);
-        _powerRecoveryTimer.Start();
+
+                    _powerRecoveryTimer?.Stop();
+                    _powerRecoveryTimer = new System.Windows.Threading.DispatcherTimer(
+                        TimeSpan.FromMilliseconds(500),
+                        System.Windows.Threading.DispatcherPriority.Normal,
+                        (_, _) =>
+                        {
+                            _powerRecoveryTimer?.Stop();
+                            _powerRecoveryTimer = null;
+                            if (!_isShuttingDown && !_isSystemSuspended)
+                            {
+                                RefreshAllVisualSurfaces(clampToScreen: true);
+                            }
+                        },
+                        Dispatcher);
+                    _powerRecoveryTimer.Start();
+                },
+                Dispatcher);
+        }
+        else
+        {
+            _powerRecoveryDebounceTimer.Stop();
+        }
+
+        _powerRecoveryDebounceTimer.Start();
     }
 
     public void RefreshAllVisualSurfaces(bool clampToScreen = false)
@@ -1462,6 +1603,11 @@ public partial class App : Application
             foreach (var instance in _instances.Values)
             {
                 instance.Window.RefreshVisualSurface(clampToScreen);
+            }
+
+            if (_bongoWindow != null && _settings.Bongo.IsEnabled && !IsAllHidden && !_isSystemSuspended)
+            {
+                _bongoWindow.RefreshVisualSurface(clampToScreen);
             }
         }
         else
@@ -1482,14 +1628,19 @@ public partial class App : Application
         _isShuttingDown = true;
         _autoSaveTimer?.Stop();
         _autoSaveTimer = null;
+        _powerRecoveryDebounceTimer?.Stop();
+        _powerRecoveryDebounceTimer = null;
         _powerRecoveryTimer?.Stop();
         _powerRecoveryTimer = null;
+        _resumeDelayTimer?.Stop();
+        _resumeDelayTimer = null;
         SaveAutoSaveProfile(force: true);
 
         try
         {
             Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
             Microsoft.Win32.SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+            Microsoft.Win32.SystemEvents.SessionSwitch -= OnSessionSwitch;
         }
         catch
         {
@@ -1539,6 +1690,19 @@ public partial class App : Application
             _singleInstanceMutex = null;
         }
 
+        if (_displayPowerNotifyHandle != IntPtr.Zero)
+        {
+            try
+            {
+                NativeMethods.UnregisterPowerSettingNotification(_displayPowerNotifyHandle);
+            }
+            catch
+            {
+                // ignore
+            }
+            _displayPowerNotifyHandle = IntPtr.Zero;
+        }
+
         if (_hotkeyHwndSource != null)
         {
             try
@@ -1556,8 +1720,8 @@ public partial class App : Application
 
         if (_bongoWindow != null)
         {
-            _settings.Bongo.PositionX = _bongoWindow.Left;
-            _settings.Bongo.PositionY = _bongoWindow.Top;
+            _settings.Bongo.PositionX = _bongoWindow.SafeLeft;
+            _settings.Bongo.PositionY = _bongoWindow.SafeTop;
             _settings.Bongo.Scale = _bongoWindow.Config.Scale;
             _settings.Bongo.CurrentSkinKey = _bongoWindow.Config.CurrentSkinKey;
             _settings.Bongo.IsEnabled = _bongoWindow.Config.IsEnabled;
